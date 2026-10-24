@@ -174,11 +174,82 @@ class ContainerTests(unittest.TestCase):
         path = self.root / "compiler/dist/compiler.wasm"
         original = self.bundle.read_bytes()
         # Split the path at the packer's chunk boundary to exercise streaming.
-        private = str(Path.home()).encode() + b"/private/compiler.rs"
-        path.write_bytes(CORE + b"\0" * (1024 * 1024 - len(CORE) - 3) + private)
-        with self.assertRaisesRegex(ValueError, "build-machine path.*path remapping"):
-            self.package()
+        for private in [str(Path.home()).encode() + b"/private/compiler.rs",
+                        b"/Users/another-developer/private/compiler.rs"]:
+            path.write_bytes(CORE + b"\0" * (1024 * 1024 - len(CORE) - 3) + private)
+            with self.subTest(private=private), self.assertRaisesRegex(ValueError, "build-machine path.*path remapping"):
+                self.package()
         self.assertEqual(self.bundle.read_bytes(), original)
+
+    def test_upstream_home_collision_requires_exact_reviewed_payload(self):
+        relative = "compiler/dist/compiler.wasm"
+        path = self.root / relative
+        public = CORE + b"/home/runner/.cargo/registry/src/public-crate/src/lib.rs\0"
+        path.write_bytes(public)
+        approved = {relative: hashlib.sha256(public).hexdigest()}
+        with mock.patch.object(packages.Path, "home", return_value=Path("/home/runner")), \
+                mock.patch.dict(packages.PUBLIC_UPSTREAM_PAYLOADS, approved, clear=True):
+            record = self.package()
+            packages.validate(Path(record["archive"]))
+            # An updated upstream build or an appended local path needs review.
+            path.write_bytes(public + b"/home/runner/private/secret.rs")
+            with self.assertRaisesRegex(ValueError, "build-machine path"):
+                self.package()
+
+    def test_upstream_exception_never_allows_checkout_or_t3_paths(self):
+        relative = "compiler/dist/compiler.wasm"
+        path = self.root / relative
+        for private in [str(self.root).encode() + b"/private.rs", b"/home/runner/.t3/projects/private.rs"]:
+            payload = CORE + b"/home/runner/public.rs\0" + private
+            path.write_bytes(payload)
+            with self.subTest(private=private), \
+                    mock.patch.object(packages.Path, "home", return_value=Path("/home/runner")), \
+                    mock.patch.dict(packages.PUBLIC_UPSTREAM_PAYLOADS,
+                                    {relative: hashlib.sha256(payload).hexdigest()}, clear=True):
+                with self.assertRaisesRegex(ValueError, "build-machine path"):
+                    self.package()
+
+    def test_personal_home_paths_still_block_publication(self):
+        path = self.root / "compiler/dist/compiler.wasm"
+        for builder in ["/home/luap", "/Users/luap", "/home/runner"]:
+            for home in ["/home/luap", "/Users/luap", "/home/runner"]:
+                with self.subTest(builder=builder, home=home), \
+                        mock.patch.object(packages.Path, "home", return_value=Path(builder)):
+                    path.write_bytes(CORE + home.encode() + b"/private/compiler.rs")
+                    with self.assertRaisesRegex(ValueError, "build-machine path"):
+                        self.package()
+
+    def test_composed_and_split_upstream_strings_have_narrow_exceptions(self):
+        for relative, strings in packages.PUBLIC_UPSTREAM_STRINGS.items():
+            path = self.root / relative
+            path.parent.mkdir(parents=True)
+            self.document["tools"]["compiler"]["package"]["include"].append(relative)
+            for public in strings:
+                # Exercise the complete string at the streaming boundary and EOF.
+                for padding in [b"", b"\0" * (1024 * 1024 - 3)]:
+                    with self.subTest(relative=relative, padding=len(padding)), \
+                            mock.patch.object(packages.Path, "home", return_value=Path("/home/runner")):
+                        path.write_bytes(CORE + padding + public)
+                        self.package()
+                        for private in [public[:-1] + b"/private.py\0", public + b"/home/runner/private.py\0"]:
+                            path.write_bytes(CORE + padding + private)
+                            with self.assertRaisesRegex(ValueError, "build-machine path"):
+                                self.package()
+                        path.write_bytes(CORE + public)
+                # The same bytes in an unrelated file have no exception.
+                unrelated = self.root / "compiler/dist/unknown.wasm"
+                unrelated.write_bytes(CORE + public)
+                with mock.patch.object(packages.Path, "home", return_value=Path("/home/runner")):
+                    with self.assertRaisesRegex(ValueError, "build-machine path"):
+                        self.package()
+                unrelated.unlink()
+
+    def test_short_inputs_are_also_checked_for_private_paths(self):
+        path = self.root / "compiler/dist/compile.py"
+        path.write_bytes(b"/u/leak")
+        with mock.patch.object(packages.Path, "home", return_value=Path("/u")):
+            with self.assertRaisesRegex(ValueError, "build-machine path"):
+                self.package()
 
     def test_size_report_uses_bundle_names_and_host_relative_paths(self):
         host = self.root / "host"

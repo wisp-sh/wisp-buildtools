@@ -95,6 +95,8 @@ def build_guest(source, zlib, sdk_root, output):
                port / "vendor/stb_ds.c", *natives, registration, ROOT / "src/jvm-main.c",
                *[zlib / (name + ".c") for name in ["adler32", "crc32", "inflate", "inftrees", "inffast", "zutil"]]]
     flags = ["--target=wasm32-wasip1", "-std=gnu23", "-O2", "-D_GNU_SOURCE",
+             f"-ffile-prefix-map={Path.home().resolve()}=/build-user",
+             f"-ffile-prefix-map={ROOT.parent.resolve()}=/wisp-buildtools",
              "-D_WASI_EMULATED_SIGNAL", "-D_WASI_EMULATED_MMAN", "-fwasm-exceptions", "-mllvm", "-wasm-enable-sjlj",
              "-mllvm", "-wasm-use-legacy-eh=false", "-I", str(work), "-I", str(port / "vm"),
              "-I", str(port / "vendor"), "-I", str(zlib), "-Wno-deprecated-non-prototype",

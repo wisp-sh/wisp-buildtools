@@ -62,11 +62,14 @@ def rebuild(args):
     cargo_home = Path(os.environ.get("CARGO_HOME", Path.home() / ".cargo")).resolve()
     # Rust resolves standard-library source paths locally when rust-src is
     # installed. Normalize those paths so either installation emits the same guest.
+    rustflags = [f"--remap-path-prefix={ROOT}=/wisp/javascript",
+                 f"--remap-path-prefix={cargo_home / 'registry'}=/cargo/registry",
+                 f"--remap-path-prefix={standard_sources}=/rustc/{commit}/library"]
+    # Cargo splits RUSTFLAGS on whitespace. Keep each remap intact when a
+    # checkout, Cargo home, or Rust installation directory contains spaces.
     env = {**os.environ, "CARGO_TARGET_DIR": str(target), "CARGO_BUILD_JOBS": "2",
-           "RUSTFLAGS": f"--remap-path-prefix={ROOT}=/wisp/javascript "
-                        f"--remap-path-prefix={cargo_home / 'registry'}=/cargo/registry "
-                        f"--remap-path-prefix={standard_sources}=/rustc/{commit}/library"}
-    env.pop("CARGO_ENCODED_RUSTFLAGS", None)
+           "CARGO_ENCODED_RUSTFLAGS": "\x1f".join(rustflags)}
+    env.pop("RUSTFLAGS", None)
     command = ["cargo", "build", "--manifest-path", guest / "Cargo.toml", "--release",
                "--locked", "--target", "wasm32-wasip1"]
     if args.offline:

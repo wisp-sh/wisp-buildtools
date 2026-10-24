@@ -17,8 +17,8 @@
   },
   "files": {
     ".toolchains/wasm/componentize.wasm": {
-      "bytes": 3486967,
-      "sha256": "88f4ba5baa801a3b2f6c1f4ed52b23a8253c3801cbb6e3fd3f751976f4d592a9"
+      "bytes": 3484791,
+      "sha256": "e390029c598a761f0694712fd1c0632b089d07b37c5f36874a43e7b9c14053cb"
     },
     ".toolchains/wasm/esbuild.wasm": {
       "bytes": 15269983,

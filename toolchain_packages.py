@@ -31,6 +31,38 @@ ROLES = {"compiler", "stdlib", "headers", "runtime", "adapter", "licenses", "met
 ROOT_FIELDS = {"schema", "kind", "identity", "version", "tool", "upstreamVersion", "platform", "archive",
                "entrypoints", "requirements", "sizes", "bootstrapRequirements"}
 
+# These published upstream payloads contain public build locations or path
+# examples. On GitHub Actions /home/runner also happens to be our builder's HOME.
+# Bind that collision to the complete, reviewed upstream bytes, never a directory
+# or a manifest supplied by the build. Repository and T3 paths remain forbidden.
+# Upstream upgrades must review these locations and update the matching hashes.
+PUBLIC_UPSTREAM_PAYLOADS = {
+    "wasm-tools/dist/wasm-tools.wasm": "3e7ec6561150ce3b885626033dff6162eabb5fc8226023f1f1afc0689de0db49",
+    "assemblyscript/dist/binaryen.wasm": "265109799c6a9c7f27b961b213d6aef300550be8e8210c29a5709b4fd9b11605",
+    "grain/dist/grainc.js": "0a85cf0120aafd873e41eb901a18090453010f8f819074b77c14e1c359cafd1e",
+    "grain/dist/stdlib/path.gr": "f658c337dde0f242d09d9047f15a4e7f100922ac6dba229021bb6d26100b924d",
+    "javascript/.toolchains/runtimes/runtime-sync.wasm": "25703f010b80efb806f9c35daf9ee6524ad60320c9781b0bae4e234264f8dac5",
+    "javascript/.toolchains/runtimes/runtime-opt-size-sync.wasm": "51bced91769e0a3cb8bc288d230675b03fca8f97b42723b9f9f1702e6903b6f7",
+    "swift/dist/sysroot/swift/lib/swift_static/clang/lib/wasip1/libclang_rt.builtins-wasm32.a": "31ba1b372f2b7244c09424d0f33c51d1493675ace11d15dbc60152c9fb7c82b7",
+    "swift/dist/sysroot/swift/lib/swift_static/clang/lib/wasip1/libclang_rt.profile-wasm32.a": "bd9b5e65bc147cac106df2ef963bcf1924d12f7aa8430c610ad0e5a64943bbc6",
+    "swift/dist/sysroot/swift/lib/swift_static/wasi/_Differentiation.swiftmodule/wasm32-unknown-wasip1.swiftmodule": "1e0aa705fa1b3fa8afd1373cdbefab810a5ba9ee778a85bb022f13614be2e30c",
+    "swift/dist/sysroot/swift/lib/swift_static/wasi/libswiftCore.a": "33bbd4b3c761429a410b22c77ad9de74855df580610610e1b400b48d24442043",
+    "swift/dist/sysroot/swift/lib/swift_static/wasi/libswift_Differentiation.a": "3056d7f387105caea4c5491e6a8c6c066c23871b8419d90e47af064f1743258c",
+    "swift/dist/sysroot/swift/lib/swift_static/wasi/libswift_StringProcessing.a": "658aa48a2bce11bc729751c6fd66cca48cc40b15302c63accb4079c261d64a0c",
+    "swift/dist/sysroot/wasi-sysroot/lib/wasm32-wasip1/libc++abi.a": "070ae97463a7a8ca9df6660bd6a31ee592fa09a2194d3e6a14c468c4b09ba331",
+    "swift/dist/sysroot/wasi-sysroot/lib/wasm32-wasip1/libxml2.a": "29be63c1526c33a3bc511e084ac0a9991782234c2b48a331716d44abc140be08",
+}
+# These upstream strings survive composition or splitting of pinned inputs.
+# Match complete NUL-terminated values, not arbitrary paths below those roots.
+PUBLIC_UPSTREAM_STRINGS = {
+    "python/dist/template.component.wasm": (
+        b"/home/runner/work/componentize-py/componentize-py/cpython/builddir/wasi/install\0",
+    ),
+    "swift/dist/bin/swift-frontend-primary.wasm": (
+        b"/home/runner/work/swift-toolchain-wasm/swift-toolchain-wasm/src/swift/lib/Demangling/Demangler.cpp\0",
+    ),
+}
+
 
 def digest(path: Path) -> str:
     with path.open("rb") as stream:
@@ -237,25 +269,44 @@ def pack(document: dict, name: str, files: dict[str, Path], *, root: Path, outpu
     item = document["tools"][name]
     config = profiles.get("tools", {}).get(name, {})
     inventory = {}
-    private_prefixes = tuple({str(Path.home()).encode() + b"/", str(root.resolve()).encode() + b"/"})
-    overlap = max(map(len, private_prefixes)) - 1
+    home_prefix = str(Path.home()).encode() + b"/"
+    # Also catch personal paths carried over from another builder or OS.
+    home_paths = re.compile(re.escape(home_prefix) + rb"|/(?:home|Users)/[^/\x00\s]{1,255}/")
+    root_prefix = str(root.resolve()).encode() + b"/"
+    overlap = max(len(home_prefix), len(root_prefix), len(b".t3/projects/"), len(b"/Users/") + 255 + 1) - 1
     for relative, path in files.items():
         safe_path(relative)
+        public_strings = PUBLIC_UPSTREAM_STRINGS.get(relative, ())
+        lookahead = max([overlap, *(len(value) - 1 for value in public_strings)])
+
+        def private_home(data, limit):
+            return any(match.start() < limit and not any(data.startswith(value, match.start()) for value in public_strings)
+                       for match in home_paths.finditer(data))
+
         with path.open("rb") as source:
             attributes = os.fstat(source.fileno())
             header = source.read(8)
-            checksum = hashlib.sha256(header)
-            count = len(header)
-            previous = header
-            while chunk := source.read(1024 * 1024):
+            checksum = hashlib.sha256()
+            count = 0
+            previous = b""
+            contains_home = False
+            chunk = header
+            while chunk:
                 scanned = previous + chunk
-                if any(prefix in scanned for prefix in private_prefixes) or b".t3/projects/" in scanned:
+                if root_prefix in scanned or b".t3/projects/" in scanned:
                     raise ValueError(f"package input contains a build-machine path: {relative}; rebuild with path remapping")
-                previous = scanned[-max(overlap, 12):]
+                # Defer the tail until enough bytes arrive to distinguish an
+                # approved whole string from a private path at a chunk boundary.
+                contains_home |= private_home(scanned, len(scanned) - lookahead)
+                previous = scanned[-lookahead:]
                 checksum.update(chunk)
                 count += len(chunk)
+                chunk = source.read(1024 * 1024)
+            contains_home |= private_home(previous, len(previous))
             if count != attributes.st_size:
                 raise ValueError(f"package input changed during inventory: {relative}")
+            if contains_home and PUBLIC_UPSTREAM_PAYLOADS.get(relative) != checksum.hexdigest():
+                raise ValueError(f"package input contains a build-machine path: {relative}; rebuild with path remapping")
         kind = header_format(header, path)
         inventory[relative] = {"size": count, "sha256": checksum.hexdigest(),
                                "mode": 0o755 if attributes.st_mode & 0o111 else 0o644,
