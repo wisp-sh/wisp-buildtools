@@ -1,0 +1,1114 @@
+{
+  "schema": 1,
+  "description": "Compiler-package builds. Application compilation remains in toolchains.py and each language adapter.",
+  "tools": {
+    "clang": {
+      "directory": "clang",
+      "description": "C and C++ compiler Component",
+      "version": "llvm-24-d297af3",
+      "source": {
+        "repository": "https://github.com/llvm/llvm-project",
+        "revision": "d297af3b3d7a086d64f1477cfa682a16fcfa3260"
+      },
+      "sourceInputs": [
+        "clang/build-clang-wasi.sh",
+        "clang/src/clang_wasm_main.cpp",
+        "clang/patches/0001-clang-wasip3-in-process.patch",
+        "clang/patches/0002-driverless-clang-wasm.patch",
+        "llvm/toolchain.toml",
+        "llvm/scripts/shared.py",
+        "nim/src/c_backend.cpp",
+        "llvm/shared.py"
+      ],
+      "dependencies": [],
+      "runtimeDependencies": [
+        "llvm"
+      ],
+      "bootstrapRequirements": [
+        "Linux x86_64",
+        "Python 3.12+",
+        "CMake 3.24+",
+        "GCC and G++",
+        "curl",
+        "patch",
+        "tar",
+        "unzip",
+        "several GiB RAM and disk for LLVM"
+      ],
+      "build": [
+        {
+          "action": "clang-build",
+          "description": "Build pinned C/C++ compiler sources, validate WASI 0.3 API and compile add(20,22) = 42"
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "bash",
+            "{root}/clang/verify-clang-wasm.sh"
+          ]
+        }
+      ],
+      "artifacts": [
+        "clang/.toolchains/build-p3/bin/clang-wasm.component",
+        "clang/include/stddef.h"
+      ],
+      "package": {
+        "include": [
+          "clang/README.md",
+          "clang/examples",
+          "clang/src",
+          "clang/.toolchains/build-p3/bin/clang-wasm.component",
+          "clang/.toolchains/llvm-project/LICENSE.TXT"
+        ],
+        "optional": [
+          "clang/LICENSE"
+        ]
+      }
+    },
+    "go": {
+      "directory": "go",
+      "description": "Go compiler, assembler, linker and standard library",
+      "version": "1.27.2",
+      "dependencies": [],
+      "runtimeDependencies": [],
+      "bootstrapRequirements": [
+        "Python 3.12+",
+        "official Go 1.27.2 distribution at WISP_GO_HOST_ROOT",
+        "Wasmtime 49 for tests"
+      ],
+      "build": [
+        {
+          "action": "go-package",
+          "description": "Build pinned Go compiler tools and standard-library archives using WISP_GO_HOST_ROOT"
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "{root}/go/tests",
+            "-v"
+          ]
+        },
+        {
+          "argv": [
+            "{python}",
+            "{root}/go/scripts/check-cache.py",
+            "--toolchain",
+            "{root}/go/dist/go-toolchain-full-1.27.2",
+            "--wasmtime",
+            "{wasmtime}",
+            "--cache",
+            "{root}/build/go/wasmtime-cache"
+          ]
+        }
+      ],
+      "artifacts": [
+        "go/dist/go-toolchain-full-1.27.2/bin/compile.wasm",
+        "go/dist/go-toolchain-full-1.27.2/bin/asm.wasm",
+        "go/dist/go-toolchain-full-1.27.2/bin/link.wasm",
+        "go/dist/go-toolchain-full-1.27.2/SHA256SUMS"
+      ],
+      "package": {
+        "include": [
+          "go/README.md",
+          "go/scripts",
+          "go/examples",
+          "go/dist/go-toolchain-full-1.27.2"
+        ],
+        "optional": []
+      }
+    },
+    "llvm": {
+      "directory": "llvm",
+      "description": "Shared LLVM and LLD Wasm dynamic libraries",
+      "version": "llvm-24-d297af3-wasip3-shared",
+      "dependencies": [
+        "clang"
+      ],
+      "runtimeDependencies": [],
+      "bootstrapRequirements": [
+        "same native bootstrap requirements as clang",
+        "Python 3.12+"
+      ],
+      "build": [
+        {
+          "action": "llvm-shared",
+          "description": "Verify the shared LLVM runtime produced by the Clang source bootstrap"
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/llvm/scripts/shared.py",
+            "verify",
+            "{root}/llvm/dist/shared"
+          ]
+        },
+        {
+          "argv": [
+            "{python}",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "{root}/llvm/tests",
+            "-v"
+          ]
+        }
+      ],
+      "artifacts": [
+        "llvm/dist/shared/manifest.json",
+        "llvm/dist/shared/lib/llvm24.so.wasm"
+      ],
+      "package": {
+        "include": [
+          "llvm/README.md",
+          "llvm/artifacts/llvm-24-d297af3-wasip3-o1"
+        ],
+        "optional": []
+      }
+    },
+    "rust": {
+      "directory": "rust",
+      "description": "Rust 1.99.1 compiler Component with Wasm build scripts and procedural macros",
+      "version": "1.99.1",
+      "dependencies": [
+        "llvm"
+      ],
+      "runtimeDependencies": [],
+      "bootstrapRequirements": [
+        "Linux x86_64",
+        "Python 3.12+",
+        "native C and C++ compilers",
+        "CMake",
+        "Ninja",
+        "patch",
+        "WASI SDK 34 at rust/downloads/wasi-sdk-34.0-x86_64-linux",
+        "native Cargo for locked metadata and vendoring",
+        "several GiB RAM and tens of GiB disk for Rust and LLVM",
+        "pinned Binaryen for compiler Component optimization"
+      ],
+      "build": [
+        {
+          "action": "rust-source",
+          "description": "Prepare checksum-pinned Rust sources and apply the WASIp3/LLVM 24 compiler patch"
+        },
+        {
+          "argv": [
+            "{python}",
+            "-I",
+            "{root}/rust/scripts/build-compiler.py",
+            "--build",
+            "--jobs",
+            "{jobs}",
+            "--macro-patch",
+            "{root}/rust/patches/0001-rust-1.99-wasi-proc-macros.patch",
+            "--wasm-opt",
+            "{wasm_opt}",
+            "--wasm-opt-library-dir",
+            "{wasm_opt_lib}"
+          ]
+        },
+        {
+          "action": "rust-package",
+          "description": "Package the successfully source-built compiler and matching sysroots"
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "{root}/rust/tests",
+            "-v"
+          ]
+        },
+        {
+          "action": "rust-acceptance",
+          "description": "Run scalar, std, base64, build-script, derive and Serde application acceptance in Wasm"
+        }
+      ],
+      "artifacts": [
+        "rust/dist/compiler/toolchain.json",
+        "rust/dist/compiler/build/bootstrap/rustc.wasm",
+        "rust/dist/compiler/build/bootstrap/SHA256SUMS.json",
+        "rust/dist/compiler/scripts/runner.py"
+      ],
+      "package": {
+        "include": [
+          "rust/README.md",
+          "rust/dist/compiler"
+        ],
+        "optional": []
+      }
+    },
+    "zig": {
+      "directory": "zig",
+      "description": "Zig Wasm frontend and C/C++ Wasm backend",
+      "version": "0.17.0",
+      "dependencies": [
+        "clang"
+      ],
+      "runtimeDependencies": [
+        "clang"
+      ],
+      "bootstrapRequirements": [
+        "Python 3.12+",
+        "source-built Clang backend",
+        "network access to pinned Zig and WASI SDK archives"
+      ],
+      "build": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/zig/bootstrap.py",
+            "--clang-wasm",
+            "{root}/clang/.toolchains/build-p3/bin/clang-wasm.component",
+            "--clang-build-receipt",
+            "{root}/build/receipts/clang/build.json"
+          ]
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/zig/verify.py"
+          ]
+        }
+      ],
+      "artifacts": [
+        "zig/dist/zig.wasm",
+        "zig/dist/manifest.json"
+      ],
+      "package": {
+        "include": [
+          "zig/README.md",
+          "zig/compile.py",
+          "zig/toolchain.lock.json",
+          "zig/dist",
+          "zig/examples"
+        ],
+        "optional": []
+      }
+    },
+    "assemblyscript": {
+      "directory": "assemblyscript",
+      "description": "AssemblyScript compiler and Binaryen Wasm backend",
+      "version": "0.28.20",
+      "dependencies": [],
+      "runtimeDependencies": [],
+      "bootstrapRequirements": [
+        "Linux x86_64",
+        "Python 3.12+",
+        "Node 22+ and npm for one-time compiler bootstrap"
+      ],
+      "build": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/assemblyscript/bootstrap.py"
+          ]
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/assemblyscript/verify.py"
+          ]
+        }
+      ],
+      "artifacts": [
+        "assemblyscript/dist/assemblyscript.wasm",
+        "assemblyscript/dist/binaryen.wasm",
+        "assemblyscript/dist/manifest.json"
+      ],
+      "package": {
+        "include": [
+          "assemblyscript/README.md",
+          "assemblyscript/LICENSE",
+          "assemblyscript/compile.py",
+          "assemblyscript/src",
+          "assemblyscript/dist",
+          "assemblyscript/examples"
+        ],
+        "optional": []
+      }
+    },
+    "nim": {
+      "directory": "nim",
+      "description": "Nim Wasm frontend and shared LLVM Wasm backend",
+      "version": "2.2.12",
+      "dependencies": [
+        "llvm"
+      ],
+      "runtimeDependencies": [
+        "llvm",
+        "clang"
+      ],
+      "bootstrapRequirements": [
+        "Python 3.12+",
+        "CMake",
+        "native C and C++ compilers",
+        "WASI SDK 34 and shared LLVM SDK",
+        "curl"
+      ],
+      "build": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/nim/bootstrap.py",
+            "--jobs",
+            "{jobs}"
+          ]
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/nim/verify.py"
+          ]
+        }
+      ],
+      "artifacts": [
+        "nim/dist/bin/nim.wasm",
+        "nim/dist/bin/c-backend.wasm",
+        "nim/dist/manifest.json"
+      ],
+      "package": {
+        "include": [
+          "nim/README.md",
+          "nim/LICENSE",
+          "nim/compile.py",
+          "nim/toolchain.lock.json",
+          "nim/dist",
+          "nim/examples"
+        ],
+        "optional": []
+      }
+    },
+    "javascript": {
+      "directory": "javascript",
+      "description": "JavaScript and TypeScript Wasm compiler guests, without Node",
+      "version": "componentize-qjs-0.4.5-esbuild-0.28.2",
+      "dependencies": [
+        "wasm-tools"
+      ],
+      "runtimeDependencies": [
+        "wasm-tools"
+      ],
+      "bootstrapRequirements": [
+        "Python 3.12+",
+        "Rust 1.99.0 and wasm32-wasip1 target for compiler bootstrap",
+        "Go 1.27.2 via WISP_JAVASCRIPT_BOOTSTRAP_GO for esbuild bootstrap",
+        "Wasmtime 49 for execution"
+      ],
+      "build": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/javascript/bootstrap.py"
+          ]
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/javascript/verify.py"
+          ]
+        }
+      ],
+      "artifacts": [
+        "javascript/.toolchains/wasm/componentize.wasm",
+        "javascript/.toolchains/wasm/esbuild.wasm",
+        "javascript/.toolchains/runtimes/runtime-sync.wasm",
+        "javascript/.toolchains/runtimes/runtime-opt-size-sync.wasm"
+      ],
+      "package": {
+        "include": [
+          "javascript/README.md",
+          "javascript/compile.py",
+          "javascript/toolchain.py",
+          "javascript/typescript.py",
+          "javascript/checksums",
+          "javascript/.toolchains/wasm",
+          "javascript/.toolchains/runtimes",
+          "javascript/examples"
+        ],
+        "optional": [
+          "javascript/LICENSE"
+        ]
+      }
+    },
+    "python": {
+      "directory": "python",
+      "description": "CPython Component and Wasm source packager",
+      "version": "cpython-3.14-componentize-py-0.25.1",
+      "dependencies": [
+        "wasm-tools"
+      ],
+      "runtimeDependencies": [
+        "wasm-tools"
+      ],
+      "bootstrapRequirements": [
+        "Linux x86_64",
+        "Python 3.12+",
+        "Rust and wasm32-wasip1 target for packager bootstrap",
+        "pinned Wasmtime 49, wasm-tools 1.262.0, wac 0.12.0 and Binaryen 133 native bootstrap binaries"
+      ],
+      "build": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/python/bootstrap.py"
+          ],
+          "environment": {
+            "WISP_WASMTIME": "{bootstrap_wasmtime}"
+          }
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/python/verify.py"
+          ]
+        }
+      ],
+      "artifacts": [
+        "python/dist/template.component.wasm",
+        "python/dist/python-packager.wasm",
+        "python/dist/manifest.json"
+      ],
+      "package": {
+        "include": [
+          "python/README.md",
+          "python/LICENSE",
+          "python/LICENSE.python",
+          "python/bootstrap.py",
+          "python/compile.py",
+          "python/scripts",
+          "python/packager/Cargo.toml",
+          "python/packager/Cargo.lock",
+          "python/packager/src",
+          "python/toolchain.lock.json",
+          "python/dist",
+          "python/runtime",
+          "python/wit",
+          "python/examples"
+        ],
+        "optional": []
+      }
+    },
+    "wasm-tools": {
+      "directory": "wasm-tools",
+      "description": "Shared upstream Wasm component tooling",
+      "version": "1.262.0",
+      "dependencies": [],
+      "runtimeDependencies": [],
+      "bootstrapRequirements": [
+        "Python 3.12+",
+        "network access to the pinned upstream WASI artifact",
+        "Wasmtime for tests"
+      ],
+      "build": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/wasm-tools/bootstrap.py"
+          ]
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/wasm-tools/bootstrap.py",
+            "--check"
+          ]
+        },
+        {
+          "argv": [
+            "{wasmtime}",
+            "run",
+            "{root}/wasm-tools/dist/wasm-tools.wasm",
+            "--version"
+          ]
+        }
+      ],
+      "artifacts": [
+        "wasm-tools/dist/wasm-tools.wasm",
+        "wasm-tools/dist/manifest.json",
+        "wasm-tools/dist/wasi_snapshot_preview1.reactor.wasm"
+      ],
+      "package": {
+        "include": [
+          "wasm-tools/README.md",
+          "wasm-tools/toolchain.lock.json",
+          "wasm-tools/dist",
+          "wasm_tools.py",
+          "wasm-tools/adapter.lock.json"
+        ],
+        "optional": []
+      }
+    },
+    "grain": {
+      "directory": "grain",
+      "description": "Grain compiler and standard library running in a QuickJS Wasm guest",
+      "version": "0.7.2",
+      "source": {
+        "repository": "https://github.com/grain-lang/grain",
+        "revision": "49829d7966b38b177291f7e91f5eb81c65ec07aa"
+      },
+      "sourceInputs": [
+        "grain/toolchain.lock.json",
+        "grain/bootstrap.py",
+        "grain/compile.py",
+        "grain/component.py",
+        "grain/src/extract-compiler.py",
+        "grain/src/licenses.py",
+        "grain/src/node-shim.js",
+        "grain/src/quickjs-wasi.c"
+      ],
+      "dependencies": [
+        "wasm-tools"
+      ],
+      "runtimeDependencies": [
+        "wasm-tools"
+      ],
+      "bootstrapRequirements": [
+        "Python 3.12+",
+        "WASI SDK 34 at WISP_GRAIN_WASI_SDK",
+        "libbrotlidec.so.1 for extracting pinned compiler assets",
+        "network access to checksum-pinned Grain and QuickJS archives",
+        "Wisp-provided Wasmtime for verification"
+      ],
+      "build": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/grain/bootstrap.py"
+          ]
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/grain/verify.py"
+          ]
+        }
+      ],
+      "artifacts": [
+        "grain/dist/grainc.wasm",
+        "grain/dist/grainc.js",
+        "grain/dist/manifest.json"
+      ],
+      "package": {
+        "include": [
+          "grain/README.md",
+          "grain/LICENSE",
+          "grain/compile.py",
+          "grain/component.py",
+          "grain/toolchain.lock.json",
+          "grain/dist"
+        ],
+        "optional": []
+      }
+    },
+    "swift": {
+      "directory": "swift",
+      "description": "Swift compiler and linker running in WASI with external LLVM modules",
+      "version": "6.3.3",
+      "source": {
+        "repository": "https://github.com/tothambrus11/swift-toolchain-wasm"
+      },
+      "sourceInputs": [
+        "swift/bootstrap.py",
+        "swift/compile.py",
+        "swift/runtime.py",
+        "swift/split.py",
+        "swift/toolchain.lock.json",
+        "swift/src/adapter.swift"
+      ],
+      "dependencies": [
+        "wasm-tools"
+      ],
+      "runtimeDependencies": [
+        "llvm-swift",
+        "wasm-tools"
+      ],
+      "bootstrapRequirements": [
+        "Python 3.12+",
+        "Binaryen 133 wasm-opt and wasm-split via WISP_WASM_OPT",
+        "network access to checksum-pinned Swift WASI compiler, linker and SDK artifacts",
+        "Wisp-provided Wasmtime 49 CLI and Python bindings 49.0.0 for verification"
+      ],
+      "build": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/swift/bootstrap.py"
+          ],
+          "environment": {
+            "WISP_WASM_OPT": "{wasm_opt}",
+            "WISP_WASM_OPT_LIBRARY_DIR": "{wasm_opt_lib}"
+          }
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/swift/verify.py"
+          ]
+        }
+      ],
+      "artifacts": [
+        "swift/dist/bin/swift-frontend-primary.wasm",
+        "swift/dist/bin/swift-frontend.wasm",
+        "swift/dist/bin/wasm-ld-primary.wasm",
+        "swift/dist/bin/wasm-ld.wasm",
+        "swift/dist/manifest.json"
+      ],
+      "package": {
+        "include": [
+          "swift/README.md",
+          "swift/LICENSE",
+          "swift/compile.py",
+          "swift/runtime.py",
+          "swift/toolchain.lock.json",
+          "swift/src/adapter.swift",
+          "swift/dist"
+        ],
+        "optional": []
+      }
+    },
+    "llvm-swift": {
+      "directory": "llvm",
+      "description": "Image-bound Swift LLVM shared Wasm libraries",
+      "version": "swift-6.3.3",
+      "dependencies": [
+        "swift"
+      ],
+      "runtimeDependencies": [],
+      "bootstrapRequirements": [
+        "same pinned Swift compiler bootstrap as swift",
+        "Binaryen 133 wasm-split"
+      ],
+      "build": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/swift/bootstrap.py",
+            "--check"
+          ]
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/swift/bootstrap.py",
+            "--check"
+          ]
+        }
+      ],
+      "artifacts": [
+        "llvm/dist/swift-shared/swift-frontend-llvm.so.wasm",
+        "llvm/dist/swift-shared/wasm-ld-llvm.so.wasm",
+        "llvm/dist/swift-shared/manifest.json"
+      ],
+      "package": {
+        "include": [
+          "llvm/dist/swift-shared"
+        ],
+        "optional": []
+      }
+    },
+    "jvm": {
+      "directory": "jvm",
+      "description": "Shared Bovine JVM hosted in WASI with OpenJDK23 class data",
+      "version": "bovine-3fd56c746566-jdk23+37",
+      "sourceInputs": [
+        "jvm/bootstrap.py",
+        "jvm/runner.py",
+        "jvm/runtime.py",
+        "jvm/toolchain.lock.json",
+        "jvm/src/JvmSmoke.java",
+        "jvm/src/java-io.c",
+        "jvm/src/jvm-main.c",
+        "jvm/patches/0001-wasi-port.patch"
+      ],
+      "dependencies": [],
+      "runtimeDependencies": [],
+      "bootstrapRequirements": [
+        "Python3.12+",
+        "native JDK21 through WISP_BOOTSTRAP_JAVA for launcher and SDK bootstrap only",
+        "WASI SDK34 through WISP_JVM_WASI_SDK to build the shared JVM guest",
+        "network access to checksum-pinned sources and compiler dependencies",
+        "Wisp-provided external Wasmtime49 with Wasm tail calls and exceptions for verification"
+      ],
+      "build": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/jvm/bootstrap.py"
+          ]
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/jvm/verify.py"
+          ]
+        }
+      ],
+      "artifacts": [
+        "jvm/dist/jvm.wasm",
+        "jvm/dist/boot.jar",
+        "jvm/dist/jdk/lib/modules",
+        "jvm/dist/manifest.json"
+      ],
+      "package": {
+        "include": [
+          "jvm/README.md",
+          "jvm/LICENSE",
+          "jvm/runner.py",
+          "jvm/runtime.py",
+          "jvm/toolchain.lock.json",
+          "jvm/dist"
+        ],
+        "optional": []
+      }
+    },
+    "teavm": {
+      "directory": "teavm",
+      "description": "Shared TeaVM bytecode to WASI compiler backend",
+      "version": "0.16.0",
+      "sourceInputs": [
+        "teavm/bootstrap.py",
+        "teavm/compile.py",
+        "teavm/component.py",
+        "teavm/reactor.py",
+        "teavm/toolchain.lock.json",
+        "teavm/src/Smoke.java",
+        "teavm/src/TeaVMMain.java",
+        "teavm/c_backend.py",
+        "teavm/wasi_runtime.py",
+        "teavm/src/WasiPlugin.java",
+        "teavm/src/wasi-entry.c",
+        "teavm/driver.py",
+        "teavm/src/c-backend.cpp",
+        "teavm/src/RuntimePatch.java"
+      ],
+      "dependencies": [
+        "jvm",
+        "llvm",
+        "clang",
+        "wasm-tools"
+      ],
+      "runtimeDependencies": [
+        "jvm",
+        "llvm",
+        "clang",
+        "wasm-tools"
+      ],
+      "bootstrapRequirements": [
+        "Python3.12+",
+        "native JDK21 through WISP_BOOTSTRAP_JAVA for launcher and SDK bootstrap only",
+        "WASI SDK34 through WISP_JVM_WASI_SDK, existing LLVM SDK headers and shared LLVM binaries, pinned native wasm-tools",
+        "network access to checksum-pinned sources and compiler dependencies",
+        "Wisp-provided external Wasmtime49 with Wasm tail calls and exceptions for verification"
+      ],
+      "build": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/teavm/bootstrap.py"
+          ]
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/teavm/verify.py"
+          ]
+        }
+      ],
+      "artifacts": [
+        "teavm/dist/java-sdk.jar",
+        "teavm/dist/manifest.json"
+      ],
+      "package": {
+        "include": [
+          "teavm/README.md",
+          "teavm/LICENSE",
+          "teavm/compile.py",
+          "teavm/component.py",
+          "teavm/c_backend.py",
+          "teavm/reactor.py",
+          "teavm/toolchain.lock.json",
+          "teavm/dist"
+        ],
+        "optional": []
+      }
+    },
+    "java": {
+      "directory": "java",
+      "description": "Java21 source compiler running in the shared Wasm JVM",
+      "version": "ecj-3.46.100-java21",
+      "sourceInputs": [
+        "java/bootstrap.py",
+        "java/compile.py",
+        "java/toolchain.lock.json",
+        "java/src/EcjMain.java"
+      ],
+      "dependencies": [
+        "teavm"
+      ],
+      "runtimeDependencies": [
+        "jvm",
+        "teavm"
+      ],
+      "bootstrapRequirements": [
+        "Python3.12+",
+        "native JDK21 through WISP_BOOTSTRAP_JAVA for launcher and SDK bootstrap only",
+        "WASI SDK34 through WISP_JVM_WASI_SDK to build the shared JVM guest",
+        "network access to checksum-pinned sources and compiler dependencies",
+        "Wisp-provided external Wasmtime49 with Wasm tail calls and exceptions for verification"
+      ],
+      "build": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/java/bootstrap.py"
+          ]
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/java/verify.py"
+          ]
+        }
+      ],
+      "artifacts": [
+        "java/dist/ecj.jar",
+        "java/dist/messages.properties",
+        "java/dist/manifest.json"
+      ],
+      "package": {
+        "include": [
+          "java/README.md",
+          "java/LICENSE",
+          "java/compile.py",
+          "java/toolchain.lock.json",
+          "java/dist"
+        ],
+        "optional": []
+      }
+    },
+    "kotlin": {
+      "directory": "kotlin",
+      "description": "Kotlin source compiler running in the shared Wasm JVM",
+      "version": "2.4.21",
+      "sourceInputs": [
+        "kotlin/bootstrap.py",
+        "kotlin/compile.py",
+        "kotlin/toolchain.lock.json",
+        "kotlin/src/PerformancePatch.java"
+      ],
+      "dependencies": [
+        "teavm"
+      ],
+      "runtimeDependencies": [
+        "jvm",
+        "teavm"
+      ],
+      "bootstrapRequirements": [
+        "Python3.12+",
+        "native JDK21 through WISP_BOOTSTRAP_JAVA for launcher and SDK bootstrap only",
+        "WASI SDK34 through WISP_JVM_WASI_SDK to build the shared JVM guest",
+        "network access to checksum-pinned sources and compiler dependencies",
+        "Wisp-provided external Wasmtime49 with Wasm tail calls and exceptions for verification"
+      ],
+      "build": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/kotlin/bootstrap.py"
+          ]
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/kotlin/verify.py"
+          ]
+        }
+      ],
+      "artifacts": [
+        "kotlin/dist/manifest.json"
+      ],
+      "package": {
+        "include": [
+          "kotlin/README.md",
+          "kotlin/LICENSE",
+          "kotlin/compile.py",
+          "kotlin/toolchain.lock.json",
+          "kotlin/dist"
+        ],
+        "optional": []
+      }
+    },
+    "ocaml": {
+      "directory": "ocaml",
+      "description": "OCaml bytecode compiler and runtime hosted in WASI, with a Wasm C backend",
+      "version": "4.14.2",
+      "source": {
+        "repository": "https://github.com/ocaml/ocaml",
+        "revision": "4.14.2"
+      },
+      "sourceInputs": [
+        "ocaml/toolchain.lock.json",
+        "ocaml/bootstrap.py",
+        "ocaml/compile.py",
+        "ocaml/runner.py",
+        "ocaml/backend.py",
+        "ocaml/src/wasi-runtime.patch",
+        "ocaml/src/command.c",
+        "ocaml/src/reactor.c"
+      ],
+      "dependencies": [
+        "nim"
+      ],
+      "runtimeDependencies": [
+        "llvm",
+        "clang"
+      ],
+      "bootstrapRequirements": [
+        "Python 3.12+",
+        "GCC and make for the native bootstrap",
+        "WASI SDK 34",
+        "Wasmtime 49 with exception support for OCaml",
+        "Wisp Wasmtime host with shared LLVM imports for C compilation"
+      ],
+      "build": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/ocaml/bootstrap.py"
+          ]
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/ocaml/verify.py"
+          ]
+        }
+      ],
+      "artifacts": [
+        "ocaml/dist/bin/ocamlrun.wasm",
+        "ocaml/dist/bin/ocamlc.byte",
+        "ocaml/dist/bin/c-backend.wasm",
+        "ocaml/dist/manifest.json"
+      ],
+      "package": {
+        "include": [
+          "ocaml/README.md",
+          "ocaml/compile.py",
+          "ocaml/runner.py",
+          "ocaml/backend.py",
+          "ocaml/toolchain.lock.json",
+          "ocaml/examples",
+          "ocaml/dist",
+          "ocaml/licenses"
+        ],
+        "optional": []
+      }
+    },
+    "goose": {
+      "directory": "goose",
+      "description": "Goose WASI frontend and shared LLVM C backend, scalar-v1",
+      "version": "94cc64daeabcae6f072dc1fe2b864acda5a001bc",
+      "source": {
+        "repository": "https://github.com/aardappel/goose",
+        "revision": "94cc64daeabcae6f072dc1fe2b864acda5a001bc"
+      },
+      "sourceInputs": [
+        "goose/toolchain.lock.json",
+        "goose/bootstrap.py",
+        "goose/compile.py",
+        "goose/runner.py",
+        "goose/src/compiler.cpp",
+        "goose/src/support.h",
+        "goose/src/frontend-patches.json"
+      ],
+      "dependencies": [
+        "nim"
+      ],
+      "runtimeDependencies": [
+        "llvm",
+        "clang"
+      ],
+      "bootstrapRequirements": [
+        "Python 3.12+",
+        "WASI SDK 34",
+        "Wasmtime 49 with Wasm exceptions",
+        "Shared LLVM C backend from nim"
+      ],
+      "build": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/goose/bootstrap.py"
+          ]
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/goose/verify.py"
+          ]
+        }
+      ],
+      "artifacts": [
+        "goose/dist/bin/goose.wasm",
+        "goose/dist/bin/c-backend.wasm",
+        "goose/dist/manifest.json"
+      ],
+      "package": {
+        "include": [
+          "goose/README.md",
+          "goose/compile.py",
+          "goose/runner.py",
+          "goose/toolchain.lock.json",
+          "goose/examples",
+          "goose/dist"
+        ],
+        "optional": []
+      }
+    }
+  }
+}

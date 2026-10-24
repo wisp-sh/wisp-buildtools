@@ -1,0 +1,9 @@
+# Downloaded upstream source and local compiler build products.
+.sources/
+.toolchains/
+build/
+build-*/
+artifacts/
+dist/
+__pycache__/
+*.pyc

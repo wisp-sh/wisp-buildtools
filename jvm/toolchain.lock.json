@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "runtime": {
+    "name": "Bovine JVM",
+    "commit": "3fd56c74656602eb32efefca46f51f074bef6bca",
+    "url": "https://codeload.github.com/anematode/b-jvm/tar.gz/3fd56c74656602eb32efefca46f51f074bef6bca",
+    "bytes": 53986991,
+    "sha256": "6b4bd3d8da50da7301a0e23a952568c193b97a14b7f54e1ebd081d98eabbaa6a",
+    "license": "MIT"
+  },
+  "zlib": {
+    "version": "1.3.2",
+    "url": "https://zlib.net/zlib-1.3.2.tar.gz",
+    "sha256": "bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16",
+    "bytes": 1502830
+  },
+  "jdk": {
+    "url": "https://github.com/adoptium/temurin23-binaries/releases/download/jdk-23%2B37/OpenJDK23U-jre_x64_linux_hotspot_23_37.tar.gz",
+    "sha256": "9c3c3d42ffb2603b328b7154fc9eb449ef87488b3cbeb24a497d46677c7fd44d",
+    "size": 51923982,
+    "modulesSha256": "8a476f72d26967ecdd3b02bede4a13306afd56cec2691a184e2c9f9eb4cd3452"
+  },
+  "bootstrapWasiSdk": {
+    "version": "34.0",
+    "url": "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz",
+    "sha256": "b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4",
+    "clangSha256": "061f88b9f4c48f3742434c2513d5038ab7fa4dc27abff5cb13b5eaedcb51d6ea",
+    "wasmLdSha256": "ec1daef61bc84256bf7c4a8491b3ea9abcc7163d9aaf6aa8e8bc6faa18f99043"
+  },
+  "execution": {
+    "target": "wasm32-wasip1",
+    "heapBytes": 536870912,
+    "javaStackBytes": 16777216,
+    "maximumLinearMemoryBytes": 2147483648,
+    "features": [
+      "tail-call",
+      "exceptions"
+    ]
+  }
+}

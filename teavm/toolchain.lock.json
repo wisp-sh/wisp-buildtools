@@ -1,0 +1,316 @@
+{
+  "schemaVersion": 1,
+  "javaSourceLevel": "21",
+  "backend": {
+    "name": "TeaVM WASI",
+    "version": "0.16.0",
+    "reason": "Last upstream release with the standalone WASI backend. TeaVM0.14 and later emit WasmGC with a JavaScript host.",
+    "target": "C"
+  },
+  "signatureGenerator": {
+    "revision": "208d4c97a602ba0df055f16e6882059fb69d0122",
+    "url": "https://codeload.github.com/konsoletyper/teavm-javac/tar.gz/208d4c97a602ba0df055f16e6882059fb69d0122",
+    "bytes": 99644,
+    "sha256": "ad893ca727081e72ab7ffb9f270956c76d4222b09c6bd1196a13c58c7f81ad2e"
+  },
+  "jars": [
+    {
+      "group": "org.teavm",
+      "artifact": "teavm-tooling",
+      "version": "0.16.0",
+      "path": "teavm-tooling-0.16.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/teavm/teavm-tooling/0.16.0/teavm-tooling-0.16.0.jar",
+      "bytes": 68368,
+      "sha256": "8335feb227d299bf51ba3862e84eb3a2723ff2e9840a885a7537f6454d44ee31"
+    },
+    {
+      "group": "org.teavm",
+      "artifact": "teavm-classlib",
+      "version": "0.16.0",
+      "path": "teavm-classlib-0.16.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/teavm/teavm-classlib/0.16.0/teavm-classlib-0.16.0.jar",
+      "bytes": 17727357,
+      "sha256": "329fd2a9cfb3afb453070cb97c12adb5c0ee7b0d943b357188d7dbf9c6bf3dd5"
+    },
+    {
+      "group": "org.teavm",
+      "artifact": "teavm-core",
+      "version": "0.16.0",
+      "path": "teavm-core-0.16.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/teavm/teavm-core/0.16.0/teavm-core-0.16.0.jar",
+      "bytes": 3031056,
+      "sha256": "c94539912c1b951fa741aecfcb6b4acad75c2e2360dc8859b1edd0c44175608a"
+    },
+    {
+      "group": "org.teavm",
+      "artifact": "teavm-platform",
+      "version": "0.16.0",
+      "path": "teavm-platform-0.16.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/teavm/teavm-platform/0.16.0/teavm-platform-0.16.0.jar",
+      "bytes": 101636,
+      "sha256": "999d369ab15aa83c17987d048ba59560759169891de7e13a5a1c2bd93dd060a8"
+    },
+    {
+      "group": "org.teavm",
+      "artifact": "teavm-jso-apis",
+      "version": "0.16.0",
+      "path": "teavm-jso-apis-0.16.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/teavm/teavm-jso-apis/0.16.0/teavm-jso-apis-0.16.0.jar",
+      "bytes": 238151,
+      "sha256": "32d28e39957a41404f53a14c2447d980c7b5074a92414d0972014f448a46fcb2"
+    },
+    {
+      "group": "org.teavm",
+      "artifact": "teavm-jso-impl",
+      "version": "0.16.0",
+      "path": "teavm-jso-impl-0.16.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/teavm/teavm-jso-impl/0.16.0/teavm-jso-impl-0.16.0.jar",
+      "bytes": 194491,
+      "sha256": "12688d04e7d2d73036adacd72b74fd8fb44f10283004075fbe68706ccb223b75"
+    },
+    {
+      "group": "org.teavm",
+      "artifact": "teavm-metaprogramming-impl",
+      "version": "0.16.0",
+      "path": "teavm-metaprogramming-impl-0.16.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/teavm/teavm-metaprogramming-impl/0.16.0/teavm-metaprogramming-impl-0.16.0.jar",
+      "bytes": 126504,
+      "sha256": "616d30aa28f7b0180a61c2289b11c77bf84c715bd79f255e1e42400edb5b6d70"
+    },
+    {
+      "group": "com.jcraft",
+      "artifact": "jzlib",
+      "version": "1.1.3",
+      "path": "jzlib-1.1.3.jar",
+      "url": "https://repo.maven.apache.org/maven2/com/jcraft/jzlib/1.1.3/jzlib-1.1.3.jar",
+      "bytes": 71976,
+      "sha256": "89b1360f407381bf61fde411019d8cbd009ebb10cff715f3669017a031027560"
+    },
+    {
+      "group": "joda-time",
+      "artifact": "joda-time",
+      "version": "2.12.2",
+      "path": "joda-time-2.12.2.jar",
+      "url": "https://repo.maven.apache.org/maven2/joda-time/joda-time/2.12.2/joda-time-2.12.2.jar",
+      "bytes": 636782,
+      "sha256": "8d4d807adc8e92a83913d9ccd61e634b4907c78d88f3016d06b3b3d2b4795a02"
+    },
+    {
+      "group": "org.teavm",
+      "artifact": "teavm-extension-spi",
+      "version": "0.16.0",
+      "path": "teavm-extension-spi-0.16.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/teavm/teavm-extension-spi/0.16.0/teavm-extension-spi-0.16.0.jar",
+      "bytes": 16722,
+      "sha256": "e280bbc31e8d26de2915954990e260871462c146418c7b901249502a1994dde5"
+    },
+    {
+      "group": "org.teavm",
+      "artifact": "teavm-interop",
+      "version": "0.16.0",
+      "path": "teavm-interop-0.16.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/teavm/teavm-interop/0.16.0/teavm-interop-0.16.0.jar",
+      "bytes": 12599,
+      "sha256": "5c8511d71ae6f6d2ca913130393b64a959303e521727b2d9c1a9b1e14519216f"
+    },
+    {
+      "group": "org.teavm",
+      "artifact": "teavm-metaprogramming-api",
+      "version": "0.16.0",
+      "path": "teavm-metaprogramming-api-0.16.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/teavm/teavm-metaprogramming-api/0.16.0/teavm-metaprogramming-api-0.16.0.jar",
+      "bytes": 13884,
+      "sha256": "00f053ad35ff78312e48eebbf4e1c6cf5f7a1e759b2432ba0b60d6f111bb3bdd"
+    },
+    {
+      "group": "org.teavm",
+      "artifact": "teavm-extension-apis",
+      "version": "0.16.0",
+      "path": "teavm-extension-apis-0.16.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/teavm/teavm-extension-apis/0.16.0/teavm-extension-apis-0.16.0.jar",
+      "bytes": 13264,
+      "sha256": "9e867f3760b1c8d86cdb18ec70e429c23fd933021c8c3bb0cc0b727eac3202c0"
+    },
+    {
+      "group": "org.teavm",
+      "artifact": "teavm-relocated-libs-asm-commons",
+      "version": "0.16.0",
+      "path": "teavm-relocated-libs-asm-commons-0.16.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/teavm/teavm-relocated-libs-asm-commons/0.16.0/teavm-relocated-libs-asm-commons-0.16.0.jar",
+      "bytes": 74655,
+      "sha256": "b877abd3af4f9ae2650aa0cb3577fcbdd66a9a1a1181d545d5f1f20070ea5924"
+    },
+    {
+      "group": "org.teavm",
+      "artifact": "teavm-relocated-libs-asm-util",
+      "version": "0.16.0",
+      "path": "teavm-relocated-libs-asm-util-0.16.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/teavm/teavm-relocated-libs-asm-util/0.16.0/teavm-relocated-libs-asm-util-0.16.0.jar",
+      "bytes": 95779,
+      "sha256": "c69ce1813eaa66643361b70b3f07c13ca924185280c237c832774a2f85eaf431"
+    },
+    {
+      "group": "org.teavm",
+      "artifact": "teavm-relocated-libs-hppc",
+      "version": "0.16.0",
+      "path": "teavm-relocated-libs-hppc-0.16.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/teavm/teavm-relocated-libs-hppc/0.16.0/teavm-relocated-libs-hppc-0.16.0.jar",
+      "bytes": 1509391,
+      "sha256": "7b82fedf747e0bf5d7a50acece86a8a684901e469165a3c5621c653128df4cd6"
+    },
+    {
+      "group": "org.teavm",
+      "artifact": "teavm-relocated-libs-rhino",
+      "version": "0.16.0",
+      "path": "teavm-relocated-libs-rhino-0.16.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/teavm/teavm-relocated-libs-rhino/0.16.0/teavm-relocated-libs-rhino-0.16.0.jar",
+      "bytes": 1660861,
+      "sha256": "ea776a11f0233ba9e3fd12faf81cca2101b42443d0d22084e2627898fd7ee76e"
+    },
+    {
+      "group": "org.teavm",
+      "artifact": "teavm-jso",
+      "version": "0.16.0",
+      "path": "teavm-jso-0.16.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/teavm/teavm-jso/0.16.0/teavm-jso-0.16.0.jar",
+      "bytes": 8437,
+      "sha256": "58b337b93924106bf819c45890c7c231a0c740145afe77795f1e0f099f621d71"
+    },
+    {
+      "group": "org.teavm",
+      "artifact": "teavm-relocated-libs-asm",
+      "version": "0.16.0",
+      "path": "teavm-relocated-libs-asm-0.16.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/teavm/teavm-relocated-libs-asm/0.16.0/teavm-relocated-libs-asm-0.16.0.jar",
+      "bytes": 126428,
+      "sha256": "59deba713805038fb9ceb76f002e3ae0e9660ec9815875917f08e0a235b7b1a2"
+    },
+    {
+      "group": "org.teavm",
+      "artifact": "teavm-extension-spi-util",
+      "version": "0.16.0",
+      "path": "teavm-extension-spi-util-0.16.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/teavm/teavm-extension-spi-util/0.16.0/teavm-extension-spi-util-0.16.0.jar",
+      "bytes": 1845,
+      "sha256": "d94e8d4478c4186d18b657cb67654851d38b9f51d372dc7e7e54e0f3a24347c9"
+    },
+    {
+      "group": "org.ow2.asm",
+      "artifact": "asm-commons",
+      "version": "9.10.1",
+      "path": "asm-commons-9.10.1.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/ow2/asm/asm-commons/9.10.1/asm-commons-9.10.1.jar",
+      "bytes": 74840,
+      "sha256": "6d0abefb7cbf972ea16edb37ec14835372505063a45f976ab7ea889ed9497895"
+    },
+    {
+      "group": "org.teavm",
+      "artifact": "teavm-relocated-libs-asm-tree",
+      "version": "0.16.0",
+      "path": "teavm-relocated-libs-asm-tree-0.16.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/teavm/teavm-relocated-libs-asm-tree/0.16.0/teavm-relocated-libs-asm-tree-0.16.0.jar",
+      "bytes": 51426,
+      "sha256": "e0bd21e6734b1f060c0553c66fe20292f49d146858aec1f1ecfe21f6417885f6"
+    },
+    {
+      "group": "org.ow2.asm",
+      "artifact": "asm-util",
+      "version": "9.10.1",
+      "path": "asm-util-9.10.1.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/ow2/asm/asm-util/9.10.1/asm-util-9.10.1.jar",
+      "bytes": 95628,
+      "sha256": "1bb99d091fba2597dc6d51193e9bbcf0d8447e7ed96bd8f0198b18152f09655c"
+    },
+    {
+      "group": "org.teavm",
+      "artifact": "teavm-relocated-libs-asm-analysis",
+      "version": "0.16.0",
+      "path": "teavm-relocated-libs-asm-analysis-0.16.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/teavm/teavm-relocated-libs-asm-analysis/0.16.0/teavm-relocated-libs-asm-analysis-0.16.0.jar",
+      "bytes": 34778,
+      "sha256": "8ce092f26dc44cffbfd6a23067b0ae43e32f9ddb29efd6e4eed93095a454b04a"
+    },
+    {
+      "group": "com.carrotsearch",
+      "artifact": "hppc",
+      "version": "0.10.0",
+      "path": "hppc-0.10.0.jar",
+      "url": "https://repo.maven.apache.org/maven2/com/carrotsearch/hppc/0.10.0/hppc-0.10.0.jar",
+      "bytes": 1529274,
+      "sha256": "edc83b336476a2b06f7c17d09b17e98bb07678daf968c9825cc14275bdf20a26"
+    },
+    {
+      "group": "org.mozilla",
+      "artifact": "rhino",
+      "version": "1.9.1",
+      "path": "rhino-1.9.1.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/mozilla/rhino/1.9.1/rhino-1.9.1.jar",
+      "bytes": 1647024,
+      "sha256": "12dbb224cea124a5d32968722e8eb161c967bf15f3c9a795d1b05592b1147975"
+    },
+    {
+      "group": "org.ow2.asm",
+      "artifact": "asm",
+      "version": "9.10.1",
+      "path": "asm-9.10.1.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/ow2/asm/asm/9.10.1/asm-9.10.1.jar",
+      "bytes": 126151,
+      "sha256": "ed825d10ab1399c8c0cb669e688cf0c8c82629b4c8399b58352b68e92ca10fcb"
+    },
+    {
+      "group": "org.ow2.asm",
+      "artifact": "asm-tree",
+      "version": "9.10.1",
+      "path": "asm-tree-9.10.1.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/ow2/asm/asm-tree/9.10.1/asm-tree-9.10.1.jar",
+      "bytes": 51958,
+      "sha256": "3dfb0d5b6a106cd40b5b250e39935fbf2f927f4477546a5369a3ac609cf0506b"
+    },
+    {
+      "group": "org.ow2.asm",
+      "artifact": "asm-analysis",
+      "version": "9.10.1",
+      "path": "asm-analysis-9.10.1.jar",
+      "url": "https://repo.maven.apache.org/maven2/org/ow2/asm/asm-analysis/9.10.1/asm-analysis-9.10.1.jar",
+      "bytes": 35140,
+      "sha256": "dede75a21306b65974ecd8f87114ff6970f09fb794157a4ca09ab25c888c2bfc"
+    }
+  ],
+  "licenses": [
+    {
+      "name": "APACHE-2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "name": "ASM-9.10.1",
+      "url": "https://gitlab.ow2.org/asm/asm/-/raw/ASM_9_10_1/LICENSE.txt",
+      "bytes": 1598,
+      "sha256": "293b6af371eee28b0ff16f0334ea19e20a3d5522143faa4b95b346855507879a"
+    },
+    {
+      "name": "JZlib-1.1.3",
+      "url": "https://raw.githubusercontent.com/ymnk/jzlib/1.1.3/LICENSE.txt",
+      "bytes": 1639,
+      "sha256": "9aa93e9bc58ae423a9e6476f608ee8f46063f5679e3bac0bc55f2f4b10d243ee"
+    },
+    {
+      "name": "HPPC-0.10.0",
+      "url": "https://raw.githubusercontent.com/carrotsearch/hppc/0.10.0/LICENSE.txt",
+      "bytes": 11390,
+      "sha256": "c633448d7bb1a2a6e28e2ead860250c0d23621506c571f16f5149b0da8572379"
+    }
+  ],
+  "bootstrapWasiSdk": {
+    "version": "34.0",
+    "url": "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz",
+    "sha256": "b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4",
+    "clangSha256": "061f88b9f4c48f3742434c2513d5038ab7fa4dc27abff5cb13b5eaedcb51d6ea",
+    "wasmLdSha256": "ec1daef61bc84256bf7c4a8491b3ea9abcc7163d9aaf6aa8e8bc6faa18f99043"
+  },
+  "bootstrapWasmTools": {
+    "version": "1.262.0",
+    "sha256": "fe6a056dc03269b06f53e0cff926101c17d4f4ea37fbaa077d049c0d18acb211"
+  }
+}

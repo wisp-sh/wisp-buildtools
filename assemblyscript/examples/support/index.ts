@@ -1,0 +1,1 @@
+export function square(value: i32): i32 { return value * value; }

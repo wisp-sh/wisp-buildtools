@@ -1,0 +1,24 @@
+{
+  "version": "38.0.4",
+  "rustVersion": "1.99.0",
+  "sources": [
+    {
+      "crate": "wasmtime-cli",
+      "url": "https://static.crates.io/crates/wasmtime-cli/wasmtime-cli-38.0.4.crate",
+      "sha256": "8da9a46022d9891a5b3fb3bf49b265cc47a4cf346f9656e30c01baa8f8822161"
+    },
+    {
+      "crate": "wasmtime-wasi-threads",
+      "url": "https://static.crates.io/crates/wasmtime-wasi-threads/wasmtime-wasi-threads-38.0.4.crate",
+      "sha256": "bfc4260353c054d516d149f5c0475918cb5fe6e13ea48889abd7d72491924cbc"
+    }
+  ],
+  "features": [
+    "run",
+    "cranelift",
+    "cache",
+    "parallel-compilation",
+    "wat",
+    "wasi-threads"
+  ]
+}

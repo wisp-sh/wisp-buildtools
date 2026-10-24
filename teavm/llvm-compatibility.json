@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "originalProviderManifestSha256": "679d6958a5c962198b2c4c720cc8be56d81343f79f40a519e2b10c2df0aee5c0",
+  "consumerSha256": "524ee261af18fba4ffdded8ddf5f4c96d94628ccac2ad6153a57c86c8b69d8b3",
+  "profile": "llvm24-wasip3",
+  "llvmRevision": "d297af3b3d7a086d64f1477cfa682a16fcfa3260",
+  "coreModuleSha256": {
+    "vise-llvm24": "9b9c7326551f83c7d728d532ef51c82d7be17ce1dd95f93137c7e79fc51f77f7",
+    "vise-llvm24-libc": "4123612d6f33ff89f3e0ed6e64d95f816769e9e2f5090d357a43ee36e8ad1238",
+    "vise-llvm24-libcxx": "c3e75afeac6b071b23272e6812136f19674eb522a6630f1756cf6149fd6c4984",
+    "vise-llvm24-libcxxabi": "3524a7301c0d328be3a6d4c4fe5e3bf31d2753b502f1c4b658099cb1c8eacfcf"
+  },
+  "reason": "Consumer metadata updates changed provider manifest identity while these four shared module binaries are unchanged."
+}

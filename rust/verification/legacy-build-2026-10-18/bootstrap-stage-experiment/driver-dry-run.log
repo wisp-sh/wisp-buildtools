@@ -1,0 +1,6 @@
+Running: /usr/bin/python3.14 -I /home/luap/vise-buildtools/rust/build/source-rust-cf327c206854/x.py build --stage 1 --config /home/luap/vise-buildtools/rust/build/bootstrap-stage-experiment/config.toml -j 2 compiler/rustc library --dry-run
+{
+  "status": "dry-run-passed",
+  "report": "/home/luap/vise-buildtools/rust/build/bootstrap-stage-experiment/dry-run-report.json",
+  "log": "/home/luap/vise-buildtools/rust/build/bootstrap-stage-experiment/dry-run.log"
+}

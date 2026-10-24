@@ -1,0 +1,2 @@
+package wisp:swift-startup@0.1.0;
+world startup { export stress: func() -> u32; }

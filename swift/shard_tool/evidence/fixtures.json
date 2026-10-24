@@ -1,0 +1,66 @@
+[
+  {
+    "fixture": "globals-memory-elements-imports-recursion-results",
+    "shards": 1,
+    "crossCalls": 0,
+    "bytes": 599
+  },
+  {
+    "fixture": "globals-memory-elements-imports-recursion-results",
+    "shards": 2,
+    "crossCalls": 1,
+    "bytes": 829
+  },
+  {
+    "fixture": "globals-memory-elements-imports-recursion-results",
+    "shards": 3,
+    "crossCalls": 3,
+    "bytes": 1048
+  },
+  {
+    "fixture": "globals-memory-elements-imports-recursion-results",
+    "shards": 7,
+    "crossCalls": 6,
+    "bytes": 1909
+  },
+  {
+    "fixture": "signed-leb-element-offset-130",
+    "shards": 3
+  },
+  {
+    "fixture": "explicit-table-zero-offset-130-and-read-only-verification",
+    "shards": 3
+  },
+  {
+    "fixture": "cross-shard-tail-call",
+    "result": 42
+  },
+  {
+    "fixture": "ref-func",
+    "rejected": "wisp-swift-shard: passive/declared elements unsupported"
+  },
+  {
+    "fixture": "start",
+    "rejected": "wisp-swift-shard: unsupported section: defined tables/memories/tags, data, data-count, or start"
+  },
+  {
+    "fixture": "overlap",
+    "rejected": "wisp-swift-shard: overlapping element segments unsupported"
+  },
+  {
+    "fixture": "global-offset",
+    "rejected": "wisp-swift-shard: element offset must be i32.const"
+  },
+  {
+    "fixture": "global-ref",
+    "rejected": "wisp-swift-shard: global ref.func unsupported"
+  },
+  {
+    "fixture": "element-index",
+    "rejected": "wisp-swift-shard: element-index instructions in body 0 unsupported"
+  },
+  {
+    "fixture": "body-ref",
+    "rejected": "wisp-swift-shard: ref.func in body 0 unsupported; nullable table.get is not a typed replacement"
+  }
+]

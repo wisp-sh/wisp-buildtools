@@ -1,0 +1,79 @@
+--- a/runtime/sys.c
++++ b/runtime/sys.c
+@@ -28,7 +28,7 @@
+ #include <sys/stat.h>
+ #ifdef _WIN32
+ #include <direct.h> /* for _wchdir and _wgetcwd */
+-#else
++#elif !defined(__wasi__)
+ #include <sys/wait.h>
+ #endif
+ #include "caml/config.h"
+@@ -565,6 +565,10 @@
+ #else
+ int caml_unix_random_seed(intnat data[16])
+ {
++#ifdef __wasi__
++  if (getentropy(data, 16 * sizeof(intnat)) != 0) caml_fatal_error("WASI random source failed");
++  return 16;
++#else
+   int fd;
+   int n = 0;
+ 
+@@ -596,6 +600,7 @@
+ #endif
+     return n;
+   }
++#endif
+ }
+ #endif
+ 
+--- a/runtime/unix.c
++++ b/runtime/unix.c
+@@ -404,7 +404,9 @@
+ 
+ char *caml_secure_getenv (char const *var)
+ {
+-#ifdef HAS_SECURE_GETENV
++#if defined(__wasi__)
++  return getenv(var);
++#elif defined(HAS_SECURE_GETENV)
+   return secure_getenv (var);
+ #elif defined (HAS___SECURE_GETENV)
+   return __secure_getenv (var);
+--- a/runtime/debugger.c
++++ b/runtime/debugger.c
+@@ -36,6 +36,11 @@
+ int caml_debugger_fork_mode = 1; /* parent by default */
+ 
+ #if !defined(HAS_SOCKETS) || defined(NATIVE_CODE)
++
++opcode_t caml_debugger_saved_instruction(code_t pc)
++{
++  caml_fatal_error("OCaml debugger is unavailable in this runtime");
++}
+ 
+ void caml_debugger_init(void)
+ {
+--- a/runtime/caml/config.h
++++ b/runtime/caml/config.h
+@@ -175,7 +175,7 @@
+    as first-class values (GCC 2.x). */
+ 
+ #if defined(__GNUC__) && __GNUC__ >= 2 && !defined(DEBUG) \
+-    && !defined (SHRINKED_GNUC)
++    && !defined (SHRINKED_GNUC) && !defined(__wasi__)
+ #define THREADED_CODE
+ #endif
+ 
+--- a/runtime/caml/mlvalues.h
++++ b/runtime/caml/mlvalues.h
+@@ -188,7 +188,7 @@
+ #define Tag_hp(hp) (((unsigned char *) (hp)) [sizeof(value)-1])
+                                                  /* Also an l-value. */
+ #else
+-#define Tag_val(val) (((unsigned char *) (val)) [-sizeof(value)])
++#define Tag_val(val) (((unsigned char *) (val)) [-(int)sizeof(value)])
+                                                  /* Also an l-value. */
+ #define Tag_hp(hp) (((unsigned char *) (hp)) [0])
+                                                  /* Also an l-value. */

@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.20)
+project(llvm_wasi_sdk_smoke LANGUAGES CXX)
+find_package(WispLLVM REQUIRED CONFIG)
+add_executable(sdk-smoke main.cpp)
+target_link_libraries(sdk-smoke PRIVATE LLVMWebAssemblyCodeGen LLVMWebAssemblyAsmParser lldWasm)
+target_link_options(sdk-smoke PRIVATE -Wl,-z,stack-size=1048576)

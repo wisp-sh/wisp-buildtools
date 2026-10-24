@@ -1,0 +1,20 @@
+[package]
+name = "wisp-swift-shard"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+anyhow = "=1.0.102"
+serde_json = "=1.0.150"
+sha2 = "=0.10.9"
+wasmparser = { version = "=0.245.1", default-features = false, features = ["std", "validate", "features", "simd"] }
+wasm-encoder = { version = "=0.245.1", default-features = false, features = ["std", "wasmparser"] }
+
+[profile.dev]
+debug = 0
+incremental = false
+
+[profile.release]
+debug = 0
+incremental = false

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "componentizeQjs": {
+    "version": "0.4.5",
+    "url": "https://static.crates.io/crates/componentize-qjs/componentize-qjs-0.4.5.crate",
+    "sha256": "6e3a182c2ed4e216c999def79e11ef9587a98be654334a7ac9696d2ffea25d35",
+    "runtimes": {
+      "runtime-sync.wasm": {
+        "bytes": 1497910,
+        "sha256": "25703f010b80efb806f9c35daf9ee6524ad60320c9781b0bae4e234264f8dac5"
+      },
+      "runtime-opt-size-sync.wasm": {
+        "bytes": 956298,
+        "sha256": "51bced91769e0a3cb8bc288d230675b03fca8f97b42723b9f9f1702e6903b6f7"
+      }
+    }
+  },
+  "files": {
+    ".toolchains/wasm/componentize.wasm": {
+      "bytes": 3486967,
+      "sha256": "88f4ba5baa801a3b2f6c1f4ed52b23a8253c3801cbb6e3fd3f751976f4d592a9"
+    },
+    ".toolchains/wasm/esbuild.wasm": {
+      "bytes": 15269983,
+      "sha256": "7de668457602ff90e42cae68aca3da7d59ec5770c3ef30ac1f5cacbb49f88154"
+    },
+    ".toolchains/runtimes/runtime-sync.wasm": {
+      "bytes": 1497910,
+      "sha256": "25703f010b80efb806f9c35daf9ee6524ad60320c9781b0bae4e234264f8dac5"
+    },
+    ".toolchains/runtimes/runtime-opt-size-sync.wasm": {
+      "bytes": 956298,
+      "sha256": "51bced91769e0a3cb8bc288d230675b03fca8f97b42723b9f9f1702e6903b6f7"
+    }
+  },
+  "bootstrapRustc": "rustc 1.99.0 (b940084d7 2026-09-28)"
+}

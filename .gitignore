@@ -1,0 +1,16 @@
+/build/
+/dist/
+/out/
+/go/artifacts/
+**/__pycache__/
+**/.pytest_cache/
+**/.toolchains/
+**/target/
+**/node_modules/
+*.py[cod]
+*.tmp
+.DS_Store
+# CI downloads, extracted bootstrap tools, logs and temporary packages.
+/.ci/
+# Extracted upstream Rust trees are build inputs, not verification fixtures.
+/rust/verification/legacy-build-*/source-rust-*/

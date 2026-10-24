@@ -1,0 +1,39 @@
+name: Build CPDF with Wasm OCaml
+description: Build the pinned compiler dependencies, verify CPDF, and prepare command downloads
+inputs:
+  package-directory:
+    description: Absolute path to the checked-out CPDF recipe
+    required: true
+  output-directory:
+    description: Fresh directory for the two verified archives and upload manifest
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install --no-install-recommends --yes build-essential cmake curl ninja-build patch pkg-config unzip xz-utils libbrotli1
+    - shell: bash
+      env:
+        WISP_ACTION_ROOT: ${{ github.action_path }}/../../..
+      run: python3 "$WISP_ACTION_ROOT/tools/ci-prerequisites.py" install ocaml
+    - shell: bash
+      env:
+        WISP_ACTION_ROOT: ${{ github.action_path }}/../../..
+        WISP_PACKAGE_DIR: ${{ inputs.package-directory }}
+        WISP_OUTPUT_DIR: ${{ inputs.output-directory }}
+      run: |
+        python3 "$WISP_ACTION_ROOT/build.py" build ocaml --jobs 2
+        python3 "$WISP_ACTION_ROOT/build.py" build wasm-tools --jobs 2
+        export WISP_OCAML_TOOLCHAIN="$WISP_ACTION_ROOT/ocaml"
+        export WISP_LLVM_TOOLCHAIN="$WISP_ACTION_ROOT/llvm"
+        export WISP_LLVM="$WISP_ACTION_ROOT/llvm/dist/shared"
+        export WISP_CLANG_RESOURCE_DIR="$WISP_ACTION_ROOT/clang/include"
+        export WISP_WASM_TOOLS="$WISP_ACTION_ROOT/wasm-tools/dist/wasm-tools.wasm"
+        python3 "$WISP_PACKAGE_DIR/fetch.py"
+        python3 "$WISP_PACKAGE_DIR/build.py" --buildtools "$WISP_ACTION_ROOT" --ocaml-toolchain "$WISP_OCAML_TOOLCHAIN"
+        python3 "$WISP_PACKAGE_DIR/verify.py" --ocaml-toolchain "$WISP_OCAML_TOOLCHAIN"
+        python3 "$WISP_PACKAGE_DIR/package.py" --buildtools "$WISP_ACTION_ROOT"
+        python3 "$WISP_PACKAGE_DIR/verify_archive.py" --run
+        python3 "$WISP_PACKAGE_DIR/prepare_ci.py" --out "$WISP_OUTPUT_DIR"

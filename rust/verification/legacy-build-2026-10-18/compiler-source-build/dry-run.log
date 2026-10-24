@@ -1,0 +1,37 @@
+warn: Looks like you are trying to bootstrap Rust from a source that is neither a git clone nor distributed tarball.
+This build may fail due to missing submodules unless you put them in place manually.
+Building bootstrap
+    Finished `dev` profile [unoptimized] target(s) in 0.37s
+cargo:warning=Compiler family detection failed due to error: ToolNotFound: Failed to find tool. Is `clang` installed?
+cargo:warning=Compiler family detection failed due to error: ToolNotFound: Failed to find tool. Is `clang++` installed?
+cargo:warning=Compiler family detection failed due to error: ToolNotFound: Failed to find tool. Is `clang++` installed?
+warning: unable to check if the upstream master branch is old due to error: command did not execute successfully: cd "/home/luap/vise-buildtools/rust-wasm/build/source-rust-cf327c206854" && "git" "config" "--local" "--get-regex" "remote\\..*\\.url"
+expected success, got: exit status: 1
+
+warning: the upstream master branch is used to determine if files have been modified
+warning: if it is not updated, this may cause files to be needlessly reformatted
+Building LLVM for x86_64-unknown-linux-gnu
+Building stage0 library artifacts (x86_64-unknown-linux-gnu)
+Building compiler artifacts (stage0 -> stage1, x86_64-unknown-linux-gnu)
+Creating a sysroot for stage1 compiler (use `rustup toolchain link 'name' build/host/stage1`)
+Building stage1 library artifacts (x86_64-unknown-linux-gnu)
+Building compiler artifacts (stage1 -> stage2, x86_64-unknown-linux-gnu)
+Creating a sysroot for stage2 compiler (use `rustup toolchain link 'name' build/host/stage2`)
+Building LLVM for wasm32-wasip1-threads
+could not determine CMAKE_SYSTEM_NAME from the target `wasm32-wasip1-threads`, build may fail
+Building stage1 library artifacts (x86_64-unknown-linux-gnu -> wasm32-wasip1-threads)
+Building compiler artifacts (stage1:x86_64-unknown-linux-gnu -> stage2:wasm32-wasip1-threads)
+Creating a sysroot for stage2 compiler (wasm32-wasip1-threads) (use `rustup toolchain link 'name' build/wasm32-wasip1-threads/stage2`)
+Building stage0 tool rust-installer (x86_64-unknown-linux-gnu)
+Dist rustc-1.83.0-dev-wasm32-wasip1-threads
+Installing stage2 rustc (wasm32-wasip1-threads)
+Uplifting library (stage1:x86_64-unknown-linux-gnu -> stage2:wasm32-wasip1-threads)
+Dist rust-std-1.83.0-dev-wasm32-wasip1-threads
+Installing stage2 std (wasm32-wasip1-threads)
+Building stage2 library artifacts (x86_64-unknown-linux-gnu -> wasm32-wasip1)
+Dist rust-std-1.83.0-dev-wasm32-wasip1
+Installing stage2 std (wasm32-wasip1)
+Building stage2 library artifacts (x86_64-unknown-linux-gnu -> wasm32-unknown-unknown)
+Dist rust-std-1.83.0-dev-wasm32-unknown-unknown
+Installing stage2 std (wasm32-unknown-unknown)
+Build completed successfully in 0:00:01

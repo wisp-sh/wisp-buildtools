@@ -1,0 +1,4 @@
+package demo:kotlin-growth@0.1.0;
+world growth {
+    export answer: func() -> u32;
+}

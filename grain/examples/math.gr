@@ -1,0 +1,23 @@
+module Math
+
+from "runtime/unsafe/wasmi32" include WasmI32
+from "runtime/unsafe/wasmi64" include WasmI64
+from "runtime/unsafe/wasmf64" include WasmF64
+
+@unsafe
+provide let add = (a: WasmI32, b: WasmI32) => {
+  use WasmI32.{ (+) }
+  a + b
+}
+
+@unsafe
+provide let widen = (value: WasmI64) => {
+  use WasmI64.{ (+) }
+  value + 1N
+}
+
+@unsafe
+provide let scale = (value: WasmF64) => {
+  use WasmF64.{ (*) }
+  value * 1.5W
+}

@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "version": "6.3.3",
+  "artifacts": {
+    "swift-frontend": {
+      "url": "https://github.com/tothambrus11/swift-toolchain-wasm/releases/download/swift-6.3.3-wasm/swift-frontend.wasm.gz",
+      "sha256": "e0a1adc961d9ce9d396fd57a113046cfbe475f51af292b20ed042d7c13e85194",
+      "moduleSha256": "5e0b98037d684cf8c336d806021f82c4be69c7b992016d49c260c99efe4ca427"
+    },
+    "wasm-ld": {
+      "url": "https://github.com/tothambrus11/swift-toolchain-wasm/releases/download/swift-6.3.3-wasm/wasm-ld.wasm.gz",
+      "sha256": "773a938c2b7a39de30780e3bd57b109b55e8b6da394c4c4dc8933f331ab5fcb1",
+      "moduleSha256": "00a8d674564664c694dbdc958b915744862a7751a9b1ed48fd68ac2b3c41ec12"
+    },
+    "sysroot": {
+      "url": "https://github.com/tothambrus11/swift-toolchain-wasm/releases/download/swift-6.3.3-wasm/swift-sysroot-core.tar.gz",
+      "sha256": "92be8bfe12128b07bce73c0afa540aa8247ff93c2d35508af6646cd29f5d981a"
+    }
+  },
+  "source": {
+    "repository": "https://github.com/tothambrus11/swift-toolchain-wasm",
+    "revision": "b9721ec5926d5d50e25ba905cae44f82daf9161f",
+    "swiftTag": "swift-6.3.3-RELEASE",
+    "officialSwiftSdkSha256": "cabfa08b73bb8ac783927ecd15fa386e99d0c139c5f232445067bcf58379cae7"
+  },
+  "binaryen": {
+    "version": 133,
+    "wasm-optSha256": "8f25e9fd5db0fc5f210003aaa432922feb2e52d309e430def2f929e34da9466b",
+    "wasm-splitSha256": "4bf081365684646acef187628ff26669b409e4291765a97e8cfd006e823d4758"
+  },
+  "licenses": {
+    "Swift.txt": {
+      "url": "https://raw.githubusercontent.com/swiftlang/swift/swift-6.3.3-RELEASE/LICENSE.txt",
+      "sha256": "770af8291f708538d8ff885a0bbc4e045cd700531741c4f99528d435c14d7f55"
+    },
+    "LLVM.txt": {
+      "url": "https://raw.githubusercontent.com/swiftlang/llvm-project/swift-6.3.3-RELEASE/llvm/LICENSE.TXT",
+      "sha256": "8d85c1057d742e597985c7d4e6320b015a9139385cff4cbae06ffc0ebe89afee"
+    },
+    "Swift-Wasm-port.txt": {
+      "url": "https://raw.githubusercontent.com/tothambrus11/swift-toolchain-wasm/b9721ec5926d5d50e25ba905cae44f82daf9161f/LICENSE",
+      "sha256": "770af8291f708538d8ff885a0bbc4e045cd700531741c4f99528d435c14d7f55"
+    },
+    "Swift-Wasm-port-NOTICE.txt": {
+      "url": "https://raw.githubusercontent.com/tothambrus11/swift-toolchain-wasm/b9721ec5926d5d50e25ba905cae44f82daf9161f/NOTICE",
+      "sha256": "ae2d0eeccebf49d77c2c7df7dd5251e63c7d36cbd1ec6641c9ab55a607003c05"
+    }
+  }
+}

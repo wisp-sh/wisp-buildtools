@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "version": "0.16.0",
+  "passed": 2,
+  "nodeOnPath": false,
+  "nativeCompilerOnPath": false,
+  "checks": [
+    {
+      "name": "Wasm-hosted bytecode to Component",
+      "sha256": "ec087113e72a468ca92d8f30c903b28512b40b3b70339bd8a9e719b003be6838",
+      "bytes": 199086
+    },
+    {
+      "name": "startup and answer",
+      "stdout": [
+        "teavm-startup",
+        "42"
+      ]
+    }
+  ],
+  "seconds": 95.24
+}

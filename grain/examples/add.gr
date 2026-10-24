@@ -1,0 +1,9 @@
+module Add
+
+from "runtime/unsafe/wasmi32" include WasmI32
+
+@unsafe
+provide let add = (a: WasmI32, b: WasmI32) => {
+  use WasmI32.{ (+) }
+  a + b
+}

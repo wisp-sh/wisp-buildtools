@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "status": "rust-1.99.1-wasip3-llvm24-port-awaiting-acceptance",
+  "rust_version": "1.99.1",
+  "llvm_version": "24.0.0git",
+  "compiler_host_target": "wasm32-wasip3",
+  "application_targets": [
+    "wasm32-wasip1",
+    "wasm32-unknown-unknown"
+  ],
+  "sources": [
+    {
+      "name": "rust",
+      "repository": "https://github.com/rust-lang/rust",
+      "revision": "58cf8f9c35b355199727627d07ae34a4e2846d67",
+      "destination": ".",
+      "url": "https://codeload.github.com/rust-lang/rust/tar.gz/58cf8f9c35b355199727627d07ae34a4e2846d67",
+      "archive_root": "rust-58cf8f9c35b355199727627d07ae34a4e2846d67",
+      "archive_bytes": 39696972,
+      "unpacked_bytes": 223999138,
+      "sha256": "a46c4b9124e2fa50bb912455dbd803e78bc523597ba24014ef0fd25defc40b18"
+    },
+    {
+      "name": "backtrace",
+      "repository": "https://github.com/rust-lang/backtrace-rs",
+      "revision": "d902726a1dcdc1e1c66f73d1162181b5423c645b",
+      "destination": "library/backtrace",
+      "url": "https://codeload.github.com/rust-lang/backtrace-rs/tar.gz/d902726a1dcdc1e1c66f73d1162181b5423c645b",
+      "archive_root": "backtrace-rs-d902726a1dcdc1e1c66f73d1162181b5423c645b",
+      "archive_bytes": 99341,
+      "unpacked_bytes": 358116,
+      "sha256": "51fc2a0f549f1f57594c310885c59c2f1ecf86cc13169a0193819fd80bda2ffb"
+    }
+  ],
+  "macro_reference": {
+    "url": "https://github.com/bjorn3/rust/compare/28e8a8c81bf3b37909edac6c2a76e56f30cd492f...2aa6abf53dc8c597d5f9c6e5f195c4080b5a61bf.diff",
+    "sha256": "2441164f21c3f735ff16eb692bef5a9b06cd7f1718bee483f32aec6621ac73a3",
+    "bytes": 65126,
+    "path": "patches/reference/0001-wasm-proc-macros-wasmi.diff",
+    "pull_request": "https://github.com/rust-lang/rust/pull/157709",
+    "repository": "https://github.com/bjorn3/rust",
+    "base_revision": "28e8a8c81bf3b37909edac6c2a76e56f30cd492f",
+    "head_revision": "2aa6abf53dc8c597d5f9c6e5f195c4080b5a61bf",
+    "apply": false,
+    "reason": "Reference for the dynamic proc-macro client bridge. The local Rust 1.99.1 port uses a bounded Wasmi interpreter and wasm32-unknown-unknown guests.",
+    "interpreter_candidate": {
+      "crate": "wasmi",
+      "version": "0.40.0",
+      "declared_minimum_rust": "1.80",
+      "status": "compiled-in-native-and-wasm-bridge-test-hosts",
+      "reason": "Retain the validated interpreter API while upgrading rustc; the guest bridge is rebuilt from the same Rust 1.99.1 sources as the compiler."
+    }
+  },
+  "macro_backport": {
+    "path": "patches/0001-rust-1.99-wasi-proc-macros.patch",
+    "sha256": "81408da5aa26e47a8c9dbb6f92163a942ec2867502e84e5287798d0fd4da70fc",
+    "patched_cargo_lock_sha256": "94f7c3b279032b2c2199bf295f0d96450fc2318d61e15ed0b0deee53de62c1fe",
+    "interpreter": "wasmi 0.40.0",
+    "macro_target": "wasm32-unknown-unknown",
+    "status": "rust-1.99.1-port-requires-compiler-and-application-acceptance",
+    "bridge_check": "patches/port-check/check.py",
+    "compiler_build_driver": "scripts/build-compiler.py",
+    "required_acceptance": [
+      "derive",
+      "serde"
+    ]
+  },
+  "build_patches": [],
+  "wasi_sdk": {
+    "version": "34.0",
+    "platform": "x86_64-linux",
+    "url": "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz",
+    "archive_bytes": 192383077,
+    "sha256": "b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4",
+    "prepare_script_installs": false
+  },
+  "bootstrap": {
+    "mode": "matching-release",
+    "host": "x86_64-unknown-linux-gnu",
+    "date": "2026-10-15",
+    "channel": "1.99.1",
+    "source_file": "src/stage0",
+    "source_stage0_sha256": "759b73eca37a7b589b1ecc0fea77d94a1f8ca36cddb94f1401c72343e0dc1d4e",
+    "artifacts": [
+      {
+        "url": "https://static.rust-lang.org/dist/2026-10-15/rustc-1.99.1-x86_64-unknown-linux-gnu.tar.xz",
+        "sha256": "2ff05ff9c08a90861e7f6e4065b40a8b87463b4576186fd613871c3e37f2091f"
+      },
+      {
+        "url": "https://static.rust-lang.org/dist/2026-10-15/rust-std-1.99.1-x86_64-unknown-linux-gnu.tar.xz",
+        "sha256": "109b074225bf5b9ea3820890876bfdf4ed161adbfaf94b2b4b5984c85ee5d958"
+      },
+      {
+        "url": "https://static.rust-lang.org/dist/2026-10-15/cargo-1.99.1-x86_64-unknown-linux-gnu.tar.xz",
+        "sha256": "53f3521949404d595efb06a55c12c5658d4ed1c75566f33d3d514eaebe70bd8a"
+      }
+    ],
+    "compiler_description": "58cf8f9c3 2026-10-13"
+  },
+  "unprepared_inputs": [
+    "Cargo registry source dependencies from the pinned Rust Cargo.lock",
+    "WASI SDK tool executables",
+    "Native compiler, CMake and Ninja",
+    "Native stage0 bootstrap artifacts listed above"
+  ],
+  "source_build_status": "see-separate-compiler-build-report",
+  "macro_support_status": "Rust 1.99.1 bridge port; full compiler acceptance must be rerun",
+  "bootstrap_stage": 0,
+  "compiler_stage": 1,
+  "external_llvm": {
+    "repository": "https://github.com/llvm/llvm-project",
+    "revision": "d297af3b3d7a086d64f1477cfa682a16fcfa3260",
+    "version": "24.0.0git",
+    "host_target": "wasm32-wasip3",
+    "directory": "llvm/artifacts/llvm-24-d297af3-wasip3-o1",
+    "metadata": "share/llvm/sdk.json",
+    "inventory": "SHA256SUMS"
+  },
+  "source_bootstrap": {
+    "host": "x86_64-unknown-linux-gnu",
+    "date": "2026-08-20",
+    "channel": "1.98.0",
+    "source_file": "src/stage0",
+    "artifacts": [
+      {
+        "url": "https://static.rust-lang.org/dist/2026-08-20/rustc-1.98.0-x86_64-unknown-linux-gnu.tar.xz",
+        "sha256": "0e37cb339f447fc44d6d781073bacacebfdc5612f2600e4c7e84c266f5f3aced"
+      },
+      {
+        "url": "https://static.rust-lang.org/dist/2026-08-20/rust-std-1.98.0-x86_64-unknown-linux-gnu.tar.xz",
+        "sha256": "f5022e6c95a5ad23cca2513dc8281200f585fa188de6370aa37b128a43f876a3"
+      },
+      {
+        "url": "https://static.rust-lang.org/dist/2026-08-20/cargo-1.98.0-x86_64-unknown-linux-gnu.tar.xz",
+        "sha256": "2f512d170d3dd23e16ababcda32ee2e6d5172d861a7af1f504e0b1e270cafab9"
+      }
+    ],
+    "prepare_script_installs": false
+  }
+}

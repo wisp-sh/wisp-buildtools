@@ -1,0 +1,16 @@
+module Startup
+
+from "runtime/unsafe/wasmi32" include WasmI32
+from "array" include Array
+
+// Eight million bytes exceed Grain's initial 64 Wasm pages and force growth.
+let values = Array.make(2000000, 42)
+assert(Array.get(1999999, values) == 42)
+
+print("grain-startup")
+
+@unsafe
+provide let add = (a: WasmI32, b: WasmI32) => {
+  use WasmI32.{ (+) }
+  a + b
+}

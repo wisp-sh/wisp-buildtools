@@ -1,0 +1,7 @@
+module Imports
+
+from "runtime/unsafe/wasmi32" include WasmI32
+from "./helper.gr" include Helper
+
+@unsafe
+provide let twice = (value: WasmI32) => Helper.twice(value)

@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "ocaml": {
+    "version": "4.14.2",
+    "url": "https://github.com/ocaml/ocaml/archive/refs/tags/4.14.2.tar.gz",
+    "sha256": "c2d706432f93ba85bd3383fa451d74543c32a4e84a1afaf3e8ace18f7f097b43"
+  },
+  "wasiSdk": {
+    "version": "34.0",
+    "provider": "clang/.toolchains/wasi-sdk-34.0-x86_64-linux"
+  },
+  "cBackend": {
+    "provider": "nim/dist/bin/c-backend.wasm",
+    "source": "nim/src/c_backend.cpp",
+    "runtimeProvider": "llvm"
+  }
+}

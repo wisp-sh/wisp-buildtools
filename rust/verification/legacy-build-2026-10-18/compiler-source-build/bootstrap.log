@@ -1,0 +1,119 @@
+warn: Looks like you are trying to bootstrap Rust from a source that is neither a git clone nor distributed tarball.
+This build may fail due to missing submodules unless you put them in place manually.
+Building bootstrap
+    Finished `dev` profile [unoptimized] target(s) in 0.19s
+cargo:warning=Compiler family detection failed due to error: ToolNotFound: Failed to find tool. Is `clang` installed?
+cargo:warning=Compiler family detection failed due to error: ToolNotFound: Failed to find tool. Is `clang++` installed?
+cargo:warning=Compiler family detection failed due to error: ToolNotFound: Failed to find tool. Is `clang++` installed?
+warning: unable to check if the upstream master branch is old due to error: command did not execute successfully: cd "/home/luap/vise-buildtools/rust-wasm/build/source-rust-cf327c206854" && "git" "config" "--local" "--get-regex" "remote\\..*\\.url"
+expected success, got: exit status: 1
+
+warning: the upstream master branch is used to determine if files have been modified
+warning: if it is not updated, this may cause files to be needlessly reformatted
+Building stage0 library artifacts (x86_64-unknown-linux-gnu)
+    Finished `release` profile [optimized] target(s) in 0.06s
+Building compiler artifacts (stage0 -> stage1, x86_64-unknown-linux-gnu)
+    Finished `release` profile [optimized] target(s) in 0.84s
+Creating a sysroot for stage1 compiler (use `rustup toolchain link 'name' build/host/stage1`)
+Building stage1 library artifacts (x86_64-unknown-linux-gnu)
+    Finished `release` profile [optimized] target(s) in 0.16s
+Building compiler artifacts (stage1 -> stage2, x86_64-unknown-linux-gnu)
+    Finished `release` profile [optimized] target(s) in 0.57s
+Creating a sysroot for stage2 compiler (use `rustup toolchain link 'name' build/host/stage2`)
+Building stage1 library artifacts (x86_64-unknown-linux-gnu -> wasm32-wasip1-threads)
+warning: dropping unsupported crate type `dylib` for target `wasm32-wasip1-threads`
+
+warning: `std` (lib) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 5.50s
+Building compiler artifacts (stage1:x86_64-unknown-linux-gnu -> stage2:wasm32-wasip1-threads)
+warning: unreachable statement
+   --> compiler/rustc_session/src/filesearch.rs:163:5
+    |
+161 |     return smallvec![];
+    |     ------------------ any code following this expression is unreachable
+162 |
+163 |     let target = crate::config::host_triple();
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unreachable statement
+    |
+    = note: `#[warn(unreachable_code)]` on by default
+
+warning: `rustc_session` (lib) generated 1 warning
+warning: unused import: `std::time::Duration`
+ --> compiler/rustc_metadata/src/creader.rs:8:5
+  |
+8 | use std::time::Duration;
+  |     ^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: `rustc_metadata` (lib) generated 1 warning (run `cargo fix --lib -p rustc_metadata` to apply 1 suggestion)
+warning: unused import: `Duration`
+  --> compiler/rustc_driver_impl/src/lib.rs:32:17
+   |
+32 | use std::time::{Duration, Instant, SystemTime};
+   |                 ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `rustc_const_eval::CTRL_C_RECEIVED`
+  --> compiler/rustc_driver_impl/src/lib.rs:38:5
+   |
+38 | use rustc_const_eval::CTRL_C_RECEIVED;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `rustc_driver_impl` (lib) generated 2 warnings (run `cargo fix --lib -p rustc_driver_impl` to apply 2 suggestions)
+warning: dropping unsupported crate type `dylib` for target `wasm32-wasip1-threads`
+
+warning: `rustc_driver` (lib) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.59s
+Creating a sysroot for stage2 compiler (wasm32-wasip1-threads) (use `rustup toolchain link 'name' build/wasm32-wasip1-threads/stage2`)
+Building stage0 tool rust-installer (x86_64-unknown-linux-gnu)
+    Finished `release` profile [optimized] target(s) in 0.36s
+Dist rustc-1.83.0-dev-wasm32-wasip1-threads
+	finished in 0.090 seconds
+Installing stage2 rustc (wasm32-wasip1-threads)
+install: uninstalling component 'rustc'
+install: creating uninstall script at /home/luap/vise-buildtools/rust-wasm/build/compiler-source-build/install/lib/rustlib/uninstall.sh
+install: installing component 'rustc'
+
+    rustc installed.
+
+Uplifting library (stage1:x86_64-unknown-linux-gnu -> stage2:wasm32-wasip1-threads)
+Dist rust-std-1.83.0-dev-wasm32-wasip1-threads
+	finished in 0.119 seconds
+Installing stage2 std (wasm32-wasip1-threads)
+install: uninstalling component 'rust-std-wasm32-wasip1-threads'
+install: creating uninstall script at /home/luap/vise-buildtools/rust-wasm/build/compiler-source-build/install/lib/rustlib/uninstall.sh
+install: installing component 'rust-std-wasm32-wasip1-threads'
+
+    rust std installed.
+
+Building stage2 library artifacts (x86_64-unknown-linux-gnu -> wasm32-wasip1)
+warning: dropping unsupported crate type `dylib` for target `wasm32-wasip1`
+
+warning: `std` (lib) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.06s
+Dist rust-std-1.83.0-dev-wasm32-wasip1
+	finished in 0.152 seconds
+Installing stage2 std (wasm32-wasip1)
+install: uninstalling component 'rust-std-wasm32-wasip1'
+install: creating uninstall script at /home/luap/vise-buildtools/rust-wasm/build/compiler-source-build/install/lib/rustlib/uninstall.sh
+install: installing component 'rust-std-wasm32-wasip1'
+
+    rust std installed.
+
+Building stage2 library artifacts (x86_64-unknown-linux-gnu -> wasm32-unknown-unknown)
+warning: dropping unsupported crate type `dylib` for target `wasm32-unknown-unknown`
+
+warning: `std` (lib) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.08s
+Dist rust-std-1.83.0-dev-wasm32-unknown-unknown
+	finished in 0.185 seconds
+Installing stage2 std (wasm32-unknown-unknown)
+install: uninstalling component 'rust-std-wasm32-unknown-unknown'
+install: creating uninstall script at /home/luap/vise-buildtools/rust-wasm/build/compiler-source-build/install/lib/rustlib/uninstall.sh
+install: installing component 'rust-std-wasm32-unknown-unknown'
+
+    rust std installed.
+
+Build completed successfully in 0:00:28

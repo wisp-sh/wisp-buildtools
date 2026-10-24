@@ -1,0 +1,5 @@
+package demo:grain-imports@0.1.0;
+
+world imports {
+  export twice: func(value: u32) -> u32;
+}

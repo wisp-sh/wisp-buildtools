@@ -1,0 +1,9 @@
+{
+  "name": "wisp-assemblyscript-bootstrap",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "assemblyscript": "0.28.20",
+    "as-float": "1.0.1"
+  }
+}

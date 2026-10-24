@@ -1,0 +1,1343 @@
+From: Wisp buildtools
+Subject: [PATCH] Backport interpreted Wasm proc macros to pinned Rust 1.83
+
+Applies to oligamiq/rust cf327c2068549194a29160499c2ecafa9061e46e.
+Adapted from the serialized-bridge approach in bjorn3/rust PR 157709,
+head 2aa6abf53dc8c597d5f9c6e5f195c4080b5a61bf. This is a backport,
+not a cherry-pick. The old typed Client and native ProcMacro ABI remain.
+
+Use -Zwasm-proc-macros with macro modules compiled for
+wasm32-unknown-unknown. Wasmi 0.40.0 runs inside rustc and forwards the
+same-version proc_macro byte-buffer RPC. Macro declarations are queried
+through scalar exports rather than cross-memory Rust layout assumptions.
+Pointer-sized wire integers use checked u64 encoding.
+
+Compiler, std/proc_macro, and proc-macro dependencies must be rebuilt
+together. This patch is not compatible with the prebuilt bootstrap rustc.
+
+diff --git a/library/proc_macro/src/bridge/mod.rs b/library/proc_macro/src/bridge/mod.rs
+--- a/library/proc_macro/src/bridge/mod.rs
++++ b/library/proc_macro/src/bridge/mod.rs
+@@ -168,7 +168,8 @@
+ #[allow(unsafe_code)]
+ mod symbol;
+ 
+-use buffer::Buffer;
++pub use buffer::Buffer;
++pub use closure::Closure;
+ pub use rpc::PanicMessage;
+ use rpc::{Decode, DecodeMut, Encode, Reader, Writer};
+ 
+@@ -180,13 +181,13 @@
+ #[repr(C)]
+ pub struct BridgeConfig<'a> {
+     /// Buffer used to pass initial input to the client.
+-    input: Buffer,
++    pub input: Buffer,
+ 
+     /// Server-side function that the client uses to make requests.
+-    dispatch: closure::Closure<'a, Buffer, Buffer>,
++    pub dispatch: closure::Closure<'a, Buffer, Buffer>,
+ 
+     /// If 'true', always invoke the default panic hook
+-    force_show_panics: bool,
++    pub force_show_panics: bool,
+ 
+     // Prevent Send and Sync impls. `!Send`/`!Sync` is the usual way of doing
+     // this, but that requires unstable features. rust-analyzer uses this code
+diff --git a/library/proc_macro/src/bridge/server.rs b/library/proc_macro/src/bridge/server.rs
+--- a/library/proc_macro/src/bridge/server.rs
++++ b/library/proc_macro/src/bridge/server.rs
+@@ -2,6 +2,7 @@
+ 
+ use std::cell::Cell;
+ use std::marker::PhantomData;
++use std::sync::Arc;
+ 
+ use super::*;
+ 
+@@ -210,7 +211,7 @@
+         &self,
+         dispatcher: &mut impl DispatcherTrait,
+         input: Buffer,
+-        run_client: extern "C" fn(BridgeConfig<'_>) -> Buffer,
++        run_client: &(dyn Fn(BridgeConfig<'_>) -> Buffer + Sync),
+         force_show_panics: bool,
+     ) -> Buffer;
+ }
+@@ -266,7 +267,7 @@
+         &self,
+         dispatcher: &mut impl DispatcherTrait,
+         input: Buffer,
+-        run_client: extern "C" fn(BridgeConfig<'_>) -> Buffer,
++        run_client: &(dyn Fn(BridgeConfig<'_>) -> Buffer + Sync),
+         force_show_panics: bool,
+     ) -> Buffer {
+         if self.cross_thread || ALREADY_RUNNING_SAME_THREAD.get() {
+@@ -289,7 +290,7 @@
+         &self,
+         dispatcher: &mut impl DispatcherTrait,
+         input: Buffer,
+-        run_client: extern "C" fn(BridgeConfig<'_>) -> Buffer,
++        run_client: &(dyn Fn(BridgeConfig<'_>) -> Buffer + Sync),
+         force_show_panics: bool,
+     ) -> Buffer {
+         let _guard = RunningSameThreadGuard::new();
+@@ -321,30 +322,32 @@
+         &self,
+         dispatcher: &mut impl DispatcherTrait,
+         input: Buffer,
+-        run_client: extern "C" fn(BridgeConfig<'_>) -> Buffer,
++        run_client: &(dyn Fn(BridgeConfig<'_>) -> Buffer + Sync),
+         force_show_panics: bool,
+     ) -> Buffer {
+         let (mut server, mut client) = P::new();
+ 
+-        let join_handle = thread::spawn(move || {
+-            let mut dispatch = |b: Buffer| -> Buffer {
+-                client.send(b);
+-                client.recv().expect("server died while client waiting for reply")
+-            };
+-
+-            run_client(BridgeConfig {
+-                input,
+-                dispatch: (&mut dispatch).into(),
+-                force_show_panics,
+-                _marker: marker::PhantomData,
+-            })
+-        });
+-
+-        while let Some(b) = server.recv() {
+-            server.send(dispatcher.dispatch(b));
+-        }
+-
+-        join_handle.join().unwrap()
++        thread::scope(|scope| {
++            let join_handle = scope.spawn(move || {
++                let mut dispatch = |b: Buffer| -> Buffer {
++                    client.send(b);
++                    client.recv().expect("server died while client waiting for reply")
++                };
++
++                run_client(BridgeConfig {
++                    input,
++                    dispatch: (&mut dispatch).into(),
++                    force_show_panics,
++                    _marker: marker::PhantomData,
++                })
++            });
++
++            while let Some(b) = server.recv() {
++                server.send(dispatcher.dispatch(b));
++            }
++
++            join_handle.join().unwrap()
++        })
+     }
+ }
+ 
+@@ -372,7 +375,7 @@
+     handle_counters: &'static client::HandleCounters,
+     server: S,
+     input: I,
+-    run_client: extern "C" fn(BridgeConfig<'_>) -> Buffer,
++    run_client: &(dyn Fn(BridgeConfig<'_>) -> Buffer + Sync),
+     force_show_panics: bool,
+ ) -> Result<O, PanicMessage> {
+     let mut dispatcher =
+@@ -388,7 +391,90 @@
+     Result::decode(&mut &buf[..], &mut dispatcher.handle_store)
+ }
+ 
+-impl client::Client<crate::TokenStream, crate::TokenStream> {
++/// A compiler-side client that can call a native function or a Wasm interpreter.
++/// The marker preserves the old bridge's typed input and output contracts.
++pub struct DynClient<I, O> {
++    get_handle_counters: extern "C" fn() -> &'static client::HandleCounters,
++    run: Arc<dyn Fn(BridgeConfig<'_>) -> Buffer + Send + Sync>,
++    marker: PhantomData<fn(I) -> O>,
++}
++
++impl<I, O> Clone for DynClient<I, O> {
++    fn clone(&self) -> Self {
++        Self {
++            get_handle_counters: self.get_handle_counters,
++            run: self.run.clone(),
++            marker: PhantomData,
++        }
++    }
++}
++
++impl<I, O> DynClient<I, O> {
++    pub fn new(run: impl Fn(BridgeConfig<'_>) -> Buffer + Send + Sync + 'static) -> Self {
++        Self {
++            get_handle_counters: client::HandleCounters::get,
++            run: Arc::new(run),
++            marker: PhantomData,
++        }
++    }
++}
++
++impl<I: 'static, O: 'static> client::Client<I, O> {
++    pub fn into_dyn_client(self) -> DynClient<I, O> {
++        DynClient {
++            get_handle_counters: self.get_handle_counters,
++            run: Arc::new(move |config| (self.run)(config)),
++            marker: PhantomData,
++        }
++    }
++}
++
++/// Compiler-owned descriptions avoid sharing Rust enum layouts across memories.
++#[derive(Clone)]
++pub enum DynProcMacro {
++    CustomDerive {
++        trait_name: String,
++        attributes: Vec<String>,
++        client: DynClient<crate::TokenStream, crate::TokenStream>,
++    },
++    Attr {
++        name: String,
++        client: DynClient<(crate::TokenStream, crate::TokenStream), crate::TokenStream>,
++    },
++    Bang {
++        name: String,
++        client: DynClient<crate::TokenStream, crate::TokenStream>,
++    },
++}
++
++impl From<client::ProcMacro> for DynProcMacro {
++    fn from(value: client::ProcMacro) -> Self {
++        match value {
++            client::ProcMacro::CustomDerive { trait_name, attributes, client } => {
++                Self::CustomDerive {
++                    trait_name: trait_name.into(),
++                    attributes: attributes.iter().map(|s| (*s).into()).collect(),
++                    client: client.into_dyn_client(),
++                }
++            }
++            client::ProcMacro::Attr { name, client } => {
++                Self::Attr { name: name.into(), client: client.into_dyn_client() }
++            }
++            client::ProcMacro::Bang { name, client } => {
++                Self::Bang { name: name.into(), client: client.into_dyn_client() }
++            }
++        }
++    }
++}
++
++/// Report interpreter failures through the normal macro panic diagnostic path.
++pub fn client_error(message: String) -> Buffer {
++    let mut buffer = Buffer::new();
++    Err::<(), _>(PanicMessage::String(message)).encode(&mut buffer, &mut ());
++    buffer
++}
++
++impl DynClient<crate::TokenStream, crate::TokenStream> {
+     pub fn run<S>(
+         &self,
+         strategy: &impl ExecutionStrategy,
+@@ -400,20 +486,20 @@
+         S: Server,
+         S::TokenStream: Default,
+     {
+-        let client::Client { get_handle_counters, run, _marker } = *self;
++        let DynClient { get_handle_counters, run, .. } = self;
+         run_server(
+             strategy,
+             get_handle_counters(),
+             server,
+             <MarkedTypes<S> as Types>::TokenStream::mark(input),
+-            run,
++            &**run,
+             force_show_panics,
+         )
+         .map(|s| <Option<<MarkedTypes<S> as Types>::TokenStream>>::unmark(s).unwrap_or_default())
+     }
+ }
+ 
+-impl client::Client<(crate::TokenStream, crate::TokenStream), crate::TokenStream> {
++impl DynClient<(crate::TokenStream, crate::TokenStream), crate::TokenStream> {
+     pub fn run<S>(
+         &self,
+         strategy: &impl ExecutionStrategy,
+@@ -426,7 +512,7 @@
+         S: Server,
+         S::TokenStream: Default,
+     {
+-        let client::Client { get_handle_counters, run, _marker } = *self;
++        let DynClient { get_handle_counters, run, .. } = self;
+         run_server(
+             strategy,
+             get_handle_counters(),
+@@ -435,9 +521,41 @@
+                 <MarkedTypes<S> as Types>::TokenStream::mark(input),
+                 <MarkedTypes<S> as Types>::TokenStream::mark(input2),
+             ),
+-            run,
++            &**run,
+             force_show_panics,
+         )
+         .map(|s| <Option<<MarkedTypes<S> as Types>::TokenStream>>::unmark(s).unwrap_or_default())
+     }
+ }
++
++impl client::Client<crate::TokenStream, crate::TokenStream> {
++    pub fn run<S>(
++        &self,
++        strategy: &impl ExecutionStrategy,
++        server: S,
++        input: S::TokenStream,
++        force_show_panics: bool,
++    ) -> Result<S::TokenStream, PanicMessage>
++    where
++        S: Server,
++        S::TokenStream: Default,
++    {
++        self.into_dyn_client().run(strategy, server, input, force_show_panics)
++    }
++}
++impl client::Client<(crate::TokenStream, crate::TokenStream), crate::TokenStream> {
++    pub fn run<S>(
++        &self,
++        strategy: &impl ExecutionStrategy,
++        server: S,
++        input: S::TokenStream,
++        input2: S::TokenStream,
++        force_show_panics: bool,
++    ) -> Result<S::TokenStream, PanicMessage>
++    where
++        S: Server,
++        S::TokenStream: Default,
++    {
++        self.into_dyn_client().run(strategy, server, input, input2, force_show_panics)
++    }
++}
+diff --git a/library/proc_macro/src/bridge/client.rs b/library/proc_macro/src/bridge/client.rs
+--- a/library/proc_macro/src/bridge/client.rs
++++ b/library/proc_macro/src/bridge/client.rs
+@@ -21,7 +21,7 @@
+         impl HandleCounters {
+             // FIXME(eddyb) use a reference to the `static COUNTERS`, instead of
+             // a wrapper `fn` pointer, once `const fn` can reference `static`s.
+-            extern "C" fn get() -> &'static Self {
++            pub(super) extern "C" fn get() -> &'static Self {
+                 static COUNTERS: HandleCounters = HandleCounters {
+                     $($oty: AtomicU32::new(1),)*
+                     $($ity: AtomicU32::new(1),)*
+@@ -422,3 +422,96 @@
+         ProcMacro::Bang { name, client: Client::expand1(expand) }
+     }
+ }
++
++// These scalar exports form the same-version bridge between independent Wasm
++// memories. Rust enums, references and function pointers stay inside the guest.
++#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
++#[allow(unsafe_code)]
++mod wasm {
++    use super::*;
++
++    #[no_mangle]
++    pub extern "C" fn __rustc_proc_macro_alloc_buffer(len: usize) -> *mut Buffer {
++        Box::into_raw(Box::new(Buffer::from(vec![0; len])))
++    }
++    #[no_mangle]
++    pub unsafe extern "C" fn __rustc_proc_macro_buffer_replace(buffer: *mut Buffer, len: usize) {
++        *buffer = Buffer::from(vec![0; len]);
++    }
++    #[no_mangle]
++    pub unsafe extern "C" fn __rustc_proc_macro_buffer_ptr(buffer: *mut Buffer) -> *mut u8 {
++        (*buffer).as_mut_ptr()
++    }
++    #[no_mangle]
++    pub unsafe extern "C" fn __rustc_proc_macro_buffer_len(buffer: *const Buffer) -> usize {
++        (&*buffer).len()
++    }
++    #[no_mangle]
++    pub unsafe extern "C" fn __rustc_proc_macro_drop_buffer(buffer: *mut Buffer) {
++        drop(Box::from_raw(buffer));
++    }
++    #[no_mangle]
++    pub unsafe extern "C" fn __rustc_proc_macro_decls_len(decls: *const &[ProcMacro]) -> usize {
++        (*decls).len()
++    }
++    #[no_mangle]
++    pub unsafe extern "C" fn __rustc_proc_macro_decl_kind(
++        decls: *const &[ProcMacro],
++        index: usize,
++    ) -> u32 {
++        match &(*decls)[index] {
++            ProcMacro::Bang { .. } => 0,
++            ProcMacro::Attr { .. } => 1,
++            ProcMacro::CustomDerive { .. } => 2,
++        }
++    }
++    #[no_mangle]
++    pub unsafe extern "C" fn __rustc_proc_macro_decl_name(
++        decls: *const &[ProcMacro],
++        index: usize,
++    ) -> *mut Buffer {
++        Box::into_raw(Box::new(Buffer::from((*decls)[index].name().as_bytes().to_vec())))
++    }
++    #[no_mangle]
++    pub unsafe extern "C" fn __rustc_proc_macro_decl_helpers(
++        decls: *const &[ProcMacro],
++        index: usize,
++    ) -> *mut Buffer {
++        let text = match &(*decls)[index] {
++            ProcMacro::CustomDerive { attributes, .. } => attributes.join("\0"),
++            _ => String::new(),
++        };
++        Box::into_raw(Box::new(Buffer::from(text.into_bytes())))
++    }
++    #[no_mangle]
++    pub unsafe extern "C" fn __rustc_proc_macro_call_client(
++        input: *mut Buffer,
++        decls: *const &[ProcMacro],
++        index: usize,
++        force_show_panics: bool,
++    ) -> *mut Buffer {
++        #[link(wasm_import_module = "env")]
++        extern "C" {
++            fn __rustc_proc_macro_dispatch(input: *const Buffer, output: *mut Buffer);
++        }
++        let input = Box::from_raw(input).take();
++        let mut dispatch = |input: Buffer| {
++            let mut output = Buffer::new();
++            unsafe { __rustc_proc_macro_dispatch(&input, &mut output) };
++            output
++        };
++        let config = BridgeConfig {
++            input,
++            dispatch: (&mut dispatch).into(),
++            force_show_panics,
++            _marker: PhantomData,
++        };
++        let output = match &(*decls)[index] {
++            ProcMacro::Bang { client, .. } | ProcMacro::CustomDerive { client, .. } => {
++                (client.run)(config)
++            }
++            ProcMacro::Attr { client, .. } => (client.run)(config),
++        };
++        Box::into_raw(Box::new(output))
++    }
++}
+diff --git a/compiler/rustc_expand/src/proc_macro.rs b/compiler/rustc_expand/src/proc_macro.rs
+--- a/compiler/rustc_expand/src/proc_macro.rs
++++ b/compiler/rustc_expand/src/proc_macro.rs
+@@ -1,11 +1,12 @@
+ use rustc_ast as ast;
+ use rustc_ast::ptr::P;
+ use rustc_ast::tokenstream::TokenStream;
++use rustc_data_structures::sync::IntoDynSyncSend;
+ use rustc_errors::ErrorGuaranteed;
+ use rustc_parse::parser::{ForceCollect, Parser};
+ use rustc_session::config::ProcMacroExecutionStrategy;
++use rustc_span::Span;
+ use rustc_span::profiling::SpannedEventArgRecorder;
+-use rustc_span::Span;
+ 
+ use crate::base::{self, *};
+ use crate::{errors, proc_macro_server};
+@@ -39,7 +40,7 @@
+ }
+ 
+ pub struct BangProcMacro {
+-    pub client: pm::bridge::client::Client<pm::TokenStream, pm::TokenStream>,
++    pub client: IntoDynSyncSend<pm::bridge::server::DynClient<pm::TokenStream, pm::TokenStream>>,
+ }
+ 
+ impl base::BangProcMacro for BangProcMacro {
+@@ -69,7 +70,9 @@
+ }
+ 
+ pub struct AttrProcMacro {
+-    pub client: pm::bridge::client::Client<(pm::TokenStream, pm::TokenStream), pm::TokenStream>,
++    pub client: IntoDynSyncSend<
++        pm::bridge::server::DynClient<(pm::TokenStream, pm::TokenStream), pm::TokenStream>,
++    >,
+ }
+ 
+ impl base::AttrProcMacro for AttrProcMacro {
+@@ -102,7 +105,7 @@
+ }
+ 
+ pub struct DeriveProcMacro {
+-    pub client: pm::bridge::client::Client<pm::TokenStream, pm::TokenStream>,
++    pub client: IntoDynSyncSend<pm::bridge::server::DynClient<pm::TokenStream, pm::TokenStream>>,
+ }
+ 
+ impl MultiItemModifier for DeriveProcMacro {
+diff --git a/compiler/rustc_builtin_macros/src/lib.rs b/compiler/rustc_builtin_macros/src/lib.rs
+--- a/compiler/rustc_builtin_macros/src/lib.rs
++++ b/compiler/rustc_builtin_macros/src/lib.rs
+@@ -134,5 +134,10 @@
+     }
+ 
+     let client = proc_macro::bridge::client::Client::expand1(proc_macro::quote);
+-    register(sym::quote, SyntaxExtensionKind::Bang(Box::new(BangProcMacro { client })));
++    register(
++        sym::quote,
++        SyntaxExtensionKind::Bang(Box::new(BangProcMacro {
++            client: rustc_data_structures::sync::IntoDynSyncSend(client.into_dyn_client()),
++        })),
++    );
+ }
+diff --git a/compiler/rustc_metadata/src/rmeta/decoder.rs b/compiler/rustc_metadata/src/rmeta/decoder.rs
+--- a/compiler/rustc_metadata/src/rmeta/decoder.rs
++++ b/compiler/rustc_metadata/src/rmeta/decoder.rs
+@@ -5,7 +5,8 @@
+ use std::{io, iter, mem};
+ 
+ pub(super) use cstore_impl::provide;
+-use proc_macro::bridge::client::ProcMacro;
++use proc_macro::bridge::server::DynProcMacro as ProcMacro;
++use rustc_data_structures::sync::IntoDynSyncSend;
+ use rustc_ast as ast;
+ use rustc_data_structures::captures::Captures;
+ use rustc_data_structures::fingerprint::Fingerprint;
+@@ -90,7 +91,7 @@
+     /// or `#[rustc_allow_incoherent_impl]`.
+     incoherent_impls: FxIndexMap<SimplifiedType, LazyArray<DefIndex>>,
+     /// Proc macro descriptions for this crate, if it's a proc macro crate.
+-    raw_proc_macros: Option<&'static [ProcMacro]>,
++    raw_proc_macros: Option<Vec<IntoDynSyncSend<ProcMacro>>>,
+     /// Source maps for code from the crate.
+     source_map_import_info: Lock<Vec<Option<ImportedSourceFile>>>,
+     /// For every definition in this crate, maps its `DefPathHash` to its `DefIndex`.
+@@ -979,7 +980,7 @@
+             .decode(self)
+             .position(|i| i == id)
+             .unwrap();
+-        &self.raw_proc_macros.unwrap()[pos]
++        &self.cdata.raw_proc_macros.as_ref().unwrap()[pos]
+     }
+ 
+     fn opt_item_name(self, item_index: DefIndex) -> Option<Symbol> {
+@@ -1037,21 +1038,21 @@
+     }
+ 
+     fn load_proc_macro<'tcx>(self, id: DefIndex, tcx: TyCtxt<'tcx>) -> SyntaxExtension {
+-        let (name, kind, helper_attrs) = match *self.raw_proc_macro(id) {
++        let (name, kind, helper_attrs) = match self.raw_proc_macro(id) {
+             ProcMacro::CustomDerive { trait_name, attributes, client } => {
+                 let helper_attrs =
+-                    attributes.iter().cloned().map(Symbol::intern).collect::<Vec<_>>();
++                    attributes.iter().map(|name| Symbol::intern(name)).collect::<Vec<_>>();
+                 (
+                     trait_name,
+-                    SyntaxExtensionKind::Derive(Box::new(DeriveProcMacro { client })),
++                    SyntaxExtensionKind::Derive(Box::new(DeriveProcMacro { client: IntoDynSyncSend(client.clone()) })),
+                     helper_attrs,
+                 )
+             }
+             ProcMacro::Attr { name, client } => {
+-                (name, SyntaxExtensionKind::Attr(Box::new(AttrProcMacro { client })), Vec::new())
++                (name, SyntaxExtensionKind::Attr(Box::new(AttrProcMacro { client: IntoDynSyncSend(client.clone()) })), Vec::new())
+             }
+             ProcMacro::Bang { name, client } => {
+-                (name, SyntaxExtensionKind::Bang(Box::new(BangProcMacro { client })), Vec::new())
++                (name, SyntaxExtensionKind::Bang(Box::new(BangProcMacro { client: IntoDynSyncSend(client.clone()) })), Vec::new())
+             }
+         };
+ 
+@@ -1806,7 +1807,7 @@
+         cstore: &CStore,
+         blob: MetadataBlob,
+         root: CrateRoot,
+-        raw_proc_macros: Option<&'static [ProcMacro]>,
++        raw_proc_macros: Option<Vec<IntoDynSyncSend<ProcMacro>>>,
+         cnum: CrateNum,
+         cnum_map: CrateNumMap,
+         dep_kind: CrateDepKind,
+diff --git a/compiler/rustc_metadata/src/creader.rs b/compiler/rustc_metadata/src/creader.rs
+--- a/compiler/rustc_metadata/src/creader.rs
++++ b/compiler/rustc_metadata/src/creader.rs
+@@ -9,17 +9,19 @@
+ use std::{cmp, env, iter};
+ 
+ use proc_macro::bridge::client::ProcMacro;
+-use rustc_ast::expand::allocator::{alloc_error_handler_name, global_fn_name, AllocatorKind};
++use proc_macro::bridge::server::DynProcMacro;
++use rustc_ast::expand::allocator::{AllocatorKind, alloc_error_handler_name, global_fn_name};
+ use rustc_ast::{self as ast, *};
+ use rustc_data_structures::fx::FxHashSet;
+ use rustc_data_structures::owned_slice::OwnedSlice;
+ use rustc_data_structures::svh::Svh;
++use rustc_data_structures::sync::IntoDynSyncSend;
+ use rustc_data_structures::sync::{self, FreezeReadGuard, FreezeWriteGuard};
+ use rustc_errors::DiagCtxtHandle;
+ use rustc_expand::base::SyntaxExtension;
+ #[cfg(any(unix, windows))]
+ use rustc_fs_util::try_canonicalize;
+-use rustc_hir::def_id::{CrateNum, LocalDefId, StableCrateId, LOCAL_CRATE};
++use rustc_hir::def_id::{CrateNum, LOCAL_CRATE, LocalDefId, StableCrateId};
+ use rustc_hir::definitions::Definitions;
+ use rustc_index::IndexVec;
+ use rustc_middle::bug;
+@@ -30,8 +32,8 @@
+ use rustc_session::output::validate_crate_name;
+ use rustc_session::search_paths::PathKind;
+ use rustc_span::edition::Edition;
+-use rustc_span::symbol::{sym, Symbol};
+-use rustc_span::{Span, DUMMY_SP};
++use rustc_span::symbol::{Symbol, sym};
++use rustc_span::{DUMMY_SP, Span};
+ use rustc_target::spec::{PanicStrategy, Target, TargetTriple};
+ use tracing::{debug, info, trace};
+ 
+@@ -507,9 +509,15 @@
+ 
+         locator.reset();
+         locator.is_proc_macro = true;
+-        locator.target = &self.sess.host;
+-        locator.triple = TargetTriple::from_triple(config::host_triple());
+-        locator.filesearch = self.sess.host_filesearch(path_kind);
++        if self.sess.opts.unstable_opts.wasm_proc_macros {
++            locator.target = &self.sess.wasm_proc_macro_target;
++            locator.triple = TargetTriple::from_triple("wasm32-unknown-unknown");
++            locator.filesearch = self.sess.wasm_proc_macro_filesearch(path_kind);
++        } else {
++            locator.target = &self.sess.host;
++            locator.triple = TargetTriple::from_triple(config::host_triple());
++            locator.filesearch = self.sess.host_filesearch(path_kind);
++        }
+ 
+         let Some(host_result) = self.load(locator)? else {
+             return Ok(None);
+@@ -695,9 +703,14 @@
+         &self,
+         path: &Path,
+         stable_crate_id: StableCrateId,
+-    ) -> Result<&'static [ProcMacro], CrateError> {
++    ) -> Result<Vec<IntoDynSyncSend<DynProcMacro>>, CrateError> {
+         let sym_name = self.sess.generate_proc_macro_decls_symbol(stable_crate_id);
+-        Ok(unsafe { *load_symbol_from_dylib::<*const &[ProcMacro]>(path, &sym_name)? })
++        if self.sess.opts.unstable_opts.wasm_proc_macros {
++            return crate::wasm_proc_macro::load(path, &sym_name)
++                .map_err(|message| CrateError::DlOpen(path.display().to_string(), message));
++        }
++        let macros = unsafe { *load_symbol_from_dylib::<*const &[ProcMacro]>(path, &sym_name)? };
++        Ok(macros.iter().copied().map(|mac| IntoDynSyncSend(mac.into())).collect())
+     }
+ 
+     fn inject_panic_runtime(&mut self, krate: &ast::Crate) {
+diff --git a/compiler/rustc_metadata/src/lib.rs b/compiler/rustc_metadata/src/lib.rs
+--- a/compiler/rustc_metadata/src/lib.rs
++++ b/compiler/rustc_metadata/src/lib.rs
+@@ -28,18 +28,19 @@
+ mod foreign_modules;
+ mod native_libs;
+ mod rmeta;
++mod wasm_proc_macro;
+ 
+ pub mod creader;
+ pub mod errors;
+ pub mod fs;
+ pub mod locator;
+ 
+-pub use creader::{load_symbol_from_dylib, DylibError};
+-pub use fs::{emit_wrapper_file, METADATA_FILENAME};
++pub use creader::{DylibError, load_symbol_from_dylib};
++pub use fs::{METADATA_FILENAME, emit_wrapper_file};
+ pub use native_libs::{
+     find_native_static_library, try_find_native_dynamic_library, try_find_native_static_library,
+     walk_native_lib_search_dirs,
+ };
+-pub use rmeta::{encode_metadata, rendered_const, EncodedMetadata, METADATA_HEADER};
++pub use rmeta::{EncodedMetadata, METADATA_HEADER, encode_metadata, rendered_const};
+ 
+ rustc_fluent_macro::fluent_messages! { "../messages.ftl" }
+diff --git a/compiler/rustc_metadata/Cargo.toml b/compiler/rustc_metadata/Cargo.toml
+--- a/compiler/rustc_metadata/Cargo.toml
++++ b/compiler/rustc_metadata/Cargo.toml
+@@ -29,4 +29,5 @@
+ snap = "1"
+ tempfile = "3.2"
+ tracing = "0.1"
++wasmi = { version = "=0.40.0", default-features = false, features = ["std"] }
+ # tidy-alphabetical-end
+diff --git a/compiler/rustc_session/src/options.rs b/compiler/rustc_session/src/options.rs
+--- a/compiler/rustc_session/src/options.rs
++++ b/compiler/rustc_session/src/options.rs
+@@ -20,7 +20,7 @@
+ use crate::config::*;
+ use crate::search_paths::SearchPath;
+ use crate::utils::NativeLib;
+-use crate::{lint, EarlyDiagCtxt};
++use crate::{EarlyDiagCtxt, lint};
+ 
+ macro_rules! insert {
+     ($opt_name:ident, $opt_expr:expr, $sub_hashes:expr) => {
+@@ -2161,6 +2161,8 @@
+         "whether to build a wasi command or reactor"),
+     wasm_c_abi: WasmCAbi = (WasmCAbi::Legacy, parse_wasm_c_abi, [TRACKED],
+         "use spec-compliant C ABI for `wasm32-unknown-unknown` (default: legacy)"),
++    wasm_proc_macros: bool = (false, parse_bool, [TRACKED],
++        "execute wasm32-unknown-unknown procedural macros in the compiler interpreter"),
+     write_long_types_to_disk: bool = (true, parse_bool, [UNTRACKED],
+         "whether long type names should be written to files instead of being printed in errors"),
+     // tidy-alphabetical-end
+diff --git a/compiler/rustc_session/src/output.rs b/compiler/rustc_session/src/output.rs
+--- a/compiler/rustc_session/src/output.rs
++++ b/compiler/rustc_session/src/output.rs
+@@ -1,6 +1,8 @@
+ //! Related to out filenames of compilation (e.g. binaries).
+ 
+ use std::path::Path;
++
++use rustc_target::spec::TargetTriple;
+ 
+ use rustc_ast::{self as ast, attr};
+ use rustc_errors::FatalError;
+@@ -182,6 +184,10 @@
+ 
+ /// Checks if target supports crate_type as output
+ pub fn invalid_output_for_target(sess: &Session, crate_type: CrateType) -> bool {
++    if crate_type == CrateType::ProcMacro && sess.opts.unstable_opts.wasm_proc_macros
++        && sess.opts.target_triple == TargetTriple::from_triple("wasm32-unknown-unknown") {
++        return false;
++    }
+     if let CrateType::Cdylib | CrateType::Dylib | CrateType::ProcMacro = crate_type {
+         if !sess.target.dynamic_linking {
+             return true;
+diff --git a/compiler/rustc_session/src/session.rs b/compiler/rustc_session/src/session.rs
+--- a/compiler/rustc_session/src/session.rs
++++ b/compiler/rustc_session/src/session.rs
+@@ -143,6 +143,8 @@
+ pub struct Session {
+     pub target: Target,
+     pub host: Target,
++    pub wasm_proc_macro_target: Target,
++    pub wasm_proc_macro_tlib_path: Lrc<SearchPath>,
+     pub opts: config::Options,
+     pub host_tlib_path: Lrc<SearchPath>,
+     pub target_tlib_path: Lrc<SearchPath>,
+@@ -441,6 +443,9 @@
+ 
+     pub fn target_filesearch(&self, kind: PathKind) -> filesearch::FileSearch<'_> {
+         filesearch::FileSearch::new(&self.opts.search_paths, &self.target_tlib_path, kind)
++    }
++    pub fn wasm_proc_macro_filesearch(&self, kind: PathKind) -> filesearch::FileSearch<'_> {
++        filesearch::FileSearch::new(&self.opts.search_paths, &self.wasm_proc_macro_tlib_path, kind)
+     }
+     pub fn host_filesearch(&self, kind: PathKind) -> filesearch::FileSearch<'_> {
+         filesearch::FileSearch::new(&self.opts.search_paths, &self.host_tlib_path, kind)
+@@ -1099,7 +1104,11 @@
+ 
+     let asm_arch = if target.allow_asm { InlineAsmArch::from_str(&target.arch).ok() } else { None };
+ 
++    let wasm_proc_macro_target = Target::expect_builtin(&TargetTriple::from_triple("wasm32-unknown-unknown"));
++    let wasm_proc_macro_tlib_path = Lrc::new(SearchPath::from_sysroot_and_triple(&sysroot, "wasm32-unknown-unknown"));
+     let sess = Session {
++        wasm_proc_macro_target,
++        wasm_proc_macro_tlib_path,
+         target,
+         host,
+         opts: sopts,
+diff --git a/compiler/rustc_codegen_ssa/src/back/linker.rs b/compiler/rustc_codegen_ssa/src/back/linker.rs
+--- a/compiler/rustc_codegen_ssa/src/back/linker.rs
++++ b/compiler/rustc_codegen_ssa/src/back/linker.rs
+@@ -15,8 +15,8 @@
+ use rustc_middle::middle::exported_symbols;
+ use rustc_middle::middle::exported_symbols::{ExportedSymbol, SymbolExportInfo, SymbolExportKind};
+ use rustc_middle::ty::TyCtxt;
++use rustc_session::Session;
+ use rustc_session::config::{self, CrateType, DebugInfo, LinkerPluginLto, Lto, OptLevel, Strip};
+-use rustc_session::Session;
+ use rustc_span::symbol::sym;
+ use rustc_target::spec::{Cc, LinkOutputKind, LinkerFlavor, Lld};
+ use tracing::{debug, warn};
+@@ -1737,7 +1737,26 @@
+     let proc_macro_decls_name = tcx.sess.generate_proc_macro_decls_symbol(stable_crate_id);
+     let metadata_symbol_name = exported_symbols::metadata_symbol_name(tcx);
+ 
+-    vec![proc_macro_decls_name, metadata_symbol_name]
++    let mut symbols = vec![proc_macro_decls_name, metadata_symbol_name];
++    if tcx.sess.target.is_like_wasm && tcx.sess.opts.unstable_opts.wasm_proc_macros {
++        symbols.extend(
++            [
++                "__rustc_proc_macro_alloc_buffer",
++                "__rustc_proc_macro_buffer_replace",
++                "__rustc_proc_macro_buffer_ptr",
++                "__rustc_proc_macro_buffer_len",
++                "__rustc_proc_macro_drop_buffer",
++                "__rustc_proc_macro_decls_len",
++                "__rustc_proc_macro_decl_kind",
++                "__rustc_proc_macro_decl_name",
++                "__rustc_proc_macro_decl_helpers",
++                "__rustc_proc_macro_call_client",
++            ]
++            .into_iter()
++            .map(str::to_owned),
++        );
++    }
++    symbols
+ }
+ 
+ pub(crate) fn linked_symbols(
+diff --git a/Cargo.lock b/Cargo.lock
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -1223,6 +1223,12 @@
+ checksum = "59f8e79d1fbf76bdfbde321e902714bf6c49df88a7dda6fc682fc2979226962d"
+ 
+ [[package]]
++name = "downcast-rs"
++version = "1.2.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
++
++[[package]]
+ name = "either"
+ version = "1.13.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -1413,6 +1419,12 @@
+ version = "1.0.7"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
++
++[[package]]
++name = "foldhash"
++version = "0.1.5"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
+ 
+ [[package]]
+ name = "form_urlencoded"
+@@ -1668,6 +1680,15 @@
+  "ahash",
+  "allocator-api2",
+  "serde",
++]
++
++[[package]]
++name = "hashbrown"
++version = "0.15.5"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "9229cfe53dfd69f0609a49f65461bd93001ea1ef889cd5529dd176593f5338a1"
++dependencies = [
++ "foldhash",
+ ]
+ 
+ [[package]]
+@@ -2451,6 +2472,12 @@
+ version = "0.1.0"
+ 
+ [[package]]
++name = "multi-stash"
++version = "0.2.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "685a9ac4b61f4e728e1d2c6a7844609c16527aeb5e6c865915c08e619c16410f"
++
++[[package]]
+ name = "new_debug_unreachable"
+ version = "1.0.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -2627,7 +2654,7 @@
+  "indexmap",
+  "memchr",
+  "ruzstd 0.7.0",
+- "wasmparser",
++ "wasmparser 0.216.0",
+ ]
+ 
+ [[package]]
+@@ -3312,7 +3339,7 @@
+  "regex",
+  "serde_json",
+  "similar",
+- "wasmparser",
++ "wasmparser 0.216.0",
+ ]
+ 
+ [[package]]
+@@ -4220,6 +4247,7 @@
+  "snap",
+  "tempfile",
+  "tracing",
++ "wasmi",
+ ]
+ 
+ [[package]]
+@@ -5172,6 +5200,12 @@
+ ]
+ 
+ [[package]]
++name = "spin"
++version = "0.9.9"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "3763264f6b73151db08c50ff20d7d8a0b8796e021cdea7ceedad07b80155fa0e"
++
++[[package]]
+ name = "stable_deref_trait"
+ version = "1.2.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -5203,6 +5237,16 @@
+ version = "1.1.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
++
++[[package]]
++name = "string-interner"
++version = "0.18.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "1a3275464d7a9f2d4cac57c89c2ef96a8524dba2864c8d6f82e3980baf136f9b"
++dependencies = [
++ "hashbrown 0.15.5",
++ "serde",
++]
+ 
+ [[package]]
+ name = "string_cache"
+@@ -6063,7 +6107,7 @@
+  "lexopt",
+  "tempfile",
+  "wasi-preview1-component-adapter-provider",
+- "wasmparser",
++ "wasmparser 0.216.0",
+  "wat",
+  "wit-component",
+  "wit-parser",
+@@ -6083,7 +6127,7 @@
+ checksum = "04c23aebea22c8a75833ae08ed31ccc020835b12a41999e58c31464271b94a88"
+ dependencies = [
+  "leb128",
+- "wasmparser",
++ "wasmparser 0.216.0",
+ ]
+ 
+ [[package]]
+@@ -6099,7 +6143,51 @@
+  "serde_json",
+  "spdx",
+  "wasm-encoder",
+- "wasmparser",
++ "wasmparser 0.216.0",
++]
++
++[[package]]
++name = "wasmi"
++version = "0.40.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "a19af97fcb96045dd1d6b4d23e2b4abdbbe81723dbc5c9f016eb52145b320063"
++dependencies = [
++ "arrayvec",
++ "multi-stash",
++ "smallvec",
++ "spin",
++ "wasmi_collections",
++ "wasmi_core",
++ "wasmi_ir",
++ "wasmparser 0.221.3",
++]
++
++[[package]]
++name = "wasmi_collections"
++version = "0.40.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "e80d6b275b1c922021939d561574bf376613493ae2b61c6963b15db0e8813562"
++dependencies = [
++ "string-interner",
++]
++
++[[package]]
++name = "wasmi_core"
++version = "0.40.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "3a8c51482cc32d31c2c7ff211cd2bedd73c5bd057ba16a2ed0110e7a96097c33"
++dependencies = [
++ "downcast-rs",
++ "libm",
++]
++
++[[package]]
++name = "wasmi_ir"
++version = "0.40.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "6e431a14c186db59212a88516788bd68ed51f87aa1e08d1df742522867b5289a"
++dependencies = [
++ "wasmi_core",
+ ]
+ 
+ [[package]]
+@@ -6114,6 +6202,16 @@
+  "indexmap",
+  "semver",
+  "serde",
++]
++
++[[package]]
++name = "wasmparser"
++version = "0.221.3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "d06bfa36ab3ac2be0dee563380147a5b81ba10dd8885d7fbbc9eb574be67d185"
++dependencies = [
++ "bitflags 2.6.0",
++ "indexmap",
+ ]
+ 
+ [[package]]
+@@ -6445,7 +6543,7 @@
+  "serde_json",
+  "wasm-encoder",
+  "wasm-metadata",
+- "wasmparser",
++ "wasmparser 0.216.0",
+  "wit-parser",
+ ]
+ 
+@@ -6464,7 +6562,7 @@
+  "serde_derive",
+  "serde_json",
+  "unicode-xid",
+- "wasmparser",
++ "wasmparser 0.216.0",
+ ]
+ 
+ [[package]]
+diff --git a/library/proc_macro/src/bridge/rpc.rs b/library/proc_macro/src/bridge/rpc.rs
+--- a/library/proc_macro/src/bridge/rpc.rs
++++ b/library/proc_macro/src/bridge/rpc.rs
+@@ -127,7 +127,18 @@
+ }
+ 
+ rpc_encode_decode!(le u32);
+-rpc_encode_decode!(le usize);
++rpc_encode_decode!(le u64);
++
++// A Wasm macro and a native compiler can have different pointer widths. Keep
++// lengths and byte offsets portable while preserving the existing RPC model.
++impl<S> Encode<S> for usize {
++    fn encode(self, w: &mut Writer, s: &mut S) { (self as u64).encode(w, s); }
++}
++impl<S> DecodeMut<'_, '_, S> for usize {
++    fn decode(r: &mut Reader<'_>, s: &mut S) -> Self {
++        u64::decode(r, s).try_into().expect("proc-macro RPC integer exceeds pointer width")
++    }
++}
+ 
+ impl<S> Encode<S> for bool {
+     fn encode(self, w: &mut Writer, s: &mut S) {
+diff --git a/compiler/rustc_metadata/src/wasm_proc_macro.rs b/compiler/rustc_metadata/src/wasm_proc_macro.rs
+new file mode 100644
+--- /dev/null
++++ b/compiler/rustc_metadata/src/wasm_proc_macro.rs
+@@ -0,0 +1,317 @@
++//! Interpret a matching-version proc_macro bridge in a separate Wasm memory.
++//!
++//! The guest's declarations are queried through scalar exports. Its only host
++//! import is the existing byte-buffer RPC dispatcher, including token/span
++//! handles. This first target has no filesystem, environment or process API.
++use std::io::Write;
++use std::path::Path;
++
++use proc_macro::bridge::server::{DynClient, DynProcMacro, client_error};
++use proc_macro::bridge::{BridgeConfig, Buffer, Closure};
++use rustc_data_structures::sync::IntoDynSyncSend;
++use wasmi::{AsContextMut, Caller, Engine, Instance, Linker, Memory, Module, Store, TypedFunc};
++
++const MAX_BUFFER: usize = 64 * 1024 * 1024;
++const FUEL: u64 = 500_000_000;
++
++struct Context<'a> {
++    dispatch: Option<Closure<'a, Buffer, Buffer>>,
++    client: Option<ClientRefs>,
++    limits: wasmi::StoreLimits,
++}
++
++#[derive(Clone)]
++struct ClientRefs {
++    memory: Memory,
++    replace: TypedFunc<(u32, u32), ()>,
++    pointer: TypedFunc<u32, u32>,
++    length: TypedFunc<u32, u32>,
++    drop_buffer: TypedFunc<u32, ()>,
++}
++
++impl ClientRefs {
++    fn new(instance: &Instance, store: &Store<Context<'_>>) -> Result<Self, wasmi::Error> {
++        Ok(Self {
++            memory: instance
++                .get_memory(store, "memory")
++                .ok_or_else(|| wasmi::Error::new("macro has no exported memory"))?,
++            replace: instance.get_typed_func(store, "__rustc_proc_macro_buffer_replace")?,
++            pointer: instance.get_typed_func(store, "__rustc_proc_macro_buffer_ptr")?,
++            length: instance.get_typed_func(store, "__rustc_proc_macro_buffer_len")?,
++            drop_buffer: instance.get_typed_func(store, "__rustc_proc_macro_drop_buffer")?,
++        })
++    }
++
++    fn read(&self, mut store: impl AsContextMut, buffer: u32) -> Result<Vec<u8>, wasmi::Error> {
++        let length = self.length.call(&mut store, buffer)? as usize;
++        if length > MAX_BUFFER {
++            return Err(wasmi::Error::new("macro RPC buffer exceeds 64 MiB"));
++        }
++        let pointer = self.pointer.call(&mut store, buffer)? as usize;
++        let mut bytes = vec![0; length];
++        self.memory.read(&store, pointer, &mut bytes)?;
++        Ok(bytes)
++    }
++
++    fn write(
++        &self,
++        mut store: impl AsContextMut,
++        buffer: u32,
++        bytes: &[u8],
++    ) -> Result<(), wasmi::Error> {
++        if bytes.len() > MAX_BUFFER {
++            return Err(wasmi::Error::new("macro RPC buffer exceeds 64 MiB"));
++        }
++        self.replace.call(&mut store, (buffer, bytes.len() as u32))?;
++        let pointer = self.pointer.call(&mut store, buffer)?;
++        self.memory.write(&mut store, pointer as usize, bytes)?;
++        Ok(())
++    }
++
++    fn read_string(
++        &self,
++        mut store: impl AsContextMut,
++        buffer: u32,
++    ) -> Result<String, wasmi::Error> {
++        let bytes = self.read(&mut store, buffer)?;
++        self.drop_buffer.call(&mut store, buffer)?;
++        String::from_utf8(bytes).map_err(|_| wasmi::Error::new("macro declaration is not UTF-8"))
++    }
++}
++
++fn dispatch(
++    mut caller: Caller<'_, Context<'_>>,
++    input: u32,
++    output: u32,
++) -> Result<(), wasmi::Error> {
++    let client = caller
++        .data()
++        .client
++        .clone()
++        .ok_or_else(|| wasmi::Error::new("macro RPC called before initialization"))?;
++    let bytes = client.read(&mut caller, input)?;
++    let response = caller
++        .data_mut()
++        .dispatch
++        .as_mut()
++        .ok_or_else(|| wasmi::Error::new("macro RPC called during declaration loading"))?
++        .call(bytes.into());
++    client.write(&mut caller, output, &response)
++}
++
++fn instantiate<'a>(
++    engine: &Engine,
++    module: &Module,
++    dispatch_fn: Option<Closure<'a, Buffer, Buffer>>,
++) -> Result<(Store<Context<'a>>, Instance, ClientRefs), wasmi::Error> {
++    let limits = wasmi::StoreLimitsBuilder::new().memory_size(256 * 1024 * 1024).build();
++    let mut store = Store::new(engine, Context { dispatch: dispatch_fn, client: None, limits });
++    store.limiter(|context| &mut context.limits);
++    store.set_fuel(FUEL)?;
++    let mut linker = Linker::new(engine);
++    linker.func_wrap("env", "__rustc_proc_macro_dispatch", dispatch)?;
++    let instance = linker.instantiate(&mut store, module)?.start(&mut store)?;
++    let client = ClientRefs::new(&instance, &store)?;
++    store.data_mut().client = Some(client.clone());
++    Ok((store, instance, client))
++}
++
++fn declarations(
++    instance: &Instance,
++    store: &Store<Context<'_>>,
++    symbol: &str,
++) -> Result<u32, wasmi::Error> {
++    instance
++        .get_global(store, symbol)
++        .and_then(|global| global.get(store).i32())
++        .map(|value| value as u32)
++        .ok_or_else(|| wasmi::Error::new(format!("missing proc-macro declarations: {symbol}")))
++}
++
++fn expand(
++    engine: &Engine,
++    module: &Module,
++    symbol: &str,
++    index: u32,
++    config: BridgeConfig<'_>,
++) -> Result<Buffer, wasmi::Error> {
++    let (mut store, instance, client) = instantiate(engine, module, Some(config.dispatch))?;
++    let declarations = declarations(&instance, &store, symbol)?;
++    let alloc = instance.get_typed_func::<u32, u32>(&store, "__rustc_proc_macro_alloc_buffer")?;
++    let call = instance
++        .get_typed_func::<(u32, u32, u32, u32), u32>(&store, "__rustc_proc_macro_call_client")?;
++    let input = alloc.call(&mut store, 0)?;
++    client.write(&mut store, input, &config.input)?;
++    let output =
++        call.call(&mut store, (input, declarations, index, config.force_show_panics as u32))?;
++    let response = client.read(&mut store, output)?;
++    client.drop_buffer.call(&mut store, output)?;
++    Ok(response.into())
++}
++
++#[derive(Clone)]
++struct MacroIdentity {
++    module: String,
++    index: u32,
++    name: String,
++    kind: &'static str,
++}
++
++fn json_string(value: &str) -> String {
++    let mut result = String::from("\"");
++    for character in value.chars() {
++        match character {
++            '"' => result.push_str("\\\""),
++            '\\' => result.push_str("\\\\"),
++            character if character <= '\u{1f}' => {
++                result.push_str(&format!("\\u{:04x}", character as u32))
++            }
++            character => result.push(character),
++        }
++    }
++    result.push('"');
++    result
++}
++
++fn trace(event: &str, status: &str, identity: &MacroIdentity) -> Result<(), String> {
++    let Some(path) = std::env::var_os("WISP_WASM_PROC_MACRO_LOG") else { return Ok(()) };
++    let line = format!(
++        "{{\"schemaVersion\":1,\"event\":{},\"status\":{},\"runtime\":\"wasmi\",\"module\":{},\"index\":{},\"name\":{},\"kind\":{},\"macroTarget\":\"wasm32-unknown-unknown\"}}\n",
++        json_string(event),
++        json_string(status),
++        json_string(&identity.module),
++        identity.index,
++        json_string(&identity.name),
++        json_string(identity.kind),
++    );
++    std::fs::OpenOptions::new()
++        .create(true)
++        .append(true)
++        .open(path)
++        .and_then(|mut file| file.write_all(line.as_bytes()))
++        .map_err(|error| format!("cannot write Wasm macro execution trace: {error}"))
++}
++
++fn dynamic_client<I, O>(
++    engine: Engine,
++    module: Module,
++    symbol: String,
++    identity: MacroIdentity,
++) -> DynClient<I, O> {
++    DynClient::new(move |config| {
++        if let Err(error) = trace("invoke", "started", &identity) {
++            return client_error(error);
++        }
++        match expand(&engine, &module, &symbol, identity.index, config) {
++            Ok(output) => match trace("invoke", "succeeded", &identity) {
++                Ok(()) => output,
++                Err(error) => client_error(error),
++            },
++            Err(error) => {
++                let _ = trace("invoke", "failed", &identity);
++                client_error(format!("Wasm procedural macro failed: {error}"))
++            }
++        }
++    })
++}
++
++pub(crate) fn load(
++    path: &Path,
++    symbol: &str,
++) -> Result<Vec<IntoDynSyncSend<DynProcMacro>>, String> {
++    let mut config = wasmi::Config::default();
++    config.consume_fuel(true);
++    let engine = Engine::new(&config);
++    let bytes = std::fs::read(path).map_err(|error| error.to_string())?;
++    let module = Module::new(&engine, &bytes).map_err(|error| error.to_string())?;
++    load_module(&engine, &module, symbol, path).map_err(|error| error.to_string())
++}
++
++fn load_module(
++    engine: &Engine,
++    module: &Module,
++    symbol: &str,
++    path: &Path,
++) -> Result<Vec<IntoDynSyncSend<DynProcMacro>>, wasmi::Error> {
++    let (mut store, instance, client) = instantiate(engine, module, None)?;
++    let declarations = declarations(&instance, &store, symbol)?;
++    let length = instance.get_typed_func::<u32, u32>(&store, "__rustc_proc_macro_decls_len")?;
++    let kind =
++        instance.get_typed_func::<(u32, u32), u32>(&store, "__rustc_proc_macro_decl_kind")?;
++    let name =
++        instance.get_typed_func::<(u32, u32), u32>(&store, "__rustc_proc_macro_decl_name")?;
++    let helpers =
++        instance.get_typed_func::<(u32, u32), u32>(&store, "__rustc_proc_macro_decl_helpers")?;
++    let length = length.call(&mut store, declarations)?;
++    if length > 65_536 {
++        return Err(wasmi::Error::new("too many proc-macro declarations"));
++    }
++    (0..length)
++        .map(|index| {
++            let buffer = name.call(&mut store, (declarations, index))?;
++            let name = client.read_string(&mut store, buffer)?;
++            let macro_kind = kind.call(&mut store, (declarations, index))?;
++            let macro_kind_name = match macro_kind {
++                0 => "function",
++                1 => "attribute",
++                2 => "derive",
++                _ => return Err(wasmi::Error::new("unknown proc-macro declaration kind")),
++            };
++            let module_path = if path.is_absolute() {
++                path.to_path_buf()
++            } else {
++                std::env::current_dir()
++                    .map_err(|error| wasmi::Error::new(error.to_string()))?
++                    .join(path)
++            };
++            let identity = MacroIdentity {
++                module: module_path.to_string_lossy().into_owned(),
++                index,
++                name: name.clone(),
++                kind: macro_kind_name,
++            };
++            trace("load", "succeeded", &identity).map_err(wasmi::Error::new)?;
++            let macro_definition = match macro_kind {
++                0 => DynProcMacro::Bang {
++                    name,
++                    client: dynamic_client(
++                        engine.clone(),
++                        module.clone(),
++                        symbol.into(),
++                        identity.clone(),
++                    ),
++                },
++                1 => DynProcMacro::Attr {
++                    name,
++                    client: dynamic_client(
++                        engine.clone(),
++                        module.clone(),
++                        symbol.into(),
++                        identity.clone(),
++                    ),
++                },
++                2 => {
++                    let buffer = helpers.call(&mut store, (declarations, index))?;
++                    let helpers = client.read_string(&mut store, buffer)?;
++                    let attributes = if helpers.is_empty() {
++                        Vec::new()
++                    } else {
++                        helpers.split('\0').map(str::to_owned).collect()
++                    };
++                    DynProcMacro::CustomDerive {
++                        trait_name: name,
++                        attributes,
++                        client: dynamic_client(
++                            engine.clone(),
++                            module.clone(),
++                            symbol.into(),
++                            identity.clone(),
++                        ),
++                    }
++                }
++                _ => return Err(wasmi::Error::new("unknown proc-macro declaration kind")),
++            };
++            Ok(IntoDynSyncSend(macro_definition))
++        })
++        .collect()
++}

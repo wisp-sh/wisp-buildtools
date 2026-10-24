@@ -1,0 +1,6 @@
+{
+  "version": "1.262.0",
+  "url": "https://github.com/bytecodealliance/wasm-tools/releases/download/v1.262.0/wasm-tools-1.262.0-wasm32-wasip1.tar.gz",
+  "sha256": "8d4538e39c1c96658148658aaa4f1e9e612a87d14cb8abbf5e3739239223a157",
+  "module_sha256": "3e7ec6561150ce3b885626033dff6162eabb5fc8226023f1f1afc0689de0db49"
+}

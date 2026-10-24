@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-20",
+  "status": "standalone-verified",
+  "scope": "Local source build, application acceptance and package evidence; Wisp registry interop is verified separately.",
+  "rustVersion": "1.99.1",
+  "rustRevision": "58cf8f9c35b355199727627d07ae34a4e2846d67",
+  "compilerHost": "wasm32-wasip3",
+  "applicationTarget": "wasm32-wasip1",
+  "proceduralMacroTarget": "wasm32-unknown-unknown",
+  "llvm": {
+    "version": "24.0.0git",
+    "revision": "d297af3b3d7a086d64f1477cfa682a16fcfa3260",
+    "sdkInventorySha256": "9a0e59cda0b0fd3dff66ff622b27d22683a0722c5ac7e78445efeff9499549cb",
+    "verifiedFiles": 3663,
+    "build": "existing static WASIp3 SDK; no separate LLVM build"
+  },
+  "compiler": {
+    "sha256": "a1e0d7fbdcae30382b23ea2fa94e07203b11bb411aaefc44c8f3f1063b22eb27",
+    "bytes": 80797003,
+    "version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)"
+  },
+  "runtime": {
+    "version": "49.0.1",
+    "sha256": "79901cf31b0af3fc17a2164f3645b0ba99f855e7b71a289c294b4f565c6a1bfe",
+    "flags": [
+      "-Sp3=y",
+      "-Oopt-level=0",
+      "-Oregalloc-algorithm=single-pass",
+      "-Cinlining=n"
+    ]
+  },
+  "evidence": {
+    "build-report.json": "0f3e71196991475e769fa480e9dd8f32ca28916f70f3954e92925ab19b819994",
+    "source-build.json": "99ba702d471e9ec3e85ef6b1ab68336a1072b9086c757c3c083b992be6eb1784",
+    "source-lock.json": "5d3d3a13a1bdb2e881ac9ccc317f02c7df6162fc388c1c355cda0452a5916ab2",
+    "runtime-adapter.json": "13ee500e07166e4772ee771ab92062a064697ef76e647f187460ba64b66a2310",
+    "verification/acceptance/results.json": "1abbcd5c4bb00739ab2422aa918c43f03512c467808a45d11049013e2fe73d3b",
+    "verification/activation/results.json": "7651e696d4a9aab3537a47704386573043bd8950a827eecb8c0d2325a6a2508e"
+  },
+  "cases": [
+    {
+      "name": "scalar",
+      "status": "passed",
+      "stdout": "42\n",
+      "applicationSha256": "756f69b105e5bc1cb2a811941ad126a416ebbeb2292c6b5d8ad1d272fe779901",
+      "macroInvocations": 0
+    },
+    {
+      "name": "std",
+      "status": "passed",
+      "stdout": "42\n",
+      "applicationSha256": "b1c2fa02d9154223237b945878ce53b26b5d556ccd7fc614e0fa2ac9a80338da",
+      "macroInvocations": 0
+    },
+    {
+      "name": "base64",
+      "status": "passed",
+      "stdout": "42\n",
+      "applicationSha256": "ef453adaf3d114745318111b2c5268ca23ad5ee3e540a21b430a27cbab6d2e52",
+      "macroInvocations": 0
+    },
+    {
+      "name": "build-script",
+      "status": "passed",
+      "stdout": "42\n",
+      "applicationSha256": "21e1c0a92255e64513fe481ae2476071a6a7793f7c12ce3f0c9a89f514e6b6c8",
+      "macroInvocations": 0
+    },
+    {
+      "name": "derive",
+      "status": "passed",
+      "stdout": "42\n",
+      "applicationSha256": "520101bc8de525156ba1a68712d6133faacf37ed069696684433aac58bee1c8e",
+      "macroInvocations": 3
+    },
+    {
+      "name": "serde",
+      "status": "passed",
+      "stdout": "42\n",
+      "applicationSha256": "5e5db1510cab0206bf60fbb2d939878b79df4ed15d964d93f8ccbd74ca2d6023",
+      "macroInvocations": 6
+    }
+  ],
+  "checks": {
+    "rustUnitTests": 110,
+    "buildTests": 29,
+    "prerequisiteTests": 11,
+    "activationScalar": "passed",
+    "compilerInputsUnchanged": true
+  },
+  "package": {
+    "path": "dist/rust.wisp.zip",
+    "sha256": "5ad825fbd1b5a436d19ee4ac7e01590276d5a040edb65e64933fc0449cb6f3b9",
+    "bytes": 121486092,
+    "files": 249,
+    "installedBytes": 369950874,
+    "nativeBytes": 0,
+    "validation": "passed"
+  }
+}

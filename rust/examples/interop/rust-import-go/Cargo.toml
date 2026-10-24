@@ -1,0 +1,10 @@
+[package]
+name = "rust-import-go"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+go-arithmetic = "=0.1.0"

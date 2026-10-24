@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "toolchains": {
+    "zig": {
+      "directory": "zig",
+      "build": "compile.py",
+      "bootstrap": "bootstrap.py",
+      "verify": "verify.py"
+    },
+    "assemblyscript": {
+      "directory": "assemblyscript",
+      "build": "compile.py",
+      "bootstrap": "bootstrap.py",
+      "verify": "verify.py"
+    },
+    "nim": {
+      "directory": "nim",
+      "build": "compile.py",
+      "bootstrap": "bootstrap.py",
+      "verify": "verify.py"
+    },
+    "javascript": {
+      "directory": "javascript",
+      "build": "compile.py",
+      "bootstrap": "bootstrap.py",
+      "verify": "verify.py"
+    },
+    "typescript": {
+      "directory": "javascript",
+      "build": "compile.py",
+      "bootstrap": "bootstrap.py",
+      "verify": "verify.py"
+    },
+    "python": {
+      "directory": "python",
+      "build": "compile.py",
+      "bootstrap": "bootstrap.py",
+      "verify": "verify.py"
+    },
+    "grain": {
+      "directory": "grain",
+      "build": "compile.py",
+      "bootstrap": "bootstrap.py",
+      "verify": "verify.py"
+    },
+    "swift": {
+      "directory": "swift",
+      "build": "compile.py",
+      "bootstrap": "bootstrap.py",
+      "verify": "verify.py"
+    },
+    "java": {
+      "directory": "java",
+      "build": "compile.py",
+      "bootstrap": "bootstrap.py",
+      "verify": "verify.py"
+    },
+    "kotlin": {
+      "directory": "kotlin",
+      "build": "compile.py",
+      "bootstrap": "bootstrap.py",
+      "verify": "verify.py"
+    },
+    "ocaml": {
+      "directory": "ocaml",
+      "build": "compile.py",
+      "bootstrap": "bootstrap.py",
+      "verify": "verify.py"
+    },
+    "goose": {
+      "directory": "goose",
+      "build": "compile.py",
+      "bootstrap": "bootstrap.py",
+      "verify": "verify.py"
+    }
+  }
+}

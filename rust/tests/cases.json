@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "target": "wasm32-wasip1",
+  "cases": [
+    {
+      "name": "scalar",
+      "project": "examples/scalar",
+      "expectedStdout": "42\n",
+      "dependencies": [],
+      "buildScripts": [],
+      "proceduralMacros": [],
+      "checks": [
+        "ordinary scalar functions",
+        "bool",
+        "u64 above JavaScript's exact integer range"
+      ]
+    },
+    {
+      "name": "std",
+      "project": "examples/std",
+      "expectedStdout": "42\n",
+      "dependencies": [],
+      "buildScripts": [],
+      "proceduralMacros": [],
+      "checks": [
+        "std",
+        "Vec",
+        "String",
+        "generics",
+        "Result",
+        "scalar public API"
+      ]
+    },
+    {
+      "name": "base64",
+      "project": "examples/base64",
+      "expectedStdout": "42\n",
+      "dependencies": [
+        {
+          "name": "base64",
+          "version": "0.22.1"
+        }
+      ],
+      "buildScripts": [],
+      "proceduralMacros": [],
+      "checks": [
+        "vendored registry dependency",
+        "base64 encode/decode"
+      ]
+    },
+    {
+      "name": "build-script",
+      "project": "examples/build-script",
+      "expectedStdout": "42\n",
+      "dependencies": [],
+      "buildScripts": [
+        "acceptance-build-script"
+      ],
+      "proceduralMacros": [],
+      "checks": [
+        "Wasm-hosted build.rs",
+        "CARGO_MANIFEST_DIR",
+        "OUT_DIR",
+        "generated Rust source",
+        "rustc-env",
+        "rustc-cfg"
+      ]
+    },
+    {
+      "name": "derive",
+      "project": "examples/derive",
+      "expectedStdout": "42\n",
+      "dependencies": [],
+      "buildScripts": [],
+      "proceduralMacros": [
+        "acceptance-derive"
+      ],
+      "checks": [
+        "local procedural derive",
+        "proc_macro token input/output",
+        "generated implementation",
+        "function-like procedural macro",
+        "attribute procedural macro",
+        "derive helper attribute"
+      ],
+      "macroInvocations": [
+        {
+          "package": "acceptance-derive",
+          "name": "Answer",
+          "kind": "derive"
+        },
+        {
+          "package": "acceptance-derive",
+          "name": "answer_literal",
+          "kind": "function"
+        },
+        {
+          "package": "acceptance-derive",
+          "name": "checked_answer",
+          "kind": "attribute"
+        }
+      ]
+    },
+    {
+      "name": "serde",
+      "project": "examples/serde",
+      "expectedStdout": "42\n",
+      "dependencies": [
+        {
+          "name": "serde",
+          "version": "1.0.228"
+        },
+        {
+          "name": "serde_derive",
+          "version": "1.0.228"
+        },
+        {
+          "name": "serde_json",
+          "version": "1.0.150"
+        }
+      ],
+      "buildScripts": [
+        "serde",
+        "serde_core",
+        "serde_json"
+      ],
+      "proceduralMacros": [
+        "serde_derive"
+      ],
+      "checks": [
+        "Serialize and Deserialize derives",
+        "JSON round trip",
+        "String",
+        "Vec",
+        "Option",
+        "dependency build scripts",
+        "generic borrowed struct",
+        "deserialize lifetime",
+        "renamed field round trip"
+      ],
+      "macroInvocations": [
+        {
+          "package": "serde_derive",
+          "name": "Serialize",
+          "kind": "derive"
+        },
+        {
+          "package": "serde_derive",
+          "name": "Deserialize",
+          "kind": "derive"
+        }
+      ]
+    }
+  ],
+  "pendingWispFlows": [],
+  "wispIntegration": {
+    "verifier": "../../wisp/examples/rust-import-wasm/verify.py",
+    "flows": [
+      "Go importing a published Rust package",
+      "C++ importing a published Rust package",
+      "Rust importing a published Go package",
+      "Rust importing a published C++ package"
+    ],
+    "evidenceOwner": "separate Wisp registry verifier"
+  }
+}

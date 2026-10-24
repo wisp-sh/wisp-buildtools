@@ -1,0 +1,9 @@
+/downloads/
+/build/
+/dist/
+/artifacts/
+/target/
+/cache/
+
+__pycache__/
+*.py[cod]

@@ -1,0 +1,12 @@
+{
+  "files": {
+    "build-rust.py": "3617b7531862ade4c466e93ae2a70d447b9cb7a41cbd8241adf16fe65ecc55cb",
+    "build.py": "cd653807f4b0026ca424047db3420f6789c2a37296236aff669bf44b63240964",
+    "component-preload.patch": "b89bdb3b9841e12c230fd54068d7beb87791e1e7bab20425f618eaa9f6938480",
+    "rust-postload.patch": "d8d89a3c950a758e9405a5128f75e9e1a0919af839c66082db433fe01b2e0d76",
+    "rust-wasmtime.lock.json": "62afbcba8c2221f0def3e12569e58e4fc90b4a835a33dd11044d654331e12e61",
+    "wasmtime.lock.json": "0be689681db39651b069ed6e0b38f82897bd81e4f5c0e130957c3cf6f73f8eb3"
+  },
+  "owner": "wisp",
+  "sourceDirectory": "../wisp/tools/shared-hosts"
+}

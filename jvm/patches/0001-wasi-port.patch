@@ -1,0 +1,1069 @@
+--- a/vm/arrays.c
++++ b/vm/arrays.c
+@@ -90,6 +90,7 @@
+       classdesc->array_type = ordinary_array_classdesc(thread, classdesc);
+     }
+     classdesc->array_type->classloader = classdesc->classloader;
++    classdesc->array_type->module = classdesc->module;
+   }
+   return classdesc->array_type;
+ }
+@@ -177,4 +178,4 @@
+     return nullptr;
+   memcpy(ArrayData(result), data, length);
+   return result;
+-}
+\ No newline at end of file
++}
+--- a/vm/bjvm.c
++++ b/vm/bjvm.c
+@@ -542,24 +542,42 @@
+   free(cd);
+ }
+ 
+-void existing_classes_are_javabase(vm *vm, module *module) {
+-  // Iterate through all bootstrap-loaded classes and assign them to the module
+-  for (int classloader_i = 0; classloader_i < arrlen(vm->active_classloaders); ++classloader_i) {
+-    classloader *cl = vm->active_classloaders[classloader_i];
+-    hash_table_iterator it = hash_table_get_iterator(&cl->initiating);
+-    char *key;
+-    size_t key_len;
+-    classdesc *classdesc;
+-    while (hash_table_iterator_has_next(it, &key, &key_len, (void **)&classdesc)) {
+-      classdesc->module = module;
+-      if (classdesc->mirror) {
+-        classdesc->mirror->module = module->reflection_object;
+-      }
+-      hash_table_iterator_next(&it);
+-    }
++static void set_class_module(classdesc *cd, module *mod) {
++  for (; cd; cd = cd->array_type) {
++    cd->module = mod;
++    if (cd->mirror) cd->mirror->module = mod->reflection_object;
+   }
+ }
+ 
++static module *package_module(classloader *cl, slice name) {
++  int length = (int)name.len;
++  while (length > 0 && name.chars[length - 1] != '/') --length;
++  if (!length) return nullptr;
++  return hash_table_lookup(&cl->package_modules, name.chars, length - 1);
++}
++
++int register_module_packages(vm_thread *thread, classloader *cl, module *mod, obj_header *packages) {
++  for (int i = 0; i < ArrayLength(packages); ++i) {
++    heap_string package;
++    if (read_string_to_utf8(thread, &package, ReferenceArrayLoad(packages, i))) return -1;
++    for (size_t j = 0; j < package.len; ++j)
++      if (package.chars[j] == '.') package.chars[j] = '/';
++    (void)hash_table_insert(&cl->package_modules, package.chars, (int)package.len, mod);
++    free_heap_str(package);
++  }
++  // Early bootstrap definitions may predate java.base's Module object.
++  // Restrict reassignment to classes actually defined in this loader/package.
++  hash_table_iterator it = hash_table_get_iterator(&cl->loaded);
++  char *key;
++  size_t key_len;
++  classdesc *cd;
++  while (hash_table_iterator_has_next(it, &key, &key_len, (void **)&cd)) {
++    if (package_module(cl, cd->name) == mod) set_class_module(cd, mod);
++    hash_table_iterator_next(&it);
++  }
++  return 0;
++}
++
+ struct cached_classdescs *cached_classes(vm *vm) {
+   CHECK(vm->_cached_classdescs && "Cached classdescs not yet initialized");
+   return vm->_cached_classdescs;
+@@ -570,7 +588,8 @@
+   mod->reflection_object = module_;
+   (void)hash_table_insert(&vm->modules, module_name.chars, (int)module_name.len, mod);
+   if (utf8_equals(module_name, "java.base")) {
+-    existing_classes_are_javabase(vm, mod);
++    for (size_t i = 0; i < sizeof(vm->primitive_classes) / sizeof(vm->primitive_classes[0]); ++i)
++      if (vm->primitive_classes[i]) set_class_module(vm->primitive_classes[i], mod);
+   }
+   return 0;
+ }
+@@ -583,7 +602,7 @@
+   vm *vm = calloc(1, sizeof(*vm));
+ 
+   INIT_STACK_STRING(classpath, 1000);
+-  classpath = bprintf(classpath, "%.*s:%.*s", fmt_slice(options.runtime_classpath), fmt_slice(options.classpath));
++  classpath = bprintf(classpath, "%.*s", fmt_slice(options.runtime_classpath));
+ 
+   char *error = init_classpath(&vm->bootstrap_classpath, classpath);
+   vm->application_classpath = make_heap_str_from(options.classpath);
+@@ -1284,19 +1303,20 @@
+ }
+ 
+ // NOLINTNEXTLINE(misc-no-recursion)
+-module *get_unnamed_module(vm_thread *thread) {
++module *get_unnamed_module(vm_thread *thread, classloader *cl) {
+   vm *vm = thread->vm;
+-  module *result = get_module(vm, STR("<unnamed>"));
++  INIT_STACK_STRING(key, 64);
++  key = bprintf(key, "<unnamed:%p>", (void *)cl);
++  module *result = get_module(vm, key);
+   if (result) {
+     return result;
+   }
+ 
+-  obj_header *module = new_object(thread, cached_classes(vm)->module);
+-  if (!module) {
+-    return nullptr;
+-  }
+-  define_module(vm, STR("<unnamed>"), module);
+-  return get_unnamed_module(thread);
++  obj_header *mirror = cl->java_mirror ? ((struct native_ClassLoader *)cl->java_mirror)->unnamedModule : nullptr;
++  if (!mirror) mirror = new_object(thread, cached_classes(vm)->module);
++  if (!mirror) return nullptr;
++  define_module(vm, key, mirror);
++  return get_module(vm, key);
+ }
+ 
+ bool is_builtin_class(slice chars) {
+@@ -1370,7 +1390,8 @@
+   cp_class_info *super = class->super_class;
+   if (super) {
+     // If the superclass is currently being loaded -> circularity  error
+-    if (hash_table_lookup(&vm->inchoate_classes, super->name.chars, (int)super->name.len)) {
++    if (hash_table_lookup(&vm->inchoate_classes, super->name.chars, (int)super->name.len) &&
++        !hash_table_lookup(&cl->initiating, super->name.chars, (int)super->name.len)) {
+       class_circularity_error(thread, class);
+       goto error_2;
+     }
+@@ -1391,7 +1412,8 @@
+   // its direct superinterfaces are resolved using the algorithm of §5.4.3.1.
+   for (int i = 0; i < class->interfaces_count; ++i) {
+     cp_class_info *sup = class->interfaces[i];
+-    if (hash_table_lookup(&vm->inchoate_classes, sup->name.chars, (int)sup->name.len)) {
++    if (hash_table_lookup(&vm->inchoate_classes, sup->name.chars, (int)sup->name.len) &&
++        !hash_table_lookup(&cl->initiating, sup->name.chars, (int)sup->name.len)) {
+       class_circularity_error(thread, class);
+       goto error_2;
+     }
+@@ -1436,11 +1458,11 @@
+   class->classloader = cl;
+   class->self->classdesc = class;
+ 
+-  if (is_builtin_class(chars)) {
+-    class->module = get_module(vm, STR("java.base"));
+-  } else {
+-    class->module = get_unnamed_module(thread);
+-  }
++  class->module = package_module(cl, chars);
++  // During boot-layer initialization, packages may precede their Module.
++  // Later defineModule0 registrations repair these provisional assignments.
++  if (!class->module)
++    class->module = cl->is_bootstrap ? get_module(vm, STR("java.base")) : get_unnamed_module(thread, cl);
+ 
+   // "The Java Virtual Machine marks C as having L as its defining class loader and records that L is an initiating
+   // loader of C."
+@@ -1777,7 +1799,7 @@
+     ASYNC_RETURN(-1);
+   }
+ 
+-  if (cd->super_class) {
++  if (!(cd->access_flags & ACCESS_INTERFACE) && cd->super_class) {
+     AWAIT_INNER(self->recursive_call_space, initialize_class, thread, cd->super_class->classdesc);
+     cd = args->classdesc;
+ 
+@@ -1785,8 +1807,22 @@
+       goto done;
+   }
+ 
+-  for (self->i = 0; (int)self->i < cd->interfaces_count; ++self->i) {
+-    AWAIT_INNER(self->recursive_call_space, initialize_class, thread, cd->interfaces[self->i]->classdesc);
++  // JVMS 5.5 initializes only superinterfaces declaring default methods.
++  // Interface tables enumerate ancestors before their descendants.
++  for (self->i = 0; !(cd->access_flags & ACCESS_INTERFACE) &&
++                    (int)self->i < arrlen(cd->itables.interfaces); ++self->i) {
++    classdesc *iface = cd->itables.interfaces[self->i];
++    bool declares_default = false;
++    for (int method = 0; method < iface->methods_count; method++) {
++      cp_method *candidate = iface->methods + method;
++      if (!candidate->is_clinit && !candidate->is_ctor &&
++          !(candidate->access_flags & (ACCESS_ABSTRACT | ACCESS_STATIC | ACCESS_PRIVATE))) {
++        declares_default = true;
++        break;
++      }
++    }
++    if (!declares_default) continue;
++    AWAIT_INNER(self->recursive_call_space, initialize_class, thread, iface);
+     cd = args->classdesc;
+ 
+     if ((error = self->recursive_call_space->_result))
+@@ -2397,8 +2433,7 @@
+     ASYNC_RETURN(status);
+   }
+ 
+-  AWAIT(initialize_class, thread, self->klass->classdesc);
+-  if (thread->current_exception) {
++  if (link_class(thread, self->klass->classdesc) || thread->current_exception) {
+     ASYNC_RETURN(1);
+   }
+ 
+--- a/vm/bjvm.h
++++ b/vm/bjvm.h
+@@ -501,6 +501,7 @@
+ } module;
+ 
+ int define_module(vm *vm, slice module_name, obj_header *module);
++int register_module_packages(vm_thread *thread, classloader *cl, module *mod, obj_header *packages);
+ 
+ typedef struct {
+   // Overrides for stdio (if nullptr, uses the default implementation)
+--- a/vm/classloader.c
++++ b/vm/classloader.c
+@@ -15,6 +15,7 @@
+   cl->parent = cl->is_bootstrap ? nullptr : unmirror_classloader(vm, mirror->parent);
+   cl->loaded = make_hash_table(free_classdesc, 0.75, 1);
+   cl->initiating = make_hash_table(nullptr /* all classes are loaded by exactly one class loader */, 0.75, 1);
++  cl->package_modules = make_hash_table(nullptr /* modules belong to vm->modules */, 0.75, 16);
+   if (mirror) {
+     mirror->reflected_loader = cl;
+   }
+@@ -43,4 +44,5 @@
+ void classloader_uninit(classloader *cl) {
+   free_hash_table(cl->loaded);
+   free_hash_table(cl->initiating);
+-}
+\ No newline at end of file
++  free_hash_table(cl->package_modules);
++}
+--- a/vm/classloader.h
++++ b/vm/classloader.h
+@@ -25,6 +25,8 @@
+   string_hash_table loaded;
+   // set of classes for which this loader is an initiating loader
+   string_hash_table initiating;
++  // Named module ownership of packages defined by this loader.
++  string_hash_table package_modules;
+ } classloader;
+ 
+ // CONTRACT: java_mirror must be null or a (subclass of) java/lang/ClassLoader, and not already registered.
+--- a/vm/endian.h
++++ b/vm/endian.h
+@@ -38,7 +38,7 @@
+       output_ty t;                                                                                                     \
+     } pun;                                                                                                             \
+                                                                                                                        \
+-    output_ty raw = ((pun const *)ptr)->t;                                                                             \
++    output_ty raw; __builtin_memcpy(&raw, ptr, sizeof(raw));                                                                             \
+     return (should_swap) ? bswap_generic(raw) : raw;                                                                   \
+   }
+ 
+--- a/vm/interpreter2.c
++++ b/vm/interpreter2.c
+@@ -97,7 +97,7 @@
+ 
+ // If DO_TAILS is true, use a sequence of tail calls rather than computed goto. We try to make the code reasonably
+ // generic to handle both cases efficiently. The macros necessary for the code to be semi-readable are defined here.
+-#ifdef EMSCRIPTEN
++#if defined(EMSCRIPTEN) && !defined(__wasi__)
+ #define DO_TAILS 0 // not profitable on web
+ #else
+ #define DO_TAILS 1
+@@ -137,7 +137,7 @@
+ #pragma GCC optimize("optimize-sibling-calls")
+ 
+ // TODO consider what to do here so that it's efficient but not UB
+-#ifdef EMSCRIPTEN
++#if defined(EMSCRIPTEN) || defined(__wasi__)
+ #define WITH_UNDEF(expr)                                                                                               \
+   do {                                                                                                                 \
+     s64 a_undef = 0;                                                                                                   \
+@@ -461,7 +461,7 @@
+ DECLARE_ASYNC(int, resolve_invokestatic,
+               locals(),
+               arguments(vm_thread *thread; bytecode_insn *insn_),
+-              invoked_method(resolve_methodref)
++              invoked_method(resolve_methodref) invoked_method(initialize_class)
+ );
+ 
+ DECLARE_ASYNC(int, resolve_new_inst,
+@@ -696,10 +696,8 @@
+   if (resolve_class(thread, self->class))
+     ASYNC_RETURN(-1);
+ 
+-  // Then, attempt to initialize the class.
+-  AWAIT(initialize_class, thread, self->class->classdesc);
+-  if (thread->current_exception)
+-    ASYNC_RETURN(-1);
++  // Field lookup requires linking, but only the declaring class initializes.
++  if (link_class(thread, self->class->classdesc)) ASYNC_RETURN(-1);
+ 
+ #define field self->field_info->field
+ 
+@@ -715,6 +713,9 @@
+     ASYNC_RETURN(-1);
+   }
+ 
++  AWAIT(initialize_class, thread, field->my_class);
++  if (thread->current_exception) ASYNC_RETURN(-1);
++
+   // Select the appropriate resolved instruction kind.
+   bool putstatic = inst->kind == insn_putstatic;
+   inst->kind = getstatic_putstatic_resolved_kind(putstatic, self->field_info->parsed_descriptor->repr_kind);
+@@ -1734,6 +1735,9 @@
+   }
+ 
+   cp_method_info *info = &self->args.insn_->cp->methodref;
++  AWAIT(initialize_class, self->args.thread, info->resolved->my_class);
++  if (self->args.thread->current_exception) ASYNC_RETURN(-1);
++  info = &self->args.insn_->cp->methodref;
+   self->args.insn_->kind = insn_invokestatic_resolved;
+   self->args.insn_->ic = info->resolved;
+   self->args.insn_->args = info->descriptor->args_count;
+@@ -2784,9 +2788,22 @@
+ 
+     if (ent->start_insn <= pc_ && pc_ < ent->end_insn) {
+       if (ent->catch_type) {
+-        int error = resolve_class(thread, ent->catch_type) || link_class(thread, ent->catch_type->classdesc);
+-        if (error)
+-          continue; // can happen if the current classloader != verifier classloader?
++        // Resolving a catch type can invoke a Java class loader and trigger GC.
++        // Its calls must run without the exception currently being dispatched.
++        handle *pending = make_handle(thread, thread->current_exception);
++        thread->current_exception = nullptr;
++        int error = resolve_class(thread, ent->catch_type);
++        if (!error && !thread->current_exception)
++          error = link_class(thread, ent->catch_type->classdesc);
++        if (error || thread->current_exception) {
++          // A resolution failure replaces the original exception. Let the
++          // caller propagate it to the enclosing frame.
++          if (!thread->current_exception) thread->current_exception = pending->obj;
++          drop_handle(thread, pending);
++          return nullptr;
++        }
++        thread->current_exception = pending->obj;
++        drop_handle(thread, pending);
+       }
+ 
+       if (!ent->catch_type || instanceof(exception_type, ent->catch_type->classdesc)) {
+@@ -3493,4 +3510,4 @@
+     [insn_sin] = sin_impl_float,
+     [insn_cos] = cos_impl_float,
+     [insn_tan] = tan_impl_float,
+-    [insn_sqrt] = sqrt_impl_float};
+\ No newline at end of file
++    [insn_sqrt] = sqrt_impl_float};
+--- a/vm/profiler.c
++++ b/vm/profiler.c
+@@ -2,7 +2,7 @@
+ #include <stdatomic.h>
+ #include <unistd.h>
+ 
+-#if !defined(EMSCRIPTEN) || defined(__EMSCRIPTEN_PTHREADS__)
++#if !defined(__wasi__) && (!defined(EMSCRIPTEN) || defined(__EMSCRIPTEN_PTHREADS__))
+ #define PTHREADS_SUPPORTED
+ #endif
+ 
+--- a/vm/vtable.c
++++ b/vm/vtable.c
+@@ -188,6 +188,67 @@
+   free_hash_table(ambiguous);
+ }
+ 
++// Select maximally specific interface declarations, including legitimate
++// abstract-to-default overrides reached through multiple inheritance paths.
++static bool extends_interface(const classdesc *child, const classdesc *parent) {
++  if (child == parent) return true;
++  for (int i = 0; i < arrlen(child->itables.interfaces); i++)
++    if (child->itables.interfaces[i] == parent) return true;
++  return false;
++}
++
++static bool interface_method(const cp_method *method) {
++  return method && !(method->access_flags & (ACCESS_PRIVATE | ACCESS_STATIC));
++}
++
++static itable_method_t select_interface_method(classdesc *cd, cp_method *signature) {
++  if (!(cd->access_flags & ACCESS_INTERFACE)) {
++    cp_method *method = method_lookup(cd, signature->name, signature->unparsed_descriptor, true, false);
++    if (interface_method(method)) return make(method);
++  }
++  cp_method *abstract = nullptr, *concrete = nullptr;
++  bool ambiguous = false;
++  for (int i = 0; i < arrlen(cd->itables.interfaces); i++) {
++    classdesc *owner = cd->itables.interfaces[i];
++    cp_method *method = method_lookup(owner, signature->name, signature->unparsed_descriptor, false, false);
++    if (!interface_method(method)) continue;
++    bool dominated = false;
++    for (int j = 0; j < arrlen(cd->itables.interfaces); j++) {
++      classdesc *other = cd->itables.interfaces[j];
++      if (owner == other || !extends_interface(other, owner)) continue;
++      cp_method *overriding = method_lookup(other, signature->name, signature->unparsed_descriptor, false, false);
++      if (interface_method(overriding)) { dominated = true; break; }
++    }
++    if (dominated) continue;
++    if (method->access_flags & ACCESS_ABSTRACT) abstract = method;
++    else {
++      if (concrete && concrete != method) ambiguous = true;
++      concrete = method;
++    }
++  }
++  if (concrete) return ambiguous ? mark_ambiguous(make(concrete)) : make(concrete);
++  return make(abstract ? abstract : signature);
++}
++
++static void normalize_interface_methods(classdesc *cd) {
++  string_hash_table resolved = make_hash_table(nullptr, 0.75, 16);
++  for (int i = 0; i < arrlen(cd->itables.entries); i++) {
++    itable *entry = cd->itables.entries + i;
++    for (int j = 0; j < arrlen(entry->methods); j++) {
++      cp_method *signature = get_unambiguous_method(entry->methods[j]);
++      INIT_STACK_STRING(scratch, 2048);
++      slice key = identify(&scratch, signature);
++      itable_method_t selected = (itable_method_t)hash_table_lookup(&resolved, key.chars, key.len);
++      if (!selected) {
++        selected = select_interface_method(cd, signature);
++        (void)hash_table_insert(&resolved, key.chars, key.len, (void *)selected);
++      }
++      entry->methods[j] = selected;
++    }
++  }
++  free_hash_table(resolved);
++}
++
+ // TODO consider optimizing final methods out of the tables?
+ void set_up_function_tables(classdesc *cd) {
+   vtable *vtable = &cd->vtable;
+@@ -229,6 +290,8 @@
+     arrput(itables->entries, itable);
+   }
+ 
++  normalize_interface_methods(cd);
++
+   // Then push all new methods which are not represented in a vtable into the
+   // class's vtable
+   for (int i = 0; i < cd->methods_count; ++i) {
+--- a/natives/share/java/io/FileInputStream.c
++++ b/natives/share/java/io/FileInputStream.c
+@@ -5,7 +5,7 @@
+ #else
+ #include <sys/fcntl.h>
+ #endif
+-#include <sys/ioctl.h>
++#include <sys/stat.h>
+ #include <unistd.h>
+ 
+ DECLARE_NATIVE("java/io", FileInputStream, initIDs, "()V") { return value_null(); }
+@@ -45,12 +45,6 @@
+     return value_null();
+   }
+ 
+-  obj_header *array = args[0].handle->obj;
+-  if (!array) {
+-    raise_null_pointer_exception(thread);
+-    return value_null();
+-  }
+-
+   int length = 1;
+   char res;
+ 
+@@ -66,7 +60,7 @@
+     return value_null();
+   }
+ 
+-  return (stack_value){.i = bytes_read == 0 ? -1 : (int)res};
++  return (stack_value){.i = bytes_read == 0 ? -1 : (unsigned char)res};
+ }
+ 
+ DECLARE_NATIVE("java/io", FileInputStream, readBytes, "([BII)I") {
+@@ -137,7 +131,10 @@
+   if (unix_fd == 0 && thread->vm->poll_available_stdin) {
+     available = thread->vm->poll_available_stdin(thread->vm->stdio_override_param);
+   } else {
+-    int err = ioctl(unix_fd, FIONREAD, &available);
++    struct stat info;
++    off_t position = lseek(unix_fd, 0, SEEK_CUR);
++    int err = fstat(unix_fd, &info);
++    available = err || position < 0 ? 0 : info.st_size - position;
+     if (err < 0) {
+       raise_vm_exception(thread, STR("java/io/IOException"), STR("Error getting available bytes"));
+       return value_null();
+--- a/natives/share/java/io/RandomAccessFile.c
++++ b/natives/share/java/io/RandomAccessFile.c
+@@ -1,107 +1,79 @@
+ #include <natives-dsl.h>
+-
+-DECLARE_NATIVE("java/io", RandomAccessFile, initIDs, "()V") { return value_null(); }
+-
+-static obj_header **get_fd(obj_header *obj) {
+-  cp_field *field = field_lookup(obj->descriptor, STR("fd"), STR("Ljava/io/FileDescriptor;"));
+-  return (void *)obj + field->byte_offset;
++#include <errno.h>
++#include <fcntl.h>
++#include <sys/stat.h>
++#include <unistd.h>
++
++static obj_header *file_descriptor(obj_header *file) {
++  return LoadFieldObject(file, "java/io/FileDescriptor", "fd");
++}
++static int raw_descriptor(obj_header *file) { return LoadFieldInt(file_descriptor(file), "fd"); }
++static void io_error(vm_thread *thread) {
++  raise_vm_exception(thread, STR("java/io/IOException"), (slice){strerror(errno), strlen(strerror(errno))});
+ }
+-
+-static s64 *get_native_handle(obj_header *obj) {
+-  cp_field *native_fd_field = field_lookup(obj->descriptor, STR("handle"), STR("J"));
+-  return (void *)obj + native_fd_field->byte_offset;
+-}
+-
++DECLARE_NATIVE("java/io", RandomAccessFile, initIDs, "()V") { return value_null(); }
+ DECLARE_NATIVE("java/io", RandomAccessFile, open0, "(Ljava/lang/String;I)V") {
+-  if (!args[0].handle->obj)
+-    return value_null();
+-  heap_string filename = AsHeapString(args[0].handle->obj, on_oom);
+-  obj_header *fd = *get_fd(obj->obj);
+-  DCHECK(fd);
+-  FILE *file = fopen(filename.chars, "r");
+-  if (!file) {
+-    raise_vm_exception(thread, STR("java/io/FileNotFoundException"), hslc(filename));
+-  } else {
+-    *get_native_handle(fd) = (s64)file;
++  heap_string path = AsHeapString(args[0].handle->obj, on_oom);
++  int mode = args[1].i;
++  int flags = mode & 2 ? O_RDWR | O_CREAT : O_RDONLY;
++  if (mode & 4) flags |= O_SYNC;
++  if (mode & 8) flags |= O_DSYNC;
++  int descriptor = open(path.chars, flags, 0666);
++  if (descriptor < 0) raise_vm_exception(thread, STR("java/io/FileNotFoundException"), hslc(path));
++  else {
++    obj_header *fd = file_descriptor(obj->obj);
++    StoreFieldInt(fd, "fd", descriptor);
++    StoreFieldLong(fd, "handle", descriptor);
+   }
+-  free_heap_str(filename);
+-
+-on_oom:
++  free_heap_str(path);
++ on_oom:
+   return value_null();
+ }
+-
+ DECLARE_NATIVE("java/io", RandomAccessFile, read0, "()I") {
+-  obj_header *fd = *get_fd(obj->obj);
+-  DCHECK(fd);
+-  FILE *file = (FILE *)*get_native_handle(fd);
+-  if (!file) {
+-    raise_vm_exception(thread, STR("java/io/IOException"), STR("File not open"));
+-    return value_null();
+-  }
+-  int ch = fgetc(file);
+-  return (stack_value){.i = ch};
++  unsigned char byte;
++  ssize_t count = read(raw_descriptor(obj->obj), &byte, 1);
++  if (count < 0) { io_error(thread); return value_null(); }
++  return (stack_value){.i = count ? byte : -1};
+ }
+-
+ DECLARE_NATIVE("java/io", RandomAccessFile, seek0, "(J)V") {
+-  obj_header *fd = *get_fd(obj->obj);
+-  DCHECK(fd);
+-  FILE *file = (FILE *)*get_native_handle(fd);
+-  if (!file) {
+-    raise_vm_exception(thread, STR("java/io/IOException"), STR("File not open"));
+-    return value_null();
+-  }
+-  long pos = args[0].l;
+-  fseek(file, pos, SEEK_SET);
++  if (lseek(raw_descriptor(obj->obj), args[0].l, SEEK_SET) < 0) io_error(thread);
+   return value_null();
+ }
+-
+ DECLARE_NATIVE("java/io", RandomAccessFile, getFilePointer, "()J") {
+-  obj_header *fd = *get_fd(obj->obj);
+-  DCHECK(fd);
+-  FILE *file = (FILE *)*get_native_handle(fd);
+-  if (!file) {
+-    raise_vm_exception(thread, STR("java/io/IOException"), STR("File not open"));
+-    return value_null();
+-  }
+-  long pos = ftell(file);
+-  return (stack_value){.l = pos};
++  off_t position = lseek(raw_descriptor(obj->obj), 0, SEEK_CUR);
++  if (position < 0) { io_error(thread); return value_null(); }
++  return (stack_value){.l = position};
+ }
+-
+ DECLARE_NATIVE("java/io", RandomAccessFile, close0, "()V") {
+-  obj_header *fd = *get_fd(obj->obj);
+-  DCHECK(fd);
+-  FILE *file = (FILE *)*get_native_handle(fd);
+-  if (file) {
+-    fclose(file);
+-    *get_native_handle(fd) = 0;
+-  }
++  obj_header *fd = file_descriptor(obj->obj);
++  int descriptor = LoadFieldInt(fd, "fd");
++  StoreFieldInt(fd, "fd", -1);
++  StoreFieldLong(fd, "handle", -1);
++  if (descriptor >= 0 && close(descriptor)) io_error(thread);
+   return value_null();
+ }
+-
+ DECLARE_NATIVE("java/io", RandomAccessFile, length0, "()J") {
+-  obj_header *fd = *get_fd(obj->obj);
+-  DCHECK(fd);
+-  FILE *file = (FILE *)*get_native_handle(fd);
+-  if (!file) {
+-    raise_vm_exception(thread, STR("java/io/IOException"), STR("File not open"));
+-    return value_null();
+-  }
+-  fseek(file, 0, SEEK_END);
+-  long length = ftell(file);
+-  return (stack_value){.l = length};
++  struct stat info;
++  if (fstat(raw_descriptor(obj->obj), &info)) { io_error(thread); return value_null(); }
++  return (stack_value){.l = info.st_size};
+ }
+-
+ DECLARE_NATIVE("java/io", RandomAccessFile, readBytes0, "([BII)I") {
+-  object fd = *get_fd(obj->obj);
+-  assert(fd);
+-  FILE *file = (FILE *)*get_native_handle(fd);
+-  if (!file) {
+-    raise_vm_exception(thread, STR("java/io/IOException"), STR("File not open"));
+-    return value_null();
+-  }
+-  object buf = args[0].handle->obj;
+-  s32 off = args[1].i;
+-  s32 len = args[2].i;
+-  s32 read = fread((char *)ArrayData(buf) + off, 1, len, file);
+-  return (stack_value){.i = read};
++  object array = args[0].handle->obj;
++  int offset = args[1].i, length = args[2].i;
++  if (!array) { raise_null_pointer_exception(thread); return value_null(); }
++  if (offset < 0 || length < 0 || (s64)offset + length > ArrayLength(array)) {
++    raise_vm_exception_no_msg(thread, STR("java/lang/IndexOutOfBoundsException")); return value_null();
++  }
++  if (!length) return (stack_value){.i = 0};
++  ssize_t count = read(raw_descriptor(obj->obj), (char *)ArrayData(array) + offset, length);
++  if (count < 0) { io_error(thread); return value_null(); }
++  return (stack_value){.i = count ? count : -1};
++}
++DECLARE_NATIVE("java/io", RandomAccessFile, setLength, "(J)V") {
++  int fd = raw_descriptor(obj->obj);
++  if (args[0].l < 0) { raise_vm_exception(thread, STR("java/lang/IllegalArgumentException"), STR("Negative length")); return value_null(); }
++  if (ftruncate(fd, args[0].l)) { io_error(thread); return value_null(); }
++  off_t current = lseek(fd, 0, SEEK_CUR);
++  if (current > args[0].l && lseek(fd, args[0].l, SEEK_SET) < 0) io_error(thread);
++  return value_null();
+ }
+--- a/natives/share/java/io/posix-fs.c
++++ b/natives/share/java/io/posix-fs.c
+@@ -4,7 +4,7 @@
+ 
+ #include "posix-fs.h"
+ 
+-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
++#if defined(__unix__) || defined(__wasi__) || (defined(__APPLE__) && defined(__MACH__))
+ #define POSIX_SUPPORTED
+ #endif
+ 
+--- a/natives/share/java/lang/Class.c
++++ b/natives/share/java/lang/Class.c
+@@ -68,7 +68,7 @@
+   handle *array = make_handle(thread, CreateObjectArray1D(thread, cached_classes(thread->vm)->object, 3));
+ #define data ((obj_header **)ArrayData(array->obj))
+ 
+-  int error = resolve_class(thread, enclosing_method.class_info);
++  int error = resolve_class_impl(thread, enclosing_method.class_info, desc->classloader);
+   CHECK(!error);
+   data[0] = (void *)enclosing_method.class_info->classdesc->mirror;
+   if (enclosing_method.nat != nullptr) {
+@@ -93,7 +93,7 @@
+   if (!enclosing_method.class_info) {
+     return value_null();
+   }
+-  int error = resolve_class(thread, enclosing_method.class_info);
++  int error = resolve_class_impl(thread, enclosing_method.class_info, desc->classloader);
+   CHECK(!error);
+   return (stack_value){.obj = (void *)enclosing_method.class_info->classdesc->mirror};
+ }
+@@ -136,7 +136,7 @@
+   // Unmirror all classes first in case one of them triggers a GC
+   for (int i = 0; i < permitted->entries_count; ++i) {
+     cp_class_info *info = permitted->entries[i];
+-    if (resolve_class(thread, info)) {
++    if (resolve_class_impl(thread, info, desc->classloader)) {
+       return value_null();
+     }
+     get_class_mirror(thread, info->classdesc);
+@@ -346,7 +346,7 @@
+   if (inner_classes) {
+     for (int i = 0; i < count; ++i) {
+       cp_class_info *info = inner_classes->classes[i];
+-      resolve_class(thread, info);
++      resolve_class_impl(thread, info, cd->classloader);
+       if (!info->classdesc)
+         continue;
+       obj_header *mirror = (void *)get_class_mirror(thread, info->classdesc);
+@@ -409,7 +409,8 @@
+ DECLARE_NATIVE("java/lang", Class, getNestHost0, "()Ljava/lang/Class;") {
+   classdesc *desc = unmirror_class(obj->obj);
+   cp_class_info *nest_host = desc->nest_host;
+-  if (!nest_host || !resolve_class(thread, nest_host)) {
++  if (!nest_host) return (stack_value){.obj = obj->obj};
++  if (resolve_class_impl(thread, nest_host, desc->classloader)) {
+     return value_null();
+   }
+ 
+--- a/natives/share/java/lang/ClassLoader.c
++++ b/natives/share/java/lang/ClassLoader.c
+@@ -37,7 +37,7 @@
+ 
+ static int incr = 0;
+ 
+-enum { FLAG_HIDDEN_CLASS = 2 };
++enum { FLAG_NESTMATE_CLASS = 1, FLAG_HIDDEN_CLASS = 2 };
+ 
+ stack_value define_class_shared_impl(vm_thread *thread, handle *loader, handle *parent_class, handle *name,
+                                      u8 *data_bytes, int offset, int length, handle *pd, bool initialize, int flags,
+@@ -62,6 +62,17 @@
+   classdesc *result = define_class(thread, unmirror_classloader(thread->vm, loader->obj), cf_name, data_bytes, length);
+ 
+   free_heap_str(name_str);
++  if (!result) return value_null();
++  result->is_hidden = is_hidden;
++  if (flags & FLAG_NESTMATE_CLASS) {
++    classdesc *host = unmirror_class(parent_class->obj);
++    if (host->nest_host) {
++      if (resolve_class_impl(thread, host->nest_host, host->classloader)) return value_null();
++      host = host->nest_host->classdesc;
++    }
++    result->nest_host = arena_alloc(&result->arena, 1, sizeof(cp_class_info));
++    *result->nest_host = (cp_class_info){.name = host->name, .classdesc = host};
++  }
+   if (initialize) {
+     initialize_class_t pox = {.args = {thread, result}};
+     thread->stack.synchronous_depth++;
+--- a/natives/share/java/lang/Module.c
++++ b/natives/share/java/lang/Module.c
+@@ -1,4 +1,5 @@
+ #include "objects.h"
++#include "arrays.h"
+ 
+ #include <natives-dsl.h>
+ 
+@@ -20,7 +21,11 @@
+   }
+ 
+   define_module(thread->vm, hslc(s), args[0].handle->obj);
++  module *mod = hash_table_lookup(&thread->vm->modules, s.chars, (int)s.len);
+   free_heap_str(s);
++  obj_header *loader = LoadFieldObject(args[0].handle->obj, "java/lang/ClassLoader", "loader");
++  classloader *cl = unmirror_classloader(thread->vm, loader);
++  if (register_module_packages(thread, cl, mod, args[4].handle->obj)) return value_null();
+ 
+   return value_null();
+ }
+--- a/natives/share/java/lang/Runtime.c
++++ b/natives/share/java/lang/Runtime.c
+@@ -2,7 +2,7 @@
+ 
+ DECLARE_NATIVE("java/lang", Runtime, availableProcessors, "()I") { return (stack_value){.i = 1}; }
+ 
+-DECLARE_NATIVE("java/lang", Runtime, maxMemory, "()J") { return (stack_value){.l = LLONG_MAX}; }
++DECLARE_NATIVE("java/lang", Runtime, maxMemory, "()J") { return (stack_value){.l = thread->vm->heap_capacity}; }
+ 
+ DECLARE_NATIVE("java/lang", Runtime, gc, "()V") {
+   major_gc(thread->vm);
+@@ -11,4 +11,4 @@
+ 
+ DECLARE_NATIVE("java/lang", Shutdown, beforeHalt, "()V") { return value_null(); }
+ 
+-DECLARE_NATIVE("java/lang", Shutdown, halt0, "(I)V") { return value_null(); }
+\ No newline at end of file
++DECLARE_NATIVE("java/lang", Shutdown, halt0, "(I)V") { exit(args[0].i); }
+\ No newline at end of file
+--- a/natives/share/java/lang/System.c
++++ b/natives/share/java/lang/System.c
+@@ -4,7 +4,7 @@
+ #include <unistd.h>
+ #include <util.h>
+ 
+-#if defined(__APPLE__) || defined(__linux__)
++#if defined(__APPLE__) || defined(__linux__) || defined(__wasi__)
+ #include <sys/time.h>
+ #define USE_SYS_TIME
+ #endif
+--- a/natives/share/java/lang/Throwable.c
++++ b/natives/share/java/lang/Throwable.c
+@@ -65,7 +65,9 @@
+     if (!o)
+       goto oom;
+     E->declaringClassObject = o;
+-    o = MakeJStringFromModifiedUTF8(thread, method->my_class->name, true);
++    INIT_STACK_STRING(dotted_name, 1024);
++    exchange_slashes_and_dots(&dotted_name, method->my_class->name);
++    o = MakeJStringFromModifiedUTF8(thread, dotted_name, true);
+     if (!o)
+       goto oom;
+     E->declaringClass = o;
+--- a/natives/share/jdk/internal/util/SystemProps.c
++++ b/natives/share/jdk/internal/util/SystemProps.c
+@@ -80,10 +80,17 @@
+   SET_PROP(_line_separator_NDX, "\n");
+   SET_PROP(_path_separator_NDX, ":");
+   SET_PROP(_os_name_NDX, "Linux");
++#ifdef __wasi__
++  SET_PROP(_os_arch_NDX, "wasm32");
++  SET_PROP(_os_version_NDX, "0.1.0");
++  SET_PROP(_sun_arch_abi_NDX, "32");
++  SET_PROP(_sun_arch_data_model_NDX, "32");
++#else
+   SET_PROP(_os_arch_NDX, "x86_64");
+   SET_PROP(_os_version_NDX, "5.4.0-1043-azure");
+   SET_PROP(_sun_arch_abi_NDX, "64");
+   SET_PROP(_sun_arch_data_model_NDX, "64");
++#endif
+   SET_PROP(_sun_cpu_endian_NDX, "little");
+   SET_PROP(_sun_cpu_isalist_NDX, "");
+   SET_PROP(_sun_io_unicode_encoding_NDX, "UTF-8");
+@@ -125,11 +132,18 @@
+   CHECK(cwd == getcwd(cwd, 1024));
+ 
+   INIT_STACK_STRING(java_home, 1024);
++#ifdef __wasi__
++  const char *configured_home = getenv("JAVA_HOME");
++  java_home = configured_home && configured_home[0]
++                  ? bprintf(java_home, "%s", configured_home)
++                  : bprintf(java_home, "%s/jdk23", cwd);
++#else
+   java_home = bprintf(java_home, "%s/jdk23", cwd);
++#endif
+ 
+   SET_PROP(1, java_home.chars);
+   SET_PROP(2, "java.class.path");
+   SET_PROP(3, thread->vm->application_classpath.chars);
+ 
+   return (stack_value){.obj = props->obj};
+-}
+\ No newline at end of file
++}
+--- a/natives/share/sun/nio/fs/UnixNativeDispatcher.c
++++ b/natives/share/sun/nio/fs/UnixNativeDispatcher.c
+@@ -15,13 +15,83 @@
+ #include <sys/stat.h>
+ #include <unistd.h>
+ 
++// This class library was built for Linux. Its errno and open constants are
++// embedded in Java bytecode and differ from WASI libc's values.
++#ifdef __wasi__
++static const struct { int host; int java; } error_codes[] = {
++  {E2BIG, 7}, {EACCES, 13}, {EADDRINUSE, 98}, {EADDRNOTAVAIL, 99},
++  {EAFNOSUPPORT, 97}, {EAGAIN, 11}, {EALREADY, 114}, {EBADF, 9},
++  {EBADMSG, 74}, {EBUSY, 16}, {ECANCELED, 125}, {ECHILD, 10},
++  {ECONNABORTED, 103}, {ECONNREFUSED, 111}, {ECONNRESET, 104},
++  {EDEADLK, 35}, {EDESTADDRREQ, 89}, {EDOM, 33}, {EDQUOT, 122},
++  {EEXIST, 17}, {EFAULT, 14}, {EFBIG, 27}, {EHOSTUNREACH, 113},
++  {EIDRM, 43}, {EILSEQ, 84}, {EINPROGRESS, 115}, {EINTR, 4},
++  {EINVAL, 22}, {EIO, 5}, {EISCONN, 106}, {EISDIR, 21}, {ELOOP, 40},
++  {EMFILE, 24}, {EMLINK, 31}, {EMSGSIZE, 90}, {EMULTIHOP, 72},
++  {ENAMETOOLONG, 36}, {ENETDOWN, 100}, {ENETRESET, 102},
++  {ENETUNREACH, 101}, {ENFILE, 23}, {ENOBUFS, 105}, {ENODEV, 19},
++  {ENOENT, 2}, {ENOEXEC, 8}, {ENOLCK, 37}, {ENOLINK, 67},
++  {ENOMEM, 12}, {ENOMSG, 42}, {ENOPROTOOPT, 92}, {ENOSPC, 28},
++  {ENOSYS, 38}, {ENOTCONN, 107}, {ENOTDIR, 20}, {ENOTEMPTY, 39},
++  {ENOTRECOVERABLE, 131}, {ENOTSOCK, 88}, {ENOTSUP, 95},
++  {ENOTTY, 25}, {ENXIO, 6}, {EOVERFLOW, 75}, {EOWNERDEAD, 130},
++  {EPERM, 1}, {EPIPE, 32}, {EPROTO, 71}, {EPROTONOSUPPORT, 93},
++  {EPROTOTYPE, 91}, {ERANGE, 34}, {EROFS, 30}, {ESPIPE, 29},
++  {ESRCH, 3}, {ESTALE, 116}, {ETIMEDOUT, 110}, {ETXTBSY, 26},
++  {EXDEV, 18}, {ENOTCAPABLE, 13}
++};
++
++static int java_errno(int code) {
++  if (code == 0) return 0;
++  for (size_t i = 0; i < sizeof(error_codes) / sizeof(error_codes[0]); i++)
++    if (error_codes[i].host == code) return error_codes[i].java;
++  return 5; // EIO in the Linux class library.
++}
++
++static int host_errno(int code) {
++  if (code == 0) return 0;
++  for (size_t i = 0; i < sizeof(error_codes) / sizeof(error_codes[0]); i++)
++    if (error_codes[i].java == code) return error_codes[i].host;
++  return EIO;
++}
++
++static bool host_open_flags(int flags, int *translated) {
++  // O_NOCTTY, O_LARGEFILE and O_CLOEXEC have no additional WASI behavior.
++  const unsigned known = 3 | 64 | 128 | 256 | 512 | 1024 | 2048 | 4096
++                       | 32768 | 65536 | 131072 | 524288 | 1048576;
++  if ((unsigned)flags & ~known) { errno = ENOTSUP; return false; }
++  int result;
++  switch (flags & 3) {
++    case 0: result = O_RDONLY; break;
++    case 1: result = O_WRONLY; break;
++    case 2: result = O_RDWR; break;
++    default: errno = EINVAL; return false;
++  }
++  if (flags & 64) result |= O_CREAT;
++  if (flags & 128) result |= O_EXCL;
++  if (flags & 512) result |= O_TRUNC;
++  if (flags & 1024) result |= O_APPEND;
++  if (flags & 2048) result |= O_NONBLOCK;
++  if (flags & 4096) result |= O_DSYNC;
++  if (flags & 65536) result |= O_DIRECTORY;
++  if (flags & 131072) result |= O_NOFOLLOW;
++  if (flags & 1048576) result |= O_SYNC;
++  *translated = result;
++  return true;
++}
++#else
++static int java_errno(int code) { return code; }
++static int host_errno(int code) { return code; }
++static bool host_open_flags(int flags, int *translated) { *translated = flags; return true; }
++#endif
++
+ static obj_header *create_unix_exception(vm_thread *thread, int errno_code) {
+   classdesc *classdesc = cached_classes(thread->vm)->unix_exception;
+   obj_header *obj = new_object(thread, classdesc);
+ 
+   cp_method *method = method_lookup(classdesc, STR("<init>"), STR("(I)V"), true, false);
+   call_interpreter_synchronous(thread, method,
+-                               (stack_value[]){{.obj = obj}, {.i = errno_code}}); // constructor is void method
++                               (stack_value[]){{.obj = obj}, {.i = java_errno(errno_code)}});
+ 
+   return obj;
+ }
+@@ -43,16 +113,17 @@
+   return (stack_value){.obj = array};
+ }
+ 
+-stack_value stat_impl(value *args) {
++static int stat_impl(value *args, bool follow_links) {
+   struct stat st;
+ 
+   if (!args[1].handle)
+-    return value_null();
++    return EINVAL;
+ 
+   uintptr_t buf = args[0].l;
+-  int result = stat((char *)buf, &st);
+-  if (result)
+-    return (stack_value){.i = errno};
++  int result = follow_links ? stat((char *)buf, &st) : lstat((char *)buf, &st);
++  if (result) {
++    return errno;
++  }
+ 
+   obj_header *attrs = args[1].handle->obj;
+ 
+@@ -95,15 +166,16 @@
+ #undef MapAttrLong
+ #undef MapAttrInt
+ 
+-  return (stack_value){.i = 0};
++  return 0;
+ }
+ 
+ DECLARE_NATIVE("sun/nio/fs", UnixNativeDispatcher, stat0, "(JLsun/nio/fs/UnixFileAttributes;)I") {
+-  return stat_impl(args);
++  return (stack_value){.i = java_errno(stat_impl(args, true))};
+ }
+ 
+ DECLARE_NATIVE("sun/nio/fs", UnixNativeDispatcher, lstat0, "(JLsun/nio/fs/UnixFileAttributes;)V") {
+-  stat_impl(args);
++  int error = stat_impl(args, false);
++  if (error) thread->current_exception = create_unix_exception(thread, error);
+   return value_null();
+ }
+ 
+@@ -138,7 +210,9 @@
+ }
+ 
+ DECLARE_NATIVE("sun/nio/fs", UnixNativeDispatcher, open0, "(JII)I") {
+-  int result = open((char const *)args[0].l, args[1].i, args[2].i);
++  int flags;
++  int result = host_open_flags(args[1].i, &flags)
++                 ? open((char const *)args[0].l, flags, args[2].i) : -1;
+   if (result >= 0)
+     return (stack_value){.i = result};
+ 
+@@ -151,8 +225,7 @@
+   if (result == 0)
+     return (stack_value){.i = 0};
+ 
+-  thread->current_exception = create_unix_exception(thread, errno);
+-  return value_null();
++  return (stack_value){.i = java_errno(errno)};
+ }
+ 
+ DECLARE_NATIVE("sun/nio/ch", UnixFileDispatcherImpl, size0, "(Ljava/io/FileDescriptor;)J") {
+@@ -167,17 +240,36 @@
+   return (stack_value){.l = st.st_size};
+ }
+ 
+-DECLARE_NATIVE("sun/nio/ch", UnixFileDispatcherImpl, allocationGranularity0, "()J") { return (stack_value){.l = 4096}; }
++DECLARE_NATIVE("sun/nio/ch", UnixFileDispatcherImpl, allocationGranularity0, "()J") {
++#ifdef __wasi__
++  // wasi-libc emulates mmap with malloc/pread, with no page alignment contract.
++  return (stack_value){.l = 1};
++#else
++  return (stack_value){.l = 4096};
++#endif
++}
+ 
+ // (fd: FileDescriptor, prot:Int, pos: Long, len: Long, isSync: Boolean) -> Long
+ DECLARE_NATIVE("sun/nio/ch", UnixFileDispatcherImpl, map0, "(Ljava/io/FileDescriptor;IJJZ)J") {
+   DCHECK(args[0].handle->obj);
+   int fd = LoadFieldInt(args[0].handle->obj, "fd");
+-  int prot = args[1].i;
++  int mode = args[1].i; // OpenJDK MAP_RO=0, MAP_RW=1, MAP_PV=2.
+   off_t pos = args[2].l;
+   off_t len = args[3].l;
+-  int flags = args[4].i ? MAP_SHARED : MAP_PRIVATE;
+-  void *result = mmap(nullptr, len, prot | PROT_READ, flags, fd, pos);
++#ifdef __wasi__
++  // Emulated mappings cannot provide shared writes or synchronous durability.
++  if (mode == 1 || args[4].i) {
++    raise_vm_exception(thread, STR("java/io/IOException"), STR("Shared writable memory mapping is unavailable in WASI"));
++    return value_null();
++  }
++#endif
++  if (mode < 0 || mode > 2) {
++    raise_vm_exception(thread, STR("java/io/IOException"), STR("Invalid memory mapping mode"));
++    return value_null();
++  }
++  int prot = mode == 0 ? PROT_READ : PROT_READ | PROT_WRITE;
++  int flags = mode == 2 ? MAP_PRIVATE : MAP_SHARED;
++  void *result = mmap(nullptr, len, prot, flags, fd, pos);
+   if (result == MAP_FAILED) {
+     thread->current_exception = create_unix_exception(thread, errno);
+     return value_null();
+@@ -186,7 +278,7 @@
+   return (stack_value){.l = (s64)result};
+ }
+ 
+-DECLARE_NATIVE("sun/nio/ch", UnixFileDispatcherImpl, unmap0, "(JJ)V") {
++DECLARE_NATIVE("sun/nio/ch", UnixFileDispatcherImpl, unmap0, "(JJ)I") {
+   void *addr = (void *)args[0].l;
+   size_t len = args[1].l;
+   for (size_t i = 0; i < arrlenu(thread->vm->mmap_allocations); ++i) {
+@@ -199,11 +291,11 @@
+   if (result) {
+     thread->current_exception = create_unix_exception(thread, errno);
+   }
+-  return value_null();
++  return (stack_value){.i = result};
+ }
+ 
+ DECLARE_NATIVE("sun/nio/fs", UnixNativeDispatcher, strerror, "(I)[B") {
+-  char *msg = strerror(args[0].i);
++  char *msg = strerror(host_errno(args[0].i));
+   size_t len = strlen(msg);
+   obj_header *array = CreatePrimitiveArray1D(thread, TYPE_KIND_BYTE, len);
+   if (!array) {
+@@ -213,4 +305,4 @@
+   return (stack_value){.obj = array};
+ }
+ 
+-DECLARE_NATIVE("sun/nio/ch", FileDispatcherImpl, init0, "()V") { return value_null(); }
+\ No newline at end of file
++DECLARE_NATIVE("sun/nio/ch", FileDispatcherImpl, init0, "()V") { return value_null(); }

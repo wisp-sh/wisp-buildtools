@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "checks": [
+    "valid Component fits Wisp's 16 MiB limit",
+    "typed add returns correct results for varying and boundary inputs",
+    "Python parser and compiler run in guest CPython on WASI",
+    "repeated compilation from the same template is deterministic",
+    "guest stdlib, classes, comprehensions and lambdas execute real Python",
+    "changing function bodies changes behavior using guest-only Python compilation",
+    "--entry selects a Python callable behind the fixed typed export",
+    "guest rejects syntax, export, signature and initialization errors atomically",
+    "typed adapter traps on wrong Python return types and s32 overflow"
+  ],
+  "runtime_info": "\"CPython 3.14.0 (main, Sep 11 2026, 23:47:35) [Clang 22.1.0-wasi-sdk (https://github.com/llvm/llvm-project 4434dabb69916856b82; platform=wasi; source-compiler=guest compile/exec\"",
+  "component_bytes": 15772574,
+  "max_component_bytes": 16777216,
+  "component_sha256": "4eaa2aca1e5faf8532d8c6659d0cb4a382213ab7ffb9cd04035ef930c48143c9",
+  "source_compilation": "Wasm guest CPython compile and exec",
+  "fullyWasmHostedBuild": true,
+  "native_toolchain_removed_from_path": true,
+  "guest_build_stages": [
+    "WASI source-provider packaging",
+    "WASI wasm-tools validation",
+    "CPython compile/exec"
+  ],
+  "native_orchestration": [
+    "Python file I/O and process orchestration",
+    "Wasmtime execution"
+  ]
+}

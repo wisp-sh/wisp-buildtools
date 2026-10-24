@@ -1,0 +1,2071 @@
+From: Wisp buildtools
+Subject: [PATCH] Port Rust 1.99.1 to WASIp3 with LLVM 24 and interpreted proc macros
+
+Applies to rust-lang/rust 58cf8f9c35b355199727627d07ae34a4e2846d67.
+The macro bridge adapts PR 157709 while retaining the bounded Wasmi 0.40
+interpreter, scalar declaration exports and execution receipts.
+
+diff --git a/Cargo.lock b/Cargo.lock
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -1290,6 +1290,12 @@
+ checksum = "8975ffdaa0ef3661bfe02dbdcc06c9f829dfafe6a3c474de366a8d5e44276921"
+ 
+ [[package]]
++name = "downcast-rs"
++version = "1.2.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
++
++[[package]]
+ name = "dyn-clone"
+ version = "1.0.20"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -1592,27 +1598,20 @@
+ [[package]]
+ name = "getrandom"
+ version = "0.3.3"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "26145e563e54f2cadc477553f1ec5ee650b00862f0a58bcd12cbdc5f0ea2d2f4"
++dependencies = [
++ "getrandom 0.4.3",
++]
++
++[[package]]
++name = "getrandom"
++version = "0.4.3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "300e883d756b2e4ec94e02791f39b04b522276138852cfc41d9fb7e904106099"
+ dependencies = [
+  "cfg-if",
+  "libc",
+- "r-efi 5.3.0",
+- "wasi 0.14.2+wasi-0.2.4",
+-]
+-
+-[[package]]
+-name = "getrandom"
+-version = "0.4.2"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "0de51e6874e94e7bf76d726fc5d13ba782deca734ff60d5bb2fb2607c7406555"
+-dependencies = [
+- "cfg-if",
+- "libc",
+- "r-efi 6.0.0",
++ "r-efi",
+  "rand_core 0.10.1",
+- "wasip2",
+- "wasip3",
+ ]
+ 
+ [[package]]
+@@ -2563,7 +2562,7 @@
+  "colored",
+  "directories",
+  "genmc-sys",
+- "getrandom 0.4.2",
++ "getrandom 0.4.3",
+  "ipc-channel",
+  "libc",
+  "libffi",
+@@ -2584,6 +2583,12 @@
+ [[package]]
+ name = "miropt-test-tools"
+ version = "0.1.0"
++
++[[package]]
++name = "multi-stash"
++version = "0.2.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "685a9ac4b61f4e728e1d2c6a7844609c16527aeb5e6c865915c08e619c16410f"
+ 
+ [[package]]
+ name = "munge"
+@@ -3163,16 +3168,6 @@
+ ]
+ 
+ [[package]]
+-name = "prettyplease"
+-version = "0.2.37"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "479ca8adacdd7ce8f1fb39ce9ecccbfe93a3f1344b3d0d97f20bc0196208f62b"
+-dependencies = [
+- "proc-macro2",
+- "syn 2.0.117",
+-]
+-
+-[[package]]
+ name = "proc-macro-hack"
+ version = "0.5.20+deprecated"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -3257,12 +3252,6 @@
+ 
+ [[package]]
+ name = "r-efi"
+-version = "5.3.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
+-
+-[[package]]
+-name = "r-efi"
+ version = "6.0.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
+@@ -3293,7 +3282,7 @@
+ checksum = "d2e8e8bcc7961af1fdac401278c6a831614941f6164ee3bf4ce61b7edb162207"
+ dependencies = [
+  "chacha20",
+- "getrandom 0.4.2",
++ "getrandom 0.4.3",
+  "rand_core 0.10.1",
+ ]
+ 
+@@ -4416,6 +4405,7 @@
+  "rustc_target",
+  "tempfile",
+  "tracing",
++ "wasmi",
+ ]
+ 
+ [[package]]
+@@ -5426,6 +5416,12 @@
+ ]
+ 
+ [[package]]
++name = "spin"
++version = "0.9.9"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "3763264f6b73151db08c50ff20d7d8a0b8796e021cdea7ceedad07b80155fa0e"
++
++[[package]]
+ name = "stable_deref_trait"
+ version = "1.2.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -5449,6 +5445,16 @@
+ version = "1.1.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
++
++[[package]]
++name = "string-interner"
++version = "0.18.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "1a3275464d7a9f2d4cac57c89c2ef96a8524dba2864c8d6f82e3980baf136f9b"
++dependencies = [
++ "hashbrown 0.15.5",
++ "serde",
++]
+ 
+ [[package]]
+ name = "string_cache"
+@@ -6323,24 +6329,6 @@
+ checksum = "1b6c48003fe59c201c97a7786ff55feabe6b6f83b598aa9ff5bcc4f94d940bf3"
+ 
+ [[package]]
+-name = "wasip2"
+-version = "1.0.3+wasi-0.2.9"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "20064672db26d7cdc89c7798c48a0fdfac8213434a1186e5ef29fd560ae223d6"
+-dependencies = [
+- "wit-bindgen 0.57.1",
+-]
+-
+-[[package]]
+-name = "wasip3"
+-version = "0.4.0+wasi-0.3.0-rc-2026-01-06"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "5428f8bf88ea5ddc08faddef2ac4a67e390b88186c703ce6dbd955e1c145aca5"
+-dependencies = [
+- "wit-bindgen 0.51.0",
+-]
+-
+-[[package]]
+ name = "wasm-bindgen"
+ version = "0.2.105"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -6402,8 +6390,8 @@
+  "wat",
+  "windows-sys 0.61.2",
+  "winsplit",
+- "wit-component 0.254.0",
+- "wit-parser 0.254.0",
++ "wit-component",
++ "wit-parser",
+ ]
+ 
+ [[package]]
+@@ -6425,34 +6413,12 @@
+ 
+ [[package]]
+ name = "wasm-encoder"
+-version = "0.244.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "990065f2fe63003fe337b932cfb5e3b80e0b4d0f5ff650e6985b1048f62c8319"
+-dependencies = [
+- "leb128fmt",
+- "wasmparser 0.244.0",
+-]
+-
+-[[package]]
+-name = "wasm-encoder"
+ version = "0.254.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "09480d646178e5fdd12bb06e812d0af9a3a191dbc9cd697fdc86687beade7393"
+ dependencies = [
+  "leb128fmt",
+  "wasmparser 0.254.0",
+-]
+-
+-[[package]]
+-name = "wasm-metadata"
+-version = "0.244.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "bb0e353e6a2fbdc176932bbaab493762eb1255a7900fe0fea1a2f96c296cc909"
+-dependencies = [
+- "anyhow",
+- "indexmap",
+- "wasm-encoder 0.244.0",
+- "wasmparser 0.244.0",
+ ]
+ 
+ [[package]]
+@@ -6468,6 +6434,50 @@
+ ]
+ 
+ [[package]]
++name = "wasmi"
++version = "0.40.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "a19af97fcb96045dd1d6b4d23e2b4abdbbe81723dbc5c9f016eb52145b320063"
++dependencies = [
++ "arrayvec",
++ "multi-stash",
++ "smallvec",
++ "spin",
++ "wasmi_collections",
++ "wasmi_core",
++ "wasmi_ir",
++ "wasmparser 0.221.3",
++]
++
++[[package]]
++name = "wasmi_collections"
++version = "0.40.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "e80d6b275b1c922021939d561574bf376613493ae2b61c6963b15db0e8813562"
++dependencies = [
++ "string-interner",
++]
++
++[[package]]
++name = "wasmi_core"
++version = "0.40.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "3a8c51482cc32d31c2c7ff211cd2bedd73c5bd057ba16a2ed0110e7a96097c33"
++dependencies = [
++ "downcast-rs",
++ "libm",
++]
++
++[[package]]
++name = "wasmi_ir"
++version = "0.40.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "6e431a14c186db59212a88516788bd68ed51f87aa1e08d1df742522867b5289a"
++dependencies = [
++ "wasmi_core",
++]
++
++[[package]]
+ name = "wasmparser"
+ version = "0.219.2"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -6479,9 +6489,9 @@
+ 
+ [[package]]
+ name = "wasmparser"
+-version = "0.243.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "f6d8db401b0528ec316dfbe579e6ab4152d61739cfe076706d2009127970159d"
++version = "0.221.3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "d06bfa36ab3ac2be0dee563380147a5b81ba10dd8885d7fbbc9eb574be67d185"
+ dependencies = [
+  "bitflags",
+  "indexmap",
+@@ -6489,14 +6499,12 @@
+ 
+ [[package]]
+ name = "wasmparser"
+-version = "0.244.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "47b807c72e1bac69382b3a6fb3dbe8ea4c0ed87ff5629b8685ae6b9a611028fe"
++version = "0.243.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "f6d8db401b0528ec316dfbe579e6ab4152d61739cfe076706d2009127970159d"
+ dependencies = [
+  "bitflags",
+- "hashbrown 0.15.5",
+  "indexmap",
+- "semver",
+ ]
+ 
+ [[package]]
+@@ -6891,88 +6899,12 @@
+ checksum = "3ab703352da6a72f35c39a533526393725640575bb211f61987a2748323ad956"
+ 
+ [[package]]
+-name = "wit-bindgen"
+-version = "0.51.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "d7249219f66ced02969388cf2bb044a09756a083d0fab1e566056b04d9fbcaa5"
+-dependencies = [
+- "wit-bindgen-rust-macro",
+-]
+-
+-[[package]]
+-name = "wit-bindgen"
+-version = "0.57.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
+-
+-[[package]]
+-name = "wit-bindgen-core"
+-version = "0.51.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "ea61de684c3ea68cb082b7a88508a8b27fcc8b797d738bfc99a82facf1d752dc"
+-dependencies = [
+- "anyhow",
+- "heck",
+- "wit-parser 0.244.0",
+-]
+-
+-[[package]]
+ name = "wit-bindgen-rt"
+ version = "0.39.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "6f42320e61fe2cfd34354ecb597f86f413484a798ba44a8ca1165c58d42da6c1"
+ dependencies = [
+  "bitflags",
+-]
+-
+-[[package]]
+-name = "wit-bindgen-rust"
+-version = "0.51.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "b7c566e0f4b284dd6561c786d9cb0142da491f46a9fbed79ea69cdad5db17f21"
+-dependencies = [
+- "anyhow",
+- "heck",
+- "indexmap",
+- "prettyplease",
+- "syn 2.0.117",
+- "wasm-metadata 0.244.0",
+- "wit-bindgen-core",
+- "wit-component 0.244.0",
+-]
+-
+-[[package]]
+-name = "wit-bindgen-rust-macro"
+-version = "0.51.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "0c0f9bfd77e6a48eccf51359e3ae77140a7f50b1e2ebfe62422d8afdaffab17a"
+-dependencies = [
+- "anyhow",
+- "prettyplease",
+- "proc-macro2",
+- "quote",
+- "syn 2.0.117",
+- "wit-bindgen-core",
+- "wit-bindgen-rust",
+-]
+-
+-[[package]]
+-name = "wit-component"
+-version = "0.244.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "9d66ea20e9553b30172b5e831994e35fbde2d165325bec84fc43dbf6f4eb9cb2"
+-dependencies = [
+- "anyhow",
+- "bitflags",
+- "indexmap",
+- "log",
+- "serde",
+- "serde_derive",
+- "serde_json",
+- "wasm-encoder 0.244.0",
+- "wasm-metadata 0.244.0",
+- "wasmparser 0.244.0",
+- "wit-parser 0.244.0",
+ ]
+ 
+ [[package]]
+@@ -6989,27 +6921,9 @@
+  "serde_derive",
+  "serde_json",
+  "wasm-encoder 0.254.0",
+- "wasm-metadata 0.254.0",
++ "wasm-metadata",
+  "wasmparser 0.254.0",
+- "wit-parser 0.254.0",
+-]
+-
+-[[package]]
+-name = "wit-parser"
+-version = "0.244.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "ecc8ac4bc1dc3381b7f59c34f00b67e18f910c2c0f50015669dde7def656a736"
+-dependencies = [
+- "anyhow",
+- "id-arena",
+- "indexmap",
+- "log",
+- "semver",
+- "serde",
+- "serde_derive",
+- "serde_json",
+- "unicode-xid",
+- "wasmparser 0.244.0",
++ "wit-parser",
+ ]
+ 
+ [[package]]
+diff --git a/Cargo.toml b/Cargo.toml
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -94,3 +94,6 @@
+ # For git dependencies, also add your source to ALLOWED_SOURCES in src/tools/tidy/src/extdeps.rs.
+ #[patch.crates-io]
+ 
++
++[patch.crates-io]
++getrandom = { path = "compiler/rustc_wasi_getrandom" }
+diff --git a/compiler/rustc/build.rs b/compiler/rustc/build.rs
+--- a/compiler/rustc/build.rs
++++ b/compiler/rustc/build.rs
+@@ -5,6 +5,11 @@
+ fn main() {
+     let target_os = env::var("CARGO_CFG_TARGET_OS");
+     let target_env = env::var("CARGO_CFG_TARGET_ENV");
++    if target_os.as_deref() == Ok("wasi") && target_env.as_deref() == Ok("p3") {
++        // The compiler links through clang rather than the bundled component
++        // linker, so explicitly retain std's canonical ABI allocator export.
++        println!("cargo:rustc-link-arg-bin=rustc-main=-Wl,--export=cabi_realloc");
++    }
+     if Ok("windows") == target_os.as_deref() && Ok("msvc") == target_env.as_deref() {
+         set_windows_exe_options();
+     } else {
+diff --git a/compiler/rustc_builtin_macros/src/lib.rs b/compiler/rustc_builtin_macros/src/lib.rs
+--- a/compiler/rustc_builtin_macros/src/lib.rs
++++ b/compiler/rustc_builtin_macros/src/lib.rs
+@@ -14,6 +14,7 @@
+ 
+ use std::sync::Arc;
+ 
++use rustc_data_structures::sync::IntoDynSyncSend;
+ use rustc_expand::base::{MacroExpanderFn, ResolverExpand, SyntaxExtensionKind};
+ use rustc_expand::proc_macro::BangProcMacro;
+ use rustc_span::sym;
+@@ -145,8 +146,12 @@
+         From: from::expand_deriving_from,
+     }
+ 
+-    let client = rustc_proc_macro::bridge::client::Client::expand1(rustc_proc_macro::quote);
+-    register(sym::quote, SyntaxExtensionKind::Bang(Arc::new(BangProcMacro { client })));
++    let client = rustc_proc_macro::bridge::client::Client::expand1(rustc_proc_macro::quote)
++        .into_dyn_client();
++    register(
++        sym::quote,
++        SyntaxExtensionKind::Bang(Arc::new(BangProcMacro { client: IntoDynSyncSend(client) })),
++    );
+     let requires = SyntaxExtensionKind::Attr(Arc::new(contracts::ExpandRequires));
+     register(sym::contracts_requires, requires);
+     let ensures = SyntaxExtensionKind::Attr(Arc::new(contracts::ExpandEnsures));
+diff --git a/compiler/rustc_codegen_llvm/src/llvm/enzyme_ffi.rs b/compiler/rustc_codegen_llvm/src/llvm/enzyme_ffi.rs
+--- a/compiler/rustc_codegen_llvm/src/llvm/enzyme_ffi.rs
++++ b/compiler/rustc_codegen_llvm/src/llvm/enzyme_ffi.rs
+@@ -144,12 +144,14 @@
+         EnzymeSetCLBool: EnzymeSetCLBoolFn,
+         EnzymeSetCLString: EnzymeSetCLStringFn,
+         pub registerEnzymeAndPassPipeline: *const c_void,
++        #[cfg(not(target_os = "wasi"))]
+         lib: libloading::Library,
+     }
+ 
+     unsafe impl Sync for EnzymeWrapper {}
+     unsafe impl Send for EnzymeWrapper {}
+ 
++    #[cfg(not(target_os = "wasi"))]
+     fn load_ptr_by_symbol_mut_void(
+         lib: &libloading::Library,
+         bytes: &[u8],
+@@ -366,7 +368,13 @@
+         }
+ 
+         #[allow(non_snake_case)]
+-        fn call_dynamic(
++        #[cfg(target_os = "wasi")]
++    fn call_dynamic(_sysroot: &rustc_session::config::Sysroot) -> Result<Self, EnzymeLibraryError> {
++        Err(EnzymeLibraryError::LoadFailed { err: "native plugin loading is unavailable on WASI".into() })
++    }
++
++    #[cfg(not(target_os = "wasi"))]
++    fn call_dynamic(
+             sysroot: &rustc_session::config::Sysroot,
+         ) -> Result<Self, EnzymeLibraryError> {
+             let enzyme_path = Self::get_enzyme_path(sysroot)?;
+diff --git a/compiler/rustc_codegen_llvm/src/llvm/offload_ffi.rs b/compiler/rustc_codegen_llvm/src/llvm/offload_ffi.rs
+--- a/compiler/rustc_codegen_llvm/src/llvm/offload_ffi.rs
++++ b/compiler/rustc_codegen_llvm/src/llvm/offload_ffi.rs
+@@ -17,6 +17,7 @@
+     LLVMRustOffloadEmbedBufferInModule: LLVMRustOffloadEmbedBufferInModuleFn,
+     LLVMRustOffloadMapper: LLVMRustOffloadMapperFn,
+     // Keep the dynamic library loaded while the function pointers are used.
++    #[cfg(not(target_os = "wasi"))]
+     _lib: libloading::Library,
+ }
+ 
+@@ -71,7 +72,13 @@
+         unsafe { (self.LLVMRustOffloadMapper)(v1, v2, vs.as_ptr()) }
+     }
+ 
+-    fn call_dynamic(
++    #[cfg(target_os = "wasi")]
++fn call_dynamic(_sysroot: &rustc_session::config::Sysroot) -> Result<Self, RustOffloadLibraryError> {
++    Err(RustOffloadLibraryError::LoadFailed { err: "native plugin loading is unavailable on WASI".into() })
++}
++
++#[cfg(not(target_os = "wasi"))]
++fn call_dynamic(
+         sysroot: &rustc_session::config::Sysroot,
+     ) -> Result<Self, RustOffloadLibraryError> {
+         let rust_offload_path = Self::get_rust_offload_path(sysroot)?;
+diff --git a/compiler/rustc_codegen_llvm/src/llvm_util.rs b/compiler/rustc_codegen_llvm/src/llvm_util.rs
+--- a/compiler/rustc_codegen_llvm/src/llvm_util.rs
++++ b/compiler/rustc_codegen_llvm/src/llvm_util.rs
+@@ -27,8 +27,9 @@
+ 
+ pub(crate) fn init(sess: &Session) {
+     unsafe {
+-        // Before we touch LLVM, make sure that multithreading is enabled.
+-        if !llvm::LLVMIsMultithreaded().is_true() {
++        // Native codegen requires threads. The WASI backend runs serially with
++        // the SDK's thread-free LLVM, so it does not require this capability.
++        if !cfg!(target_os = "wasi") && !llvm::LLVMIsMultithreaded().is_true() {
+             bug!("LLVM compiled without support for threads");
+         }
+         INIT.call_once(|| {
+@@ -127,7 +128,9 @@
+             }
+         }
+ 
+-        if wants_wasm_eh(sess) {
++        // LLVM 24 removed this option; UseWasmEH already selects the target
++        // machine's exception model in LLVMRustCreateTargetMachine.
++        if wants_wasm_eh(sess) && get_version().0 < 24 {
+             add("-wasm-enable-eh", false);
+         }
+ 
+diff --git a/compiler/rustc_codegen_ssa/src/back/link.rs b/compiler/rustc_codegen_ssa/src/back/link.rs
+--- a/compiler/rustc_codegen_ssa/src/back/link.rs
++++ b/compiler/rustc_codegen_ssa/src/back/link.rs
+@@ -1281,6 +1281,21 @@
+ 
+     // Invoke the system linker
+     info!("{cmd:?}");
++    #[cfg(target_os = "wasi")]
++    {
++        if !matches!(flavor, LinkerFlavor::WasmLld(Cc::No)) {
++            sess.dcx().fatal("the WASI compiler supports only its embedded WebAssembly linker");
++        }
++        unsafe extern "C" {
++            fn RustRunLld(argc: std::ffi::c_int, argv: *const *const std::ffi::c_char) -> std::ffi::c_int;
++        }
++        let command = cmd.command();
++        let mut args = command.get_args().map(|arg| std::ffi::CString::new(arg.as_encoded_bytes()).unwrap()).collect::<Vec<_>>();
++        args.insert(0, std::ffi::CString::new("wasm-ld").unwrap());
++        let argv = args.iter().map(|arg| arg.as_ptr()).collect::<Vec<_>>();
++        let code = unsafe { RustRunLld(argv.len() as std::ffi::c_int, argv.as_ptr()) };
++        std::process::exit(code);
++    }
+     let unknown_arg_regex =
+         Regex::new(r"(unknown|unrecognized) (command line )?(option|argument)").unwrap();
+     let mut prog;
+diff --git a/compiler/rustc_codegen_ssa/src/back/linker.rs b/compiler/rustc_codegen_ssa/src/back/linker.rs
+--- a/compiler/rustc_codegen_ssa/src/back/linker.rs
++++ b/compiler/rustc_codegen_ssa/src/back/linker.rs
+@@ -131,6 +131,7 @@
+     if !msvc_changed_path && let Some(path) = env::var_os("PATH") {
+         new_path.extend(env::split_paths(&path));
+     }
++    #[cfg(not(target_os = "wasi"))]
+     cmd.env("PATH", env::join_paths(new_path).unwrap());
+ 
+     // FIXME: Move `/LIBPATH` addition for uwp targets from the linker construction
+@@ -1738,7 +1739,40 @@
+     let stable_crate_id = tcx.stable_crate_id(LOCAL_CRATE);
+     let proc_macro_decls_name = rustc_session::generate_proc_macro_decls_symbol(stable_crate_id);
+ 
+-    vec![symbol_export_from_raw_name(tcx, proc_macro_decls_name, SymbolExportKind::Data)]
++    if tcx.sess.target.is_like_wasm && tcx.sess.opts.unstable_opts.wasm_proc_macros {
++        vec![
++            symbol_export_from_raw_name(tcx, proc_macro_decls_name, SymbolExportKind::Data),
++            symbol_export_from_raw_name(
++                tcx,
++                "__rustc_proc_macro_alloc_buffer".to_owned(),
++                SymbolExportKind::Text,
++            ),
++            symbol_export_from_raw_name(
++                tcx,
++                "__rustc_proc_macro_buffer_replace".to_owned(),
++                SymbolExportKind::Text,
++            ),
++            symbol_export_from_raw_name(
++                tcx,
++                "__rustc_proc_macro_buffer_ptr".to_owned(),
++                SymbolExportKind::Text,
++            ),
++            symbol_export_from_raw_name(
++                tcx,
++                "__rustc_proc_macro_buffer_len".to_owned(),
++                SymbolExportKind::Text,
++            ),
++            symbol_export_from_raw_name(
++                tcx,
++                "__rustc_proc_macro_call_client".to_owned(),
++                SymbolExportKind::Text,
++            ),
++            symbol_export_from_raw_name(tcx, "__rustc_proc_macro_drop_buffer".to_owned(), SymbolExportKind::Text),
++            symbol_export_from_raw_name(tcx, "__rustc_proc_macro_decls_len".to_owned(), SymbolExportKind::Text),
++        ]
++    } else {
++        vec![symbol_export_from_raw_name(tcx, proc_macro_decls_name, SymbolExportKind::Data)]
++    }
+ }
+ 
+ pub(crate) fn linked_symbols(
+diff --git a/compiler/rustc_codegen_ssa/src/back/write.rs b/compiler/rustc_codegen_ssa/src/back/write.rs
+--- a/compiler/rustc_codegen_ssa/src/back/write.rs
++++ b/compiler/rustc_codegen_ssa/src/back/write.rs
+@@ -1237,6 +1237,18 @@
+     Lending,
+ }
+ 
++
++#[cfg(not(all(target_os = "wasi", target_env = "p3")))]
++type CodegenFuture<T> = thread::JoinHandle<T>;
++#[cfg(all(target_os = "wasi", target_env = "p3"))]
++struct CodegenFuture<T>(Box<dyn FnOnce() -> T>);
++#[cfg(all(target_os = "wasi", target_env = "p3"))]
++impl<T> CodegenFuture<T> {
++    fn join(self) -> thread::Result<T> {
++        std::panic::catch_unwind(std::panic::AssertUnwindSafe(self.0))
++    }
++}
++
+ fn start_executing_work<B: WriteBackendMethods>(
+     backend: B,
+     tcx: TyCtxt<'_>,
+@@ -1247,7 +1259,7 @@
+     allocator_config: Arc<ModuleConfig>,
+     mut allocator_module: Option<ModuleCodegen<B::Module>>,
+     coordinator_send: Sender<Message<B>>,
+-) -> thread::JoinHandle<Result<MaybeLtoModules<B>, ()>> {
++) -> CodegenFuture<Result<MaybeLtoModules<B>, ()>> {
+     let sess = tcx.sess;
+     let prof = sess.prof.clone();
+ 
+@@ -1264,7 +1276,7 @@
+     // tokens before releasing them, so we can never accidentally release the last token
+     // permanently held by rustc process.
+     let parallel = match sess.opts.jobs.backend {
+-        Some(n) if backend.supports_parallel() => Some(n),
++        Some(n) if backend.supports_parallel() && !cfg!(all(target_os = "wasi", target_env = "p3")) => Some(n),
+         _ => None,
+     };
+     let jobserver_helper = parallel.map(|_| {
+@@ -1467,6 +1479,54 @@
+         let mut needs_thin_lto = Vec::new();
+         let mut lto_import_only_modules = Vec::new();
+ 
++        #[cfg(all(target_os = "wasi", target_env = "p3"))]
++        {
++            if let Some(module) = &mut allocator_module {
++                B::optimize(&cgcx, &prof, &shared_emitter, module, &allocator_config);
++            }
++            loop {
++                let result = match coordinator_receive.recv().expect("codegen producer disconnected") {
++                    Message::CodegenDone { llvm_work_item, .. } => match llvm_work_item {
++                        WorkItem::Optimize(module) => execute_optimize_work_item(&cgcx, &prof, shared_emitter.clone(), module),
++                        WorkItem::CopyPostLtoArtifacts(module) => WorkItemResult::Finished(execute_copy_from_cache_work_item(&cgcx, &prof, shared_emitter.clone(), module)),
++                    },
++                    Message::AddImportOnlyModule { bitcode_path, work_product } => {
++                        lto_import_only_modules.push((bitcode_path, work_product));
++                        continue;
++                    }
++                    Message::CodegenComplete => break,
++                    Message::CodegenAborted => return Err(()),
++                    _ => unreachable!("single-threaded WASI codegen has no worker messages"),
++                };
++                match result {
++                    WorkItemResult::Finished(module) => compiled_modules.push(module),
++                    WorkItemResult::NeedsFatLto(module) => needs_fat_lto.push(module),
++                    WorkItemResult::NeedsThinLto(name, buffer) => needs_thin_lto.push(ThinLtoInput::Red { name, buffer: SerializedModule::Local(buffer) }),
++                }
++            }
++            if !needs_fat_lto.is_empty() {
++                if let Some(module) = allocator_module.take() { needs_fat_lto.push(FatLtoInput::InMemory(module)); }
++                for (bitcode_path, wp) in lto_import_only_modules {
++                    needs_fat_lto.push(FatLtoInput::Serialized { name: wp.cgu_name, bitcode_path });
++                }
++                return Ok(MaybeLtoModules::FatLto { cgcx, needs_fat_lto });
++            }
++            if !needs_thin_lto.is_empty() || !lto_import_only_modules.is_empty() {
++                for (bitcode_path, wp) in lto_import_only_modules { needs_thin_lto.push(ThinLtoInput::Green { wp, bitcode_path }); }
++                if cgcx.lto == Lto::ThinLocal {
++                    compiled_modules.extend(do_thin_lto::<B>(&cgcx, &prof, shared_emitter.clone(), tm_factory, &exported_symbols_for_lto, &[], needs_thin_lto));
++                } else {
++                    if let Some(module) = allocator_module.take() {
++                        needs_thin_lto.push(ThinLtoInput::Red { name: module.name, buffer: SerializedModule::Local(B::serialize_module(module.module_llvm, true)) });
++                    }
++                    return Ok(MaybeLtoModules::ThinLto { cgcx, needs_thin_lto });
++                }
++            }
++            return Ok(MaybeLtoModules::NoLto(CompiledModules {
++                modules: compiled_modules,
++                allocator_module: allocator_module.map(|module| B::codegen(&cgcx, &prof, &shared_emitter, module, &allocator_config)),
++            }));
++        }
+         /// Possible state transitions:
+         /// - Ongoing -> Completed
+         /// - Ongoing -> Aborted
+@@ -1805,6 +1865,9 @@
+             }),
+         }))
+     };
++    #[cfg(all(target_os = "wasi", target_env = "p3"))]
++    return CodegenFuture(Box::new(f));
++    #[cfg(not(all(target_os = "wasi", target_env = "p3")))]
+     return std::thread::Builder::new()
+         .name("coordinator".to_owned())
+         .spawn(f)
+@@ -1912,6 +1975,9 @@
+         };
+         drop(coordinator_send.send(msg));
+     };
++    #[cfg(all(target_os = "wasi", target_env = "p3"))]
++    f();
++    #[cfg(not(all(target_os = "wasi", target_env = "p3")))]
+     std::thread::Builder::new().name(name).spawn(f).expect("failed to spawn work thread");
+ }
+ 
+@@ -1954,6 +2020,9 @@
+         };
+         drop(coordinator_send.send(msg));
+     };
++    #[cfg(all(target_os = "wasi", target_env = "p3"))]
++    f();
++    #[cfg(not(all(target_os = "wasi", target_env = "p3")))]
+     std::thread::Builder::new().name(name).spawn(f).expect("failed to spawn work thread");
+ }
+ 
+@@ -2105,7 +2174,7 @@
+ 
+ pub struct Coordinator<B: WriteBackendMethods> {
+     sender: Sender<Message<B>>,
+-    future: Option<thread::JoinHandle<Result<MaybeLtoModules<B>, ()>>>,
++    future: Option<CodegenFuture<Result<MaybeLtoModules<B>, ()>>>,
+     // Only used for the Message type.
+     phantom: PhantomData<B>,
+ }
+@@ -2122,7 +2191,10 @@
+             // If we haven't joined yet, signal to the coordinator that it should spawn no more
+             // work, and wait for worker threads to finish.
+             drop(self.sender.send(Message::CodegenAborted::<B>));
++            #[cfg(not(all(target_os = "wasi", target_env = "p3")))]
+             drop(future.join());
++            #[cfg(all(target_os = "wasi", target_env = "p3"))]
++            drop(future);
+         }
+     }
+ }
+@@ -2145,9 +2217,13 @@
+         incr_comp_session: Option<&IncrCompSession>,
+         crate_info: &CrateInfo,
+     ) -> (CompiledModules, WorkProductMap) {
++        #[cfg(not(all(target_os = "wasi", target_env = "p3")))]
+         self.shared_emitter_main.check(sess, true);
+ 
+-        let maybe_lto_modules = sess.time("join_worker_thread", || match self.coordinator.join() {
++        let codegen_result = self.coordinator.join();
++        #[cfg(all(target_os = "wasi", target_env = "p3"))]
++        self.shared_emitter_main.check(sess, true);
++        let maybe_lto_modules = sess.time("join_worker_thread", || match codegen_result {
+             Ok(Ok(maybe_lto_modules)) => maybe_lto_modules,
+             Ok(Err(())) => {
+                 sess.dcx().abort_if_errors();
+@@ -2243,6 +2319,7 @@
+     }
+ 
+     pub(crate) fn wait_for_signal_to_codegen_item(&self) {
++        if cfg!(all(target_os = "wasi", target_env = "p3")) { return; }
+         match self.codegen_worker_receive.recv() {
+             Ok(CguMessage) => {
+                 // Ok to proceed.
+diff --git a/compiler/rustc_driver/Cargo.toml b/compiler/rustc_driver/Cargo.toml
+--- a/compiler/rustc_driver/Cargo.toml
++++ b/compiler/rustc_driver/Cargo.toml
+@@ -4,7 +4,7 @@
+ edition = "2024"
+ 
+ [lib]
+-crate-type = ["dylib"]
++crate-type = ["lib", "dylib"]
+ 
+ [dependencies]
+ # tidy-alphabetical-start
+diff --git a/compiler/rustc_driver_impl/src/lib.rs b/compiler/rustc_driver_impl/src/lib.rs
+--- a/compiler/rustc_driver_impl/src/lib.rs
++++ b/compiler/rustc_driver_impl/src/lib.rs
+@@ -1423,7 +1423,7 @@
+         };
+         // Don't use a standard datetime format because Windows doesn't support `:` in paths
+         let file_now = jiff::Zoned::now().strftime("%Y-%m-%dT%H_%M_%S");
+-        let pid = std::process::id();
++        let pid = if cfg!(target_os = "wasi") { 1 } else { std::process::id() };
+         path.push(format!("rustc-ice-{file_now}-{pid}.txt"));
+         Some(path)
+     })
+diff --git a/compiler/rustc_expand/src/proc_macro.rs b/compiler/rustc_expand/src/proc_macro.rs
+--- a/compiler/rustc_expand/src/proc_macro.rs
++++ b/compiler/rustc_expand/src/proc_macro.rs
+@@ -1,6 +1,7 @@
+ use rustc_ast as ast;
+ use rustc_ast::tokenstream::TokenStream;
+ use rustc_data_structures::profiling::TimingGuard;
++use rustc_data_structures::sync::IntoDynSyncSend;
+ use rustc_errors::ErrorGuaranteed;
+ use rustc_middle::ty::{self, TyCtxt};
+ use rustc_parse::parser::{AllowConstBlockItems, ForceCollect, Parser};
+@@ -31,7 +32,7 @@
+ }
+ 
+ pub struct BangProcMacro {
+-    pub client: pm::bridge::client::Client,
++    pub client: IntoDynSyncSend<pm::bridge::server::DynClient>,
+ }
+ 
+ impl base::BangProcMacro for BangProcMacro {
+@@ -58,7 +59,7 @@
+ }
+ 
+ pub struct AttrProcMacro {
+-    pub client: pm::bridge::client::Client,
++    pub client: IntoDynSyncSend<pm::bridge::server::DynClient>,
+ }
+ 
+ impl base::AttrProcMacro for AttrProcMacro {
+@@ -88,7 +89,7 @@
+ }
+ 
+ pub struct DeriveProcMacro {
+-    pub client: DeriveClient,
++    pub client: IntoDynSyncSend<DeriveClient>,
+ }
+ 
+ impl MultiItemModifier for DeriveProcMacro {
+@@ -117,12 +118,12 @@
+                 let input = &*tcx.arena.alloc(input);
+                 let key: (LocalExpnId, &TokenStream) = (invoc_id, input);
+ 
+-                QueryDeriveExpandCtx::enter(ecx, self.client, move || {
++                QueryDeriveExpandCtx::enter(ecx, self.client.0.clone(), move || {
+                     tcx.derive_macro_expansion(key).cloned()
+                 })
+             })
+         } else {
+-            expand_derive_macro(invoc_id, input, ecx, self.client)
++            expand_derive_macro(invoc_id, input, ecx, &self.client)
+         };
+ 
+         let Ok(output) = res else {
+@@ -174,17 +175,17 @@
+     let _ = tcx.crate_hash(invoc_id.expn_data().macro_def_id.unwrap().krate);
+ 
+     QueryDeriveExpandCtx::with(|ecx, client| {
+-        expand_derive_macro(invoc_id, input.clone(), ecx, client).map(|ts| &*tcx.arena.alloc(ts))
++        expand_derive_macro(invoc_id, input.clone(), ecx, &client).map(|ts| &*tcx.arena.alloc(ts))
+     })
+ }
+ 
+-type DeriveClient = pm::bridge::client::Client;
++type DeriveClient = pm::bridge::server::DynClient;
+ 
+ fn expand_derive_macro(
+     invoc_id: LocalExpnId,
+     input: TokenStream,
+     ecx: &mut ExtCtxt<'_>,
+-    client: DeriveClient,
++    client: &DeriveClient,
+ ) -> Result<TokenStream, ()> {
+     let _timer =
+         ecx.sess.prof.generic_activity_with_arg_recorder("expand_proc_macro", |recorder| {
+@@ -252,7 +253,7 @@
+                 unsafe { casted.as_mut().unwrap() }
+             };
+ 
+-            f(ectx, ctx.client)
++            f(ectx, ctx.client.clone())
+         })
+     }
+ }
+diff --git a/compiler/rustc_fs_util/src/lib.rs b/compiler/rustc_fs_util/src/lib.rs
+--- a/compiler/rustc_fs_util/src/lib.rs
++++ b/compiler/rustc_fs_util/src/lib.rs
+@@ -84,16 +84,9 @@
+     fs::copy(p, q).map(|_| LinkOrCopy::Copy)
+ }
+ 
+-#[cfg(any(unix, all(target_os = "wasi", target_env = "p1")))]
++#[cfg(any(unix, target_os = "wasi"))]
+ pub fn path_to_c_string(p: &Path) -> CString {
+-    use std::ffi::OsStr;
+-    #[cfg(unix)]
+-    use std::os::unix::ffi::OsStrExt;
+-    #[cfg(all(target_os = "wasi", target_env = "p1"))]
+-    use std::os::wasi::ffi::OsStrExt;
+-
+-    let p: &OsStr = p.as_ref();
+-    CString::new(p.as_bytes()).unwrap()
++    CString::new(p.as_os_str().as_encoded_bytes()).unwrap()
+ }
+ #[cfg(windows)]
+ pub fn path_to_c_string(p: &Path) -> CString {
+diff --git a/compiler/rustc_interface/src/util.rs b/compiler/rustc_interface/src/util.rs
+--- a/compiler/rustc_interface/src/util.rs
++++ b/compiler/rustc_interface/src/util.rs
+@@ -164,6 +164,9 @@
+     // the parallel compiler, in particular to ensure there is no accidental
+     // sharing of data between the main thread and the compilation thread
+     // (which might cause problems for the parallel compiler).
++    if cfg!(target_os = "wasi") {
++        return rustc_span::create_session_globals_then(edition, extra_symbols, Some(sm_inputs), || f(CurrentGcx::new()));
++    }
+     let builder = thread::Builder::new().name("rustc".to_string()).stack_size(thread_stack_size);
+ 
+     // We build the session globals and run `f` on the spawned thread, because
+diff --git a/compiler/rustc_llvm/build.rs b/compiler/rustc_llvm/build.rs
+--- a/compiler/rustc_llvm/build.rs
++++ b/compiler/rustc_llvm/build.rs
+@@ -245,6 +245,17 @@
+     let cxxflags = quoted_split(cmd);
+     let mut cfg = cc::Build::new();
+     cfg.warnings(false);
++    if target == "wasm32-wasip3" {
++        let sdk = PathBuf::from(tracked_env_var_os("WASI_SDK_PATH").expect("WASI_SDK_PATH is required"));
++        cfg.compiler(sdk.join("bin/wasm32-wasip3-clang++"));
++        cfg.archiver(sdk.join("bin/llvm-ar"));
++        cfg.no_default_flags(true);
++        let libraries = sdk.join("share/wasi-sysroot/lib/wasm32-wasip3");
++        println!("cargo:rustc-link-search=native={}", libraries.display());
++        println!("cargo:rustc-link-search=native={}", libraries.join("noeh").display());
++        println!("cargo:rustc-link-lib=static=c++abi");
++        println!("cargo:rustc-link-lib=static=dl");
++    }
+ 
+     // Prevent critical warnings when we're compiling from rust-lang/rust CI,
+     // except on MSVC, as the compiler throws warnings that are only reported
+@@ -321,6 +332,13 @@
+         cfg.define("NDEBUG", None);
+     }
+ 
++    if target.contains("wasi") {
++        cfg.flag("-D_WASI_EMULATED_MMAN");
++        cfg.file("llvm-wrapper/LLD.cpp");
++        for library in ["lldWasm", "lldCommon", "LLVMOption"] {
++            println!("cargo:rustc-link-lib=static={library}");
++        }
++    }
+     rerun_if_changed_anything_in_dir(Path::new("llvm-wrapper"));
+     cfg.file("llvm-wrapper/PassWrapper.cpp")
+         .file("llvm-wrapper/RustWrapper.cpp")
+@@ -500,6 +518,7 @@
+         || target.contains("windows-gnullvm")
+         || target.contains("aix")
+         || target.contains("ohos")
++        || target.contains("wasi")
+     {
+         "c++"
+     } else if target.contains("netbsd") && llvm_static_stdcpp.is_some() {
+diff --git a/compiler/rustc_llvm/llvm-wrapper/LLD.cpp b/compiler/rustc_llvm/llvm-wrapper/LLD.cpp
+new file mode 100644
+--- /dev/null
++++ b/compiler/rustc_llvm/llvm-wrapper/LLD.cpp
+@@ -0,0 +1,8 @@
++#include "lld/Common/Driver.h"
++LLD_HAS_DRIVER(wasm)
++extern "C" int RustRunLld(int argc, const char **argv) {
++  auto result = lld::lldMain(llvm::ArrayRef<const char *>(argv, argc),
++                            llvm::outs(), llvm::errs(),
++                            {{lld::Wasm, &lld::wasm::link}});
++  return result.retCode;
++}
+diff --git a/compiler/rustc_llvm/llvm-wrapper/PassWrapper.cpp b/compiler/rustc_llvm/llvm-wrapper/PassWrapper.cpp
+--- a/compiler/rustc_llvm/llvm-wrapper/PassWrapper.cpp
++++ b/compiler/rustc_llvm/llvm-wrapper/PassWrapper.cpp
+@@ -365,7 +365,16 @@
+ 
+   TargetOptions Options = codegen::InitTargetOptionsFromCodeGenFlags(Trip);
+ 
++#if LLVM_VERSION_GE(24, 0)
++  // This SDK contains only the WebAssembly backend, which has no alternate
++  // floating-point calling convention. LLVM 24 moved other targets to flags.
++  if (FloatABIType != FloatABI::Default) {
++    LLVMRustSetLastError("the WebAssembly LLVM 24 profile requires the default float ABI");
++    return nullptr;
++  }
++#else
+   Options.FloatABIType = FloatABIType;
++#endif
+   Options.DataSections = DataSections;
+   Options.FunctionSections = FunctionSections;
+   Options.UniqueSectionNames = UniqueSectionNames;
+@@ -409,9 +418,11 @@
+     }
+   }
+ 
++#if LLVM_VERSION_LT(24, 0)
+   if (Singlethread) {
+     Options.ThreadModel = ThreadModel::Single;
+   }
++#endif
+ 
+   if (UseWasmEH)
+     Options.ExceptionModel = ExceptionHandling::Wasm;
+@@ -439,7 +450,9 @@
+   if (DisableSimplifyLibCalls)
+     TLII.disableAllFunctions();
+   unwrap(PMR)->add(new TargetLibraryInfoWrapperPass(TLII));
+-#if LLVM_VERSION_GE(22, 0)
++#if LLVM_VERSION_GE(24, 0)
++  unwrap(PMR)->add(new RuntimeLibraryInfoWrapper(Options->MCOptions.ABIName, Options->VecLib));
++#elif LLVM_VERSION_GE(22, 0)
+   unwrap(PMR)->add(new RuntimeLibraryInfoWrapper(
+       TargetTriple, Options->ExceptionModel, Options->FloatABIType,
+       Options->EABIVersion, Options->MCOptions.ABIName, Options->VecLib));
+@@ -523,6 +536,17 @@
+ extern "C" typedef void (*LLVMRustSelfProfileAfterPassCallback)(
+     void *); // LlvmSelfProfiler
+ 
++#if LLVM_VERSION_GE(24, 0)
++using RustIRUnitRef = llvm::IRUnitRef;
++std::string LLVMRustwrappedIrGetName(RustIRUnitRef IR) {
++  if (const auto *M = dyn_cast<Module>(IR)) return M->getName().str();
++  if (const auto *F = dyn_cast<Function>(IR)) return F->getName().str();
++  if (const auto *L = dyn_cast<Loop>(IR)) return L->getName().str();
++  if (const auto *SCC = dyn_cast<LazyCallGraph::SCC>(IR)) return SCC->getName();
++  return "<UNKNOWN>";
++}
++#else
++using RustIRUnitRef = llvm::Any;
+ std::string LLVMRustwrappedIrGetName(const llvm::Any &WrappedIr) {
+   if (const auto *Cast = any_cast<const Module *>(&WrappedIr))
+     return (*Cast)->getName().str();
+@@ -535,12 +559,14 @@
+   return "<UNKNOWN>";
+ }
+ 
++#endif
++
+ void LLVMSelfProfileInitializeCallbacks(
+     PassInstrumentationCallbacks &PIC, void *LlvmSelfProfiler,
+     LLVMRustSelfProfileBeforePassCallback BeforePassCallback,
+     LLVMRustSelfProfileAfterPassCallback AfterPassCallback) {
+   PIC.registerBeforeNonSkippedPassCallback(
+-      [LlvmSelfProfiler, BeforePassCallback](StringRef Pass, llvm::Any Ir) {
++      [LlvmSelfProfiler, BeforePassCallback](StringRef Pass, RustIRUnitRef Ir) {
+         std::string PassName = Pass.str();
+         std::string IrName = LLVMRustwrappedIrGetName(Ir);
+         BeforePassCallback(LlvmSelfProfiler, PassName.c_str(), IrName.c_str());
+@@ -548,7 +574,7 @@
+ 
+   PIC.registerAfterPassCallback(
+       [LlvmSelfProfiler, AfterPassCallback](
+-          StringRef Pass, llvm::Any IR, const PreservedAnalyses &Preserved) {
++          StringRef Pass, RustIRUnitRef IR, const PreservedAnalyses &Preserved) {
+         AfterPassCallback(LlvmSelfProfiler);
+       });
+ 
+@@ -559,14 +585,14 @@
+       });
+ 
+   PIC.registerBeforeAnalysisCallback(
+-      [LlvmSelfProfiler, BeforePassCallback](StringRef Pass, llvm::Any Ir) {
++      [LlvmSelfProfiler, BeforePassCallback](StringRef Pass, RustIRUnitRef Ir) {
+         std::string PassName = Pass.str();
+         std::string IrName = LLVMRustwrappedIrGetName(Ir);
+         BeforePassCallback(LlvmSelfProfiler, PassName.c_str(), IrName.c_str());
+       });
+ 
+   PIC.registerAfterAnalysisCallback(
+-      [LlvmSelfProfiler, AfterPassCallback](StringRef Pass, llvm::Any Ir) {
++      [LlvmSelfProfiler, AfterPassCallback](StringRef Pass, RustIRUnitRef Ir) {
+         AfterPassCallback(LlvmSelfProfiler);
+       });
+ }
+diff --git a/compiler/rustc_metadata/Cargo.toml b/compiler/rustc_metadata/Cargo.toml
+--- a/compiler/rustc_metadata/Cargo.toml
++++ b/compiler/rustc_metadata/Cargo.toml
+@@ -31,6 +31,7 @@
+ rustc_target = { path = "../rustc_target" }
+ tempfile = "3.7.1"
+ tracing = "0.1"
++wasmi = "=0.40.0"
+ # tidy-alphabetical-end
+ 
+ [target.'cfg(target_os = "aix")'.dependencies]
+diff --git a/compiler/rustc_metadata/src/creader.rs b/compiler/rustc_metadata/src/creader.rs
+--- a/compiler/rustc_metadata/src/creader.rs
++++ b/compiler/rustc_metadata/src/creader.rs
+@@ -11,7 +11,7 @@
+ use rustc_data_structures::fx::FxHashSet;
+ use rustc_data_structures::owned_slice::OwnedSlice;
+ use rustc_data_structures::svh::Svh;
+-use rustc_data_structures::sync::{self, FreezeReadGuard, FreezeWriteGuard};
++use rustc_data_structures::sync::{self, FreezeReadGuard, FreezeWriteGuard, IntoDynSyncSend};
+ use rustc_data_structures::unord::UnordMap;
+ use rustc_expand::base::SyntaxExtension;
+ use rustc_hir as hir;
+@@ -21,7 +21,7 @@
+ use rustc_middle::bug;
+ use rustc_middle::ty::data_structures::IndexSet;
+ use rustc_middle::ty::{TyCtxt, TyCtxtFeed};
+-use rustc_proc_macro::bridge::client::Client as ProcMacroClient;
++use rustc_proc_macro::bridge::server::DynClient;
+ use rustc_session::config::mitigation_coverage::DeniedPartialMitigationLevel;
+ use rustc_session::config::{
+     CrateType, ExtendedTargetModifierInfo, ExternLocation, Externs, OptionsTargetModifiers,
+@@ -645,7 +645,14 @@
+                 None => (&source, &crate_root),
+             };
+             let dlsym_dylib = dlsym_source.dylib.as_ref().expect("no dylib for a proc-macro crate");
+-            Some(self.dlsym_proc_macros(dlsym_dylib, dlsym_root.stable_crate_id())?)
++            Some(if tcx.sess.opts.unstable_opts.wasm_proc_macros {
++                let symbol = rustc_session::generate_proc_macro_decls_symbol(dlsym_root.stable_crate_id());
++                let kinds = metadata.get_proc_macro_info();
++                crate::wasm_proc_macro::load(dlsym_dylib, &symbol, &kinds)
++                    .map_err(|error| CrateError::DlOpen(dlsym_dylib.display().to_string(), error))?
++            } else {
++                self.dlsym_proc_macros(dlsym_dylib, dlsym_root.stable_crate_id())?
++            })
+         } else {
+             None
+         };
+@@ -942,7 +949,7 @@
+         &self,
+         path: &Path,
+         stable_crate_id: StableCrateId,
+-    ) -> Result<&'static [ProcMacroClient], CrateError> {
++    ) -> Result<Vec<IntoDynSyncSend<DynClient>>, CrateError> {
+         Ok(crate::host_dylib::dlsym_proc_macros(path, stable_crate_id)?)
+     }
+ 
+diff --git a/compiler/rustc_metadata/src/host_dylib.rs b/compiler/rustc_metadata/src/host_dylib.rs
+--- a/compiler/rustc_metadata/src/host_dylib.rs
++++ b/compiler/rustc_metadata/src/host_dylib.rs
+@@ -5,14 +5,18 @@
+ use rustc_fs_util::try_canonicalize;
+ use rustc_proc_macro::bridge::client::Client as ProcMacroClient;
+ use rustc_session::StableCrateId;
++use rustc_data_structures::sync::IntoDynSyncSend;
++use rustc_proc_macro::bridge::server::DynClient;
+ use tracing::debug;
+ 
+ use crate::locator::CrateError;
+ 
++#[cfg(any(unix, windows))]
+ fn format_dlopen_err(e: &(dyn std::error::Error + 'static)) -> String {
+     e.sources().map(|e| format!(": {e}")).collect()
+ }
+ 
++#[cfg(any(unix, windows))]
+ fn attempt_load_dylib(path: &Path) -> Result<libloading::Library, libloading::Error> {
+     #[cfg(target_os = "aix")]
+     if let Some(ext) = path.extension()
+@@ -40,6 +44,7 @@
+ // proc-macro DLL with `Error::LoadLibraryExW`. It is suspected that something in the
+ // system still holds a lock on the file, so we retry a few times before calling it
+ // an error.
++#[cfg(any(unix, windows))]
+ fn load_dylib(path: &Path, max_attempts: usize) -> Result<libloading::Library, String> {
+     assert!(max_attempts > 0);
+ 
+@@ -103,6 +108,7 @@
+     }
+ }
+ 
++#[cfg(any(unix, windows))]
+ pub unsafe fn load_symbol_from_dylib<T: Copy>(
+     path: &Path,
+     sym_name: &str,
+@@ -126,7 +132,7 @@
+ pub(crate) fn dlsym_proc_macros(
+     path: &Path,
+     stable_crate_id: StableCrateId,
+-) -> Result<&'static [ProcMacroClient], DylibError> {
++) -> Result<Vec<IntoDynSyncSend<DynClient>>, DylibError> {
+     let sym_name = rustc_session::generate_proc_macro_decls_symbol(stable_crate_id);
+     debug!("trying to dlsym proc_macros {} for symbol `{}`", path.display(), sym_name);
+ 
+@@ -136,7 +142,7 @@
+         match result {
+             Ok(result) => {
+                 debug!("loaded dlsym proc_macros {} for symbol `{}`", path.display(), sym_name);
+-                Ok(*result)
++                Ok((*result).iter().map(|client| IntoDynSyncSend(client.into_dyn_client())).collect())
+             }
+             Err(err) => {
+                 debug!("failed to dlsym proc_macros {} for symbol `{}`", path.display(), sym_name);
+@@ -145,3 +151,8 @@
+         }
+     }
+ }
++
++#[cfg(not(any(unix, windows)))]
++pub unsafe fn load_symbol_from_dylib<T: Copy>(path: &Path, _symbol: &str) -> Result<T, DylibError> {
++    Err(DylibError::DlOpen(path.display().to_string(), "native dynamic libraries are unavailable on this host".into()))
++}
+diff --git a/compiler/rustc_metadata/src/lib.rs b/compiler/rustc_metadata/src/lib.rs
+--- a/compiler/rustc_metadata/src/lib.rs
++++ b/compiler/rustc_metadata/src/lib.rs
+@@ -28,3 +28,5 @@
+ pub use fs::{METADATA_FILENAME, emit_wrapper_file};
+ pub use host_dylib::{DylibError, load_symbol_from_dylib};
+ pub use rmeta::{EncodedMetadata, METADATA_HEADER, ProcMacroKind, encode_metadata, rendered_const};
++
++mod wasm_proc_macro;
+diff --git a/compiler/rustc_metadata/src/locator.rs b/compiler/rustc_metadata/src/locator.rs
+--- a/compiler/rustc_metadata/src/locator.rs
++++ b/compiler/rustc_metadata/src/locator.rs
+@@ -223,9 +223,10 @@
+ use rustc_data_structures::memmap::Mmap;
+ use rustc_data_structures::owned_slice::{OwnedSlice, slice_owned};
+ use rustc_data_structures::svh::Svh;
++use rustc_data_structures::sync::IntoDynSyncSend;
+ use rustc_errors::{DiagArgValue, IntoDiagArg};
+ use rustc_fs_util::try_canonicalize;
+-use rustc_proc_macro::bridge::client::Client as ProcMacroClient;
++use rustc_proc_macro::bridge::server::DynClient;
+ use rustc_session::filesearch::FileSearch;
+ use rustc_session::search_paths::PathKind;
+ use rustc_session::utils::CanonicalizedPath;
+@@ -346,9 +347,15 @@
+ 
+     pub(crate) fn for_proc_macro(&mut self, sess: &'a Session, path_kind: PathKind) {
+         self.is_proc_macro = true;
+-        self.target = &sess.host;
+-        self.tuple = TargetTuple::from_tuple(config::host_tuple());
+-        self.filesearch = sess.host_filesearch();
++        if sess.opts.unstable_opts.wasm_proc_macros {
++            self.target = &sess.wasm_proc_macro_target;
++            self.tuple = TargetTuple::from_tuple("wasm32-unknown-unknown");
++            self.filesearch = &sess.wasm_proc_macro_filesearch;
++        } else {
++            self.target = &sess.host;
++            self.tuple = TargetTuple::from_tuple(config::host_tuple());
++            self.filesearch = sess.host_filesearch();
++        }
+         self.path_kind = path_kind;
+     }
+ 
+@@ -977,7 +984,8 @@
+     path: &Path,
+     metadata_loader: &dyn MetadataLoader,
+     cfg_version: &'static str,
+-) -> IoResult<Vec<(ProcMacroClient, ProcMacroKind)>> {
++) -> IoResult<Vec<(IntoDynSyncSend<DynClient>, ProcMacroKind)>> {
++    // FIXME support wasm proc-macros
+     let host_tuple = TargetTuple::from_tuple(config::host_tuple());
+     let (host, _) = Target::search(&host_tuple, Path::new(""), false).unwrap();
+ 
+@@ -994,7 +1002,7 @@
+     let proc_macro_info = metadata.get_proc_macro_info();
+     assert_eq!(proc_macro_info.len(), clients.len());
+ 
+-    Ok(clients.into_iter().copied().zip(proc_macro_info).collect())
++    Ok(clients.into_iter().zip(proc_macro_info).collect())
+ }
+ 
+ // ------------------------------------------ Error reporting -------------------------------------
+diff --git a/compiler/rustc_metadata/src/rmeta/decoder.rs b/compiler/rustc_metadata/src/rmeta/decoder.rs
+--- a/compiler/rustc_metadata/src/rmeta/decoder.rs
++++ b/compiler/rustc_metadata/src/rmeta/decoder.rs
+@@ -12,7 +12,7 @@
+ use rustc_data_structures::fingerprint::Fingerprint;
+ use rustc_data_structures::fx::FxIndexMap;
+ use rustc_data_structures::owned_slice::OwnedSlice;
+-use rustc_data_structures::sync::Lock;
++use rustc_data_structures::sync::{IntoDynSyncSend, Lock};
+ use rustc_data_structures::unhash::UnhashMap;
+ use rustc_expand::base::{SyntaxExtension, SyntaxExtensionKind};
+ use rustc_expand::proc_macro::{AttrProcMacro, BangProcMacro, DeriveProcMacro};
+@@ -28,7 +28,7 @@
+ use rustc_middle::ty::codec::TyDecoder;
+ use rustc_middle::ty::{RestrictionKind, Visibility};
+ use rustc_middle::{bug, implement_ty_decoder};
+-use rustc_proc_macro::bridge::client::Client as ProcMacroClient;
++use rustc_proc_macro::bridge::server::DynClient;
+ use rustc_serialize::opaque::MemDecoder;
+ use rustc_serialize::{Decodable, Decoder};
+ use rustc_session::config::TargetModifier;
+@@ -107,7 +107,7 @@
+     /// or `#[rustc_allow_incoherent_impl]`.
+     incoherent_impls: FxIndexMap<SimplifiedType, LazyArray<DefIndex>>,
+     /// Proc macro function pointers for this crate, if it's a proc macro crate.
+-    raw_proc_macros: Option<&'static [ProcMacroClient]>,
++    raw_proc_macros: Option<Vec<IntoDynSyncSend<DynClient>>>,
+     /// Source maps for code from the crate.
+     source_map_import_info: Lock<Vec<Option<ImportedSourceFile>>>,
+     /// For every definition in this crate, maps its `DefPathHash` to its `DefIndex`.
+@@ -1010,7 +1010,11 @@
+         bug!("missing `{descr}` for {:?}", self.local_def_id(id))
+     }
+ 
+-    fn raw_proc_macro(&self, tcx: TyCtxt<'_>, id: DefIndex) -> (ProcMacroClient, ProcMacroKind) {
++    fn raw_proc_macro(
++        &self,
++        tcx: TyCtxt<'_>,
++        id: DefIndex,
++    ) -> (IntoDynSyncSend<DynClient>, ProcMacroKind) {
+         // DefIndex's in root.proc_macro_data have a one-to-one correspondence
+         // with items in 'raw_proc_macros'.
+         let (pos, (_id, kind)) = self
+@@ -1023,7 +1027,7 @@
+             .enumerate()
+             .find(|(_pos, (i, _))| *i == id)
+             .unwrap();
+-        (self.raw_proc_macros.unwrap()[pos], kind.decode((self, tcx)))
++        (self.raw_proc_macros.as_ref().unwrap()[pos].clone(), kind.decode((self, tcx)))
+     }
+ 
+     fn opt_item_name(&self, item_index: DefIndex) -> Option<Symbol> {
+@@ -1944,7 +1948,7 @@
+         tcx: TyCtxt<'_>,
+         blob: MetadataBlob,
+         root: CrateRoot,
+-        raw_proc_macros: Option<&'static [ProcMacroClient]>,
++        raw_proc_macros: Option<Vec<IntoDynSyncSend<DynClient>>>,
+         cnum: CrateNum,
+         cnum_map: CrateNumMap,
+         dep_kind: CrateDepKind,
+diff --git a/compiler/rustc_metadata/src/wasm_proc_macro.rs b/compiler/rustc_metadata/src/wasm_proc_macro.rs
+new file mode 100644
+--- /dev/null
++++ b/compiler/rustc_metadata/src/wasm_proc_macro.rs
+@@ -0,0 +1,248 @@
++//! Interpret a matching-version proc_macro bridge in a separate Wasm memory.
++//!
++//! The guest's declarations are queried through scalar exports. Its only host
++//! import is the existing byte-buffer RPC dispatcher, including token/span
++//! handles. This first target has no filesystem, environment or process API.
++use std::io::Write;
++use std::path::Path;
++
++use rustc_proc_macro::bridge::server::{DynClient, client_error};
++use rustc_proc_macro::bridge::{BridgeConfig, Buffer, Closure};
++use rustc_data_structures::sync::IntoDynSyncSend;
++use wasmi::{AsContextMut, Caller, Engine, Instance, Linker, Memory, Module, Store, TypedFunc};
++
++const MAX_BUFFER: usize = 64 * 1024 * 1024;
++const FUEL: u64 = 500_000_000;
++
++struct Context<'a> {
++    dispatch: Option<Closure<'a>>,
++    client: Option<ClientRefs>,
++    limits: wasmi::StoreLimits,
++}
++
++#[derive(Clone)]
++struct ClientRefs {
++    memory: Memory,
++    replace: TypedFunc<(u32, u32), ()>,
++    pointer: TypedFunc<u32, u32>,
++    length: TypedFunc<u32, u32>,
++    drop_buffer: TypedFunc<u32, ()>,
++}
++
++impl ClientRefs {
++    fn new(instance: &Instance, store: &Store<Context<'_>>) -> Result<Self, wasmi::Error> {
++        Ok(Self {
++            memory: instance
++                .get_memory(store, "memory")
++                .ok_or_else(|| wasmi::Error::new("macro has no exported memory"))?,
++            replace: instance.get_typed_func(store, "__rustc_proc_macro_buffer_replace")?,
++            pointer: instance.get_typed_func(store, "__rustc_proc_macro_buffer_ptr")?,
++            length: instance.get_typed_func(store, "__rustc_proc_macro_buffer_len")?,
++            drop_buffer: instance.get_typed_func(store, "__rustc_proc_macro_drop_buffer")?,
++        })
++    }
++
++    fn read(&self, mut store: impl AsContextMut, buffer: u32) -> Result<Vec<u8>, wasmi::Error> {
++        let length = self.length.call(&mut store, buffer)? as usize;
++        if length > MAX_BUFFER {
++            return Err(wasmi::Error::new("macro RPC buffer exceeds 64 MiB"));
++        }
++        let pointer = self.pointer.call(&mut store, buffer)? as usize;
++        let mut bytes = vec![0; length];
++        self.memory.read(&store, pointer, &mut bytes)?;
++        Ok(bytes)
++    }
++
++    fn write(
++        &self,
++        mut store: impl AsContextMut,
++        buffer: u32,
++        bytes: &[u8],
++    ) -> Result<(), wasmi::Error> {
++        if bytes.len() > MAX_BUFFER {
++            return Err(wasmi::Error::new("macro RPC buffer exceeds 64 MiB"));
++        }
++        self.replace.call(&mut store, (buffer, bytes.len() as u32))?;
++        let pointer = self.pointer.call(&mut store, buffer)?;
++        self.memory.write(&mut store, pointer as usize, bytes)?;
++        Ok(())
++    }
++
++    fn read_string(
++        &self,
++        mut store: impl AsContextMut,
++        buffer: u32,
++    ) -> Result<String, wasmi::Error> {
++        let bytes = self.read(&mut store, buffer)?;
++        self.drop_buffer.call(&mut store, buffer)?;
++        String::from_utf8(bytes).map_err(|_| wasmi::Error::new("macro declaration is not UTF-8"))
++    }
++}
++
++fn dispatch(
++    mut caller: Caller<'_, Context<'_>>,
++    input: u32,
++    output: u32,
++) -> Result<(), wasmi::Error> {
++    let client = caller
++        .data()
++        .client
++        .clone()
++        .ok_or_else(|| wasmi::Error::new("macro RPC called before initialization"))?;
++    let bytes = client.read(&mut caller, input)?;
++    let response = caller
++        .data_mut()
++        .dispatch
++        .as_mut()
++        .ok_or_else(|| wasmi::Error::new("macro RPC called during declaration loading"))?
++        .call(bytes.into());
++    client.write(&mut caller, output, &response)
++}
++
++fn instantiate<'a>(
++    engine: &Engine,
++    module: &Module,
++    dispatch_fn: Option<Closure<'a>>,
++) -> Result<(Store<Context<'a>>, Instance, ClientRefs), wasmi::Error> {
++    let limits = wasmi::StoreLimitsBuilder::new().memory_size(256 * 1024 * 1024).build();
++    let mut store = Store::new(engine, Context { dispatch: dispatch_fn, client: None, limits });
++    store.limiter(|context| &mut context.limits);
++    store.set_fuel(FUEL)?;
++    let mut linker = Linker::new(engine);
++    linker.func_wrap("env", "__rustc_proc_macro_dispatch", dispatch)?;
++    let instance = linker.instantiate(&mut store, module)?.start(&mut store)?;
++    let client = ClientRefs::new(&instance, &store)?;
++    store.data_mut().client = Some(client.clone());
++    Ok((store, instance, client))
++}
++
++fn declarations(
++    instance: &Instance,
++    store: &Store<Context<'_>>,
++    symbol: &str,
++) -> Result<u32, wasmi::Error> {
++    instance
++        .get_global(store, symbol)
++        .and_then(|global| global.get(store).i32())
++        .map(|value| value as u32)
++        .ok_or_else(|| wasmi::Error::new(format!("missing proc-macro declarations: {symbol}")))
++}
++
++fn expand(
++    engine: &Engine,
++    module: &Module,
++    symbol: &str,
++    index: u32,
++    config: BridgeConfig<'_>,
++) -> Result<Buffer, wasmi::Error> {
++    let (mut store, instance, client) = instantiate(engine, module, Some(config.dispatch))?;
++    let declarations = declarations(&instance, &store, symbol)?;
++    let alloc = instance.get_typed_func::<u32, u32>(&store, "__rustc_proc_macro_alloc_buffer")?;
++    let call = instance
++        .get_typed_func::<(u32, u32, u32, u32), u32>(&store, "__rustc_proc_macro_call_client")?;
++    let input = alloc.call(&mut store, 0)?;
++    client.write(&mut store, input, &config.input)?;
++    let output =
++        call.call(&mut store, (input, declarations, index, config.force_show_panics as u32))?;
++    let response = client.read(&mut store, output)?;
++    client.drop_buffer.call(&mut store, output)?;
++    Ok(response.into())
++}
++
++#[derive(Clone)]
++struct MacroIdentity {
++    module: String,
++    index: u32,
++    name: String,
++    kind: &'static str,
++}
++
++fn json_string(value: &str) -> String {
++    let mut result = String::from("\"");
++    for character in value.chars() {
++        match character {
++            '"' => result.push_str("\\\""),
++            '\\' => result.push_str("\\\\"),
++            character if character <= '\u{1f}' => {
++                result.push_str(&format!("\\u{:04x}", character as u32))
++            }
++            character => result.push(character),
++        }
++    }
++    result.push('"');
++    result
++}
++
++fn trace(event: &str, status: &str, identity: &MacroIdentity) -> Result<(), String> {
++    let Some(path) = std::env::var_os("WISP_WASM_PROC_MACRO_LOG") else { return Ok(()) };
++    let line = format!(
++        "{{\"schemaVersion\":1,\"event\":{},\"status\":{},\"runtime\":\"wasmi\",\"module\":{},\"index\":{},\"name\":{},\"kind\":{},\"macroTarget\":\"wasm32-unknown-unknown\"}}\n",
++        json_string(event),
++        json_string(status),
++        json_string(&identity.module),
++        identity.index,
++        json_string(&identity.name),
++        json_string(identity.kind),
++    );
++    std::fs::OpenOptions::new()
++        .create(true)
++        .append(true)
++        .open(path)
++        .and_then(|mut file| file.write_all(line.as_bytes()))
++        .map_err(|error| format!("cannot write Wasm macro execution trace: {error}"))
++}
++
++fn dynamic_client(
++    engine: Engine,
++    module: Module,
++    symbol: String,
++    identity: MacroIdentity,
++) -> DynClient {
++    DynClient { run: std::sync::Arc::new(move |config| {
++        if let Err(error) = trace("invoke", "started", &identity) {
++            return client_error(error);
++        }
++        match expand(&engine, &module, &symbol, identity.index, config) {
++            Ok(output) => match trace("invoke", "succeeded", &identity) {
++                Ok(()) => output,
++                Err(error) => client_error(error),
++            },
++            Err(error) => {
++                let _ = trace("invoke", "failed", &identity);
++                client_error(format!("Wasm procedural macro failed: {error}"))
++            }
++        }
++    }) }
++}
++
++
++pub(crate) fn load(
++    path: &Path, symbol: &str, kinds: &[crate::rmeta::ProcMacroKind],
++) -> Result<Vec<IntoDynSyncSend<DynClient>>, String> {
++    let mut config = wasmi::Config::default();
++    config.consume_fuel(true);
++    let engine = Engine::new(&config);
++    let bytes = std::fs::read(path).map_err(|error| error.to_string())?;
++    let module = Module::new(&engine, &bytes).map_err(|error| error.to_string())?;
++    let (mut store, instance, _) = instantiate(&engine, &module, None).map_err(|error| error.to_string())?;
++    let declarations = declarations(&instance, &store, symbol).map_err(|error| error.to_string())?;
++    let length = instance.get_typed_func::<u32, u32>(&store, "__rustc_proc_macro_decls_len")
++        .and_then(|function| function.call(&mut store, declarations)).map_err(|error| error.to_string())?;
++    if length as usize != kinds.len() || length > 65_536 {
++        return Err("proc-macro declaration count differs from compiler metadata".into());
++    }
++    // WASI realpath may fail for an absolute preopen path that was read above.
++    // Match the crate locator's fallback to the original path in that case.
++    let path = rustc_fs_util::try_canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
++    kinds.iter().enumerate().map(|(index, kind)| {
++        use crate::rmeta::ProcMacroKind;
++        let (name, kind) = match kind {
++            ProcMacroKind::Bang { name } => (name, "function"),
++            ProcMacroKind::Attr { name } => (name, "attribute"),
++            ProcMacroKind::CustomDerive { trait_name, .. } => (trait_name, "derive"),
++        };
++        let identity = MacroIdentity { module: path.to_string_lossy().into_owned(), index: index as u32, name: name.clone(), kind };
++        trace("load", "succeeded", &identity)?;
++        Ok(IntoDynSyncSend(dynamic_client(engine.clone(), module.clone(), symbol.into(), identity)))
++    }).collect()
++}
+diff --git a/compiler/rustc_session/src/config.rs b/compiler/rustc_session/src/config.rs
+--- a/compiler/rustc_session/src/config.rs
++++ b/compiler/rustc_session/src/config.rs
+@@ -1387,7 +1387,13 @@
+ 
+ impl Sysroot {
+     pub fn new(explicit: Option<PathBuf>) -> Sysroot {
+-        Sysroot { explicit, default: filesearch::default_sysroot() }
++        // A statically linked WASI compiler has no driver DLL to discover.
++        // The Wasm runner supplies --sysroot; reuse that path for fallback searches.
++        #[cfg(target_os = "wasi")]
++        let default = explicit.clone().unwrap_or_else(|| PathBuf::from("/"));
++        #[cfg(not(target_os = "wasi"))]
++        let default = filesearch::default_sysroot();
++        Sysroot { explicit, default }
+     }
+ 
+     /// Return explicit sysroot if it was passed with `--sysroot`, or default sysroot otherwise.
+diff --git a/compiler/rustc_session/src/options.rs b/compiler/rustc_session/src/options.rs
+--- a/compiler/rustc_session/src/options.rs
++++ b/compiler/rustc_session/src/options.rs
+@@ -2984,7 +2984,7 @@
+     wasm_c_abi: () = ((), parse_wasm_c_abi, [TRACKED],
+         "use spec-compliant C ABI for `wasm32-unknown-unknown` (deprecated, always enabled)"),
+     wasm_proc_macros: bool = (false, parse_bool, [TRACKED],
+-        "enable support for compiling and loading wasm proc macros"),
++        "execute wasm32-unknown-unknown procedural macros in the compiler interpreter"),
+     write_long_types_to_disk: bool = (true, parse_bool, [UNTRACKED],
+         "whether long type names should be written to files instead of being printed in errors"),
+     // tidy-alphabetical-end
+diff --git a/compiler/rustc_session/src/output.rs b/compiler/rustc_session/src/output.rs
+--- a/compiler/rustc_session/src/output.rs
++++ b/compiler/rustc_session/src/output.rs
+@@ -41,6 +41,17 @@
+     }
+ }
+ 
++#[cfg(target_os = "wasi")]
++fn is_writeable(p: &Path) -> bool {
++    // WASI stat data has no Unix write-permission bits. Probe the actual
++    // capability without creating or truncating the file instead.
++    match std::fs::OpenOptions::new().write(true).open(p) {
++        Ok(_) => true,
++        Err(error) => error.kind() != std::io::ErrorKind::PermissionDenied,
++    }
++}
++
++#[cfg(not(target_os = "wasi"))]
+ fn is_writeable(p: &Path) -> bool {
+     match p.metadata() {
+         Err(..) => true,
+@@ -129,6 +140,10 @@
+ 
+ /// Checks if target supports crate_type as output
+ pub fn invalid_output_for_target(sess: &Session, crate_type: CrateType) -> bool {
++    if crate_type == CrateType::ProcMacro && sess.opts.unstable_opts.wasm_proc_macros
++        && sess.opts.target_triple.tuple() == "wasm32-unknown-unknown" {
++        return false;
++    }
+     if let CrateType::Cdylib | CrateType::Dylib | CrateType::ProcMacro = crate_type {
+         if !sess.target.dynamic_linking {
+             return true;
+diff --git a/compiler/rustc_session/src/session.rs b/compiler/rustc_session/src/session.rs
+--- a/compiler/rustc_session/src/session.rs
++++ b/compiler/rustc_session/src/session.rs
+@@ -327,6 +327,8 @@
+ pub struct Session {
+     pub target: Target,
+     pub host: Target,
++    pub wasm_proc_macro_target: Target,
++    pub wasm_proc_macro_filesearch: filesearch::FileSearch,
+     pub opts: config::Options,
+     pub target_tlib_path: SearchPath,
+     pub psess: ParseSess,
+@@ -1322,6 +1324,9 @@
+     let target_triple = sopts.target_triple.tuple();
+     // FIXME use host sysroot?
+     let host_tlib_path = SearchPath::from_sysroot_and_triple(sopts.sysroot.path(), host_triple);
++    let wasm_proc_macro_target = Target::expect_builtin(&TargetTuple::from_tuple("wasm32-unknown-unknown"));
++    let wasm_proc_macro_tlib_path = SearchPath::from_sysroot_and_triple(sopts.sysroot.path(), "wasm32-unknown-unknown");
++    let wasm_proc_macro_filesearch = filesearch::FileSearch::new(&sopts.search_paths, &wasm_proc_macro_tlib_path, &wasm_proc_macro_target, sopts.unstable_opts.implicit_sysroot_deps);
+     let target_tlib_path = SearchPath::from_sysroot_and_triple(sopts.sysroot.path(), target_triple);
+ 
+     let prof = SelfProfilerRef::new(
+@@ -1359,6 +1364,8 @@
+         PointerAuthConfig::from_raw(&sopts.unstable_opts.pointer_authentication, &target);
+ 
+     let sess = Session {
++        wasm_proc_macro_target,
++        wasm_proc_macro_filesearch,
+         target,
+         host,
+         opts: sopts,
+diff --git a/compiler/rustc_wasi_getrandom/Cargo.toml b/compiler/rustc_wasi_getrandom/Cargo.toml
+new file mode 100644
+--- /dev/null
++++ b/compiler/rustc_wasi_getrandom/Cargo.toml
+@@ -0,0 +1,11 @@
++[package]
++name = "getrandom"
++version = "0.3.3"
++edition = "2024"
++license = "MIT OR Apache-2.0"
++description = "Rust compiler compatibility facade for getrandom's WASIp3 backend"
++[features]
++std = ["backend/std"]
++wasm_js = ["backend/wasm_js"]
++[dependencies]
++backend = { package = "getrandom", version = "=0.4.3" }
+diff --git a/compiler/rustc_wasi_getrandom/src/lib.rs b/compiler/rustc_wasi_getrandom/src/lib.rs
+new file mode 100644
+--- /dev/null
++++ b/compiler/rustc_wasi_getrandom/src/lib.rs
+@@ -0,0 +1,5 @@
++//! Keep the compiler's getrandom 0.3 interface while using the maintained
++//! backend that supports WASIp3. The fill/u32/u64 and Error interfaces used
++//! by rustc, rand_core and tempfile are unchanged.
++#![no_std]
++pub use backend::{Error, fill, fill_uninit, u32, u64};
+diff --git a/library/proc_macro/src/bridge/buffer.rs b/library/proc_macro/src/bridge/buffer.rs
+--- a/library/proc_macro/src/bridge/buffer.rs
++++ b/library/proc_macro/src/bridge/buffer.rs
+@@ -1,7 +1,7 @@
+ //! Buffer management for same-process client<->server communication.
+ 
+ use std::mem::{self, ManuallyDrop};
+-use std::ops::Deref;
++use std::ops::{Deref, DerefMut};
+ use std::slice;
+ 
+ #[repr(C)]
+@@ -28,6 +28,13 @@
+     #[inline]
+     fn deref(&self) -> &[u8] {
+         unsafe { slice::from_raw_parts(self.data as *const u8, self.len) }
++    }
++}
++
++impl DerefMut for Buffer {
++    #[inline]
++    fn deref_mut(&mut self) -> &mut [u8] {
++        unsafe { slice::from_raw_parts_mut(self.data as *mut u8, self.len) }
+     }
+ }
+ 
+diff --git a/library/proc_macro/src/bridge/client.rs b/library/proc_macro/src/bridge/client.rs
+--- a/library/proc_macro/src/bridge/client.rs
++++ b/library/proc_macro/src/bridge/client.rs
+@@ -297,3 +297,8 @@
+         }
+     }
+ }
++
++// Keep Rust slices and function pointer representations inside the guest.
++#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
++#[allow(unsafe_code)]
++mod wasm;
+diff --git a/library/proc_macro/src/bridge/client/wasm.rs b/library/proc_macro/src/bridge/client/wasm.rs
+new file mode 100644
+--- /dev/null
++++ b/library/proc_macro/src/bridge/client/wasm.rs
+@@ -0,0 +1,44 @@
++// Scalar exports used only by interpreted macro guests.
++use super::*;
++#[unsafe(no_mangle)]
++pub extern "C" fn __rustc_proc_macro_alloc_buffer(len: usize) -> *mut Buffer {
++    Box::into_raw(Box::new(Buffer::from(vec![0; len])))
++}
++#[unsafe(no_mangle)]
++pub unsafe extern "C" fn __rustc_proc_macro_buffer_replace(buffer: *mut Buffer, len: usize) {
++    unsafe { *buffer = Buffer::from(vec![0; len]); }
++}
++#[unsafe(no_mangle)]
++pub unsafe extern "C" fn __rustc_proc_macro_buffer_ptr(buffer: *mut Buffer) -> *mut u8 {
++    unsafe { (*buffer).as_mut_ptr() }
++}
++#[unsafe(no_mangle)]
++pub unsafe extern "C" fn __rustc_proc_macro_buffer_len(buffer: *const Buffer) -> usize {
++    unsafe { (&*buffer).len() }
++}
++#[unsafe(no_mangle)]
++pub unsafe extern "C" fn __rustc_proc_macro_drop_buffer(buffer: *mut Buffer) {
++    unsafe { drop(Box::from_raw(buffer)); }
++}
++#[unsafe(no_mangle)]
++pub unsafe extern "C" fn __rustc_proc_macro_decls_len(decls: *const &[Client]) -> usize {
++    unsafe { (&*decls).len() }
++}
++#[unsafe(no_mangle)]
++pub unsafe extern "C" fn __rustc_proc_macro_call_client(
++    input: *mut Buffer, decls: *const &[Client], index: usize, force_show_panics: bool,
++) -> *mut Buffer {
++    #[link(wasm_import_module = "env")]
++    unsafe extern "C" {
++        fn __rustc_proc_macro_dispatch(input: *const Buffer, output: *mut Buffer);
++    }
++    let input = unsafe { Box::from_raw(input).take() };
++    let mut dispatch = |input: Buffer| {
++        let mut output = Buffer::new();
++        unsafe { __rustc_proc_macro_dispatch(&input, &mut output); }
++        output
++    };
++    let config = BridgeConfig { input, dispatch: (&mut dispatch).into(), force_show_panics };
++    let output = unsafe { ((&*decls)[index].run)(config) };
++    Box::into_raw(Box::new(output))
++}
+diff --git a/library/proc_macro/src/bridge/closure.rs b/library/proc_macro/src/bridge/closure.rs
+--- a/library/proc_macro/src/bridge/closure.rs
++++ b/library/proc_macro/src/bridge/closure.rs
+@@ -5,7 +5,7 @@
+ use super::Buffer;
+ 
+ #[repr(C)]
+-pub(super) struct Closure<'a> {
++pub struct Closure<'a> {
+     call: extern "C" fn(*mut Env, Buffer) -> Buffer,
+     env: *mut Env,
+     // Prevent Send and Sync impls.
+@@ -26,7 +26,7 @@
+ }
+ 
+ impl<'a> Closure<'a> {
+-    pub(super) fn call(&mut self, arg: Buffer) -> Buffer {
++    pub fn call(&mut self, arg: Buffer) -> Buffer {
+         (self.call)(self.env, arg)
+     }
+ }
+diff --git a/library/proc_macro/src/bridge/mod.rs b/library/proc_macro/src/bridge/mod.rs
+--- a/library/proc_macro/src/bridge/mod.rs
++++ b/library/proc_macro/src/bridge/mod.rs
+@@ -108,7 +108,8 @@
+ #[allow(unsafe_code)]
+ mod symbol;
+ 
+-use buffer::Buffer;
++pub use buffer::Buffer;
++pub use closure::Closure;
+ pub use panic_message::PanicMessage;
+ use rpc::{Decode, Encode};
+ 
+@@ -120,13 +121,13 @@
+ #[repr(C)]
+ pub struct BridgeConfig<'a> {
+     /// Buffer used to pass initial input to the client.
+-    input: Buffer,
++    pub input: Buffer,
+ 
+     /// Server-side function that the client uses to make requests.
+-    dispatch: closure::Closure<'a>,
++    pub dispatch: closure::Closure<'a>,
+ 
+     /// If 'true', always invoke the default panic hook
+-    force_show_panics: bool,
++    pub force_show_panics: bool,
+ }
+ 
+ impl !Send for BridgeConfig<'_> {}
+diff --git a/library/proc_macro/src/bridge/server.rs b/library/proc_macro/src/bridge/server.rs
+--- a/library/proc_macro/src/bridge/server.rs
++++ b/library/proc_macro/src/bridge/server.rs
+@@ -4,7 +4,7 @@
+ use std::hash::Hash;
+ use std::ops::{Bound, Range};
+ use std::sync::atomic::AtomicU32;
+-use std::sync::mpsc;
++use std::sync::{Arc, mpsc};
+ use std::{panic, thread};
+ 
+ use crate::bridge::{
+@@ -139,7 +139,7 @@
+         &self,
+         dispatcher: &mut Dispatcher<impl Server>,
+         input: Buffer,
+-        run_client: extern "C" fn(BridgeConfig<'_>) -> Buffer,
++        run_client: &(dyn Fn(BridgeConfig<'_>) -> Buffer + Sync),
+         force_show_panics: bool,
+     ) -> Buffer;
+ }
+@@ -188,30 +188,32 @@
+         &self,
+         dispatcher: &mut Dispatcher<impl Server>,
+         input: Buffer,
+-        run_client: extern "C" fn(BridgeConfig<'_>) -> Buffer,
++        run_client: &(dyn Fn(BridgeConfig<'_>) -> Buffer + Sync),
+         force_show_panics: bool,
+     ) -> Buffer {
+-        if self.cross_thread || ALREADY_RUNNING_SAME_THREAD.get() {
++        if !cfg!(all(target_os = "wasi", target_env = "p3")) && (self.cross_thread || ALREADY_RUNNING_SAME_THREAD.get()) {
+             let (mut server, mut client) = MessagePipe::new();
+ 
+-            let join_handle = thread::spawn(move || {
+-                let mut dispatch = |b: Buffer| -> Buffer {
+-                    client.send(b);
+-                    client.recv().expect("server died while client waiting for reply")
+-                };
+-
+-                run_client(BridgeConfig {
+-                    input,
+-                    dispatch: (&mut dispatch).into(),
+-                    force_show_panics,
+-                })
+-            });
+-
+-            while let Some(b) = server.recv() {
+-                server.send(dispatcher.dispatch(b));
+-            }
+-
+-            join_handle.join().unwrap()
++            thread::scope(|scope| {
++                let join_handle = scope.spawn(move || {
++                    let mut dispatch = |b: Buffer| -> Buffer {
++                        client.send(b);
++                        client.recv().expect("server died while client waiting for reply")
++                    };
++
++                    run_client(BridgeConfig {
++                        input,
++                        dispatch: (&mut dispatch).into(),
++                        force_show_panics,
++                    })
++                });
++
++                while let Some(b) = server.recv() {
++                    server.send(dispatcher.dispatch(b));
++                }
++
++                join_handle.join().unwrap()
++            })
+         } else {
+             let _guard = RunningSameThreadGuard::new();
+ 
+@@ -258,7 +260,7 @@
+     strategy: &impl ExecutionStrategy,
+     server: S,
+     input: I,
+-    run_client: extern "C" fn(BridgeConfig<'_>) -> Buffer,
++    run_client: &(dyn Fn(BridgeConfig<'_>) -> Buffer + Sync),
+     force_show_panics: bool,
+ ) -> Result<O, PanicMessage> {
+     let mut dispatcher = Dispatcher { handle_store: HandleStore::new(), server };
+@@ -274,7 +276,18 @@
+     Result::decode(&mut &buf[..], &mut dispatcher.handle_store)
+ }
+ 
++#[derive(Clone)]
++pub struct DynClient {
++    pub run: Arc<dyn Fn(BridgeConfig<'_>) -> Buffer + Send + Sync>,
++}
++
+ impl client::Client {
++    pub fn into_dyn_client(self) -> DynClient {
++        DynClient { run: Arc::new(move |config| (self.run)(config)) }
++    }
++}
++
++impl DynClient {
+     pub fn run1<S>(
+         &self,
+         strategy: &impl ExecutionStrategy,
+@@ -285,8 +298,8 @@
+     where
+         S: Server,
+     {
+-        let client::Client { run } = *self;
+-        run_server(strategy, server, <MarkedTokenStream<S>>::mark(input), run, force_show_panics)
++        let DynClient { run } = self;
++        run_server(strategy, server, <MarkedTokenStream<S>>::mark(input), &**run, force_show_panics)
+             .map(|s| <Option<MarkedTokenStream<S>>>::unmark(s).unwrap_or_default())
+     }
+ 
+@@ -301,14 +314,21 @@
+     where
+         S: Server,
+     {
+-        let client::Client { run } = *self;
++        let DynClient { run } = self;
+         run_server(
+             strategy,
+             server,
+             (<MarkedTokenStream<S>>::mark(input), <MarkedTokenStream<S>>::mark(input2)),
+-            run,
++            &**run,
+             force_show_panics,
+         )
+         .map(|s| <Option<MarkedTokenStream<S>>>::unmark(s).unwrap_or_default())
+     }
+ }
++
++/// Encode interpreter failures through the normal proc-macro panic protocol.
++pub fn client_error(message: String) -> Buffer {
++    let mut buffer = Buffer::new();
++    Err::<(), _>(PanicMessage::String(message)).encode(&mut buffer, &mut ());
++    buffer
++}
+diff --git a/src/bootstrap/src/core/build_steps/check.rs b/src/bootstrap/src/core/build_steps/check.rs
+--- a/src/bootstrap/src/core/build_steps/check.rs
++++ b/src/bootstrap/src/core/build_steps/check.rs
+@@ -521,7 +521,7 @@
+             //
+             // FIXME: remove this and either fix cross-compilation check on stage 2 (which has a
+             // myriad of other problems) or disable cross-checking on stage 1.
+-            let stage = if host == target { builder.top_stage - 1 } else { builder.top_stage };
++            let stage = if builder.local_rebuild { 0 } else if host == target { builder.top_stage - 1 } else { builder.top_stage };
+             let build_compiler = builder.compiler(stage, host);
+ 
+             // To check rustc, we need to check std that it will link to
+diff --git a/src/bootstrap/src/core/build_steps/compile.rs b/src/bootstrap/src/core/build_steps/compile.rs
+--- a/src/bootstrap/src/core/build_steps/compile.rs
++++ b/src/bootstrap/src/core/build_steps/compile.rs
+@@ -442,8 +442,9 @@
+         // from the wasm32-wasip2 target. Once wasi-libc supports wasip3 this
+         // should be deleted and the native objects should be used.
+         let srcdir = if target == "wasm32-wasip3" {
+-            assert!(!srcdir.exists(), "wasip3 support is in wasi-libc, this should be updated now");
+-            builder.wasi_libdir(TargetSelection::from_user("wasm32-wasip2")).unwrap()
++            if srcdir.exists() { srcdir } else {
++                builder.wasi_libdir(TargetSelection::from_user("wasm32-wasip2")).unwrap()
++            }
+         } else {
+             srcdir
+         };
+@@ -818,7 +819,26 @@
+                 let _ = fs::remove_dir_all(sysroot.join("lib/rustlib/src/rust"));
+             }
+ 
+-            builder.cp_link_r(&builder.initial_sysroot.join("lib"), &sysroot.join("lib"));
++            // A matching native stage0 can build cross std. Install its artifacts
++            // too, and seed native libraries once so later targets cannot replace
++            // an already-built cross sysroot with the official distribution's std.
++            let native_libdir = sysroot.join("lib/rustlib").join(compiler.host.triple).join("lib");
++            let has_native_core = fs::read_dir(native_libdir).is_ok_and(|mut files| {
++                files.any(|file| file.is_ok_and(|file| {
++                    file.file_name().to_str().is_some_and(|name| {
++                        name.starts_with("libcore-") && name.ends_with(".rlib")
++                    })
++                }))
++            });
++            if !has_native_core {
++                builder.cp_link_r(&builder.initial_sysroot.join("lib"), &sysroot.join("lib"));
++            }
++            if builder.local_rebuild && target != compiler.host {
++                add_to_sysroot(
++                    builder, &libdir, &hostdir,
++                    &build_stamp::libstd_stamp(builder, compiler, target),
++                );
++            }
+         } else {
+             if builder.download_rustc() {
+                 // Ensure there are no CI-rustc std artifacts.
+@@ -1474,7 +1494,7 @@
+         && !target.contains("solaris")
+     {
+         let libstdcxx_name =
+-            if target.contains("windows-gnullvm") { "libc++.a" } else { "libstdc++.a" };
++            if target.contains("windows-gnullvm") || target.contains("wasi") { "libc++.a" } else { "libstdc++.a" };
+         let file = compiler_file(
+             builder,
+             &builder.cxx(target).unwrap(),

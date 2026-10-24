@@ -1,0 +1,137 @@
+name: Prepare shared LLVM bootstrap
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: JSON runner label array
+        type: string
+        default: '["ubuntu-24.04"]'
+      jobs:
+        type: number
+        default: 2
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    name: Build or restore Clang and LLVM once
+    runs-on: ${{ fromJSON(inputs.runner) }}
+    timeout-minutes: 360
+    env:
+      BUILD_JOBS: ${{ inputs.jobs }}
+      CCACHE_DIR: ${{ github.workspace }}/.ci/ccache
+      CCACHE_MAXSIZE: 3G
+      CCACHE_COMPILERCHECK: content
+      NINJA_STATUS: '[%f/%t %es] '
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Install native build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes \
+            build-essential ccache cmake curl ninja-build patch pkg-config unzip xz-utils
+      - name: Identify pinned inputs and runner ABI
+        id: keys
+        run: |
+          echo "llvm=$(python3 tools/ci-llvm.py key)" >> "$GITHUB_OUTPUT"
+          python3 - <<'PY'
+          import hashlib
+          import os
+          from pathlib import Path
+
+          abi = hashlib.sha256(Path('/etc/os-release').read_bytes()).hexdigest()
+          with Path(os.environ['GITHUB_OUTPUT']).open('a') as output:
+              output.write('abi=' + abi + '\n')
+          PY
+      - name: Restore verified LLVM bootstrap cache
+        id: llvm-cache
+        continue-on-error: true
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .ci/llvm-bootstrap.tar.gz
+          key: llvm-bootstrap-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.keys.outputs.abi }}-${{ steps.keys.outputs.llvm }}
+      - name: Validate and restore cached LLVM state
+        id: restored
+        if: steps.llvm-cache.outputs.cache-hit == 'true'
+        continue-on-error: true
+        run: python3 tools/ci-llvm.py restore .ci/llvm-bootstrap.tar.gz
+      - name: Restore native host cache
+        id: host-cache
+        if: steps.restored.outcome != 'success'
+        continue-on-error: true
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .ci/hosts/wisp-wasmtime-49.0.1
+          key: wisp-host49-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.keys.outputs.abi }}-${{ hashFiles('tools/shared-hosts/*.py', 'tools/shared-hosts/*.json', 'tools/shared-hosts/*.patch', 'tools/ci-tools.lock.json') }}
+      - name: Restore LLVM compiler object cache
+        id: compiler-cache
+        if: steps.restored.outcome != 'success'
+        continue-on-error: true
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .ci/ccache
+          key: llvm-objects-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.keys.outputs.abi }}-${{ steps.keys.outputs.llvm }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            llvm-objects-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.keys.outputs.abi }}-${{ steps.keys.outputs.llvm }}-
+            llvm-objects-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.keys.outputs.abi }}-
+      - name: Install or verify native execution host
+        run: python3 tools/ci-prerequisites.py install clang
+      - name: Save verified execution host
+        if: steps.restored.outcome != 'success' && steps.host-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .ci/hosts/wisp-wasmtime-49.0.1
+          key: ${{ steps.host-cache.outputs.cache-primary-key }}
+      - name: Build shared compiler backend from pinned sources
+        if: steps.restored.outcome != 'success'
+        run: |
+          set -o pipefail
+          python3 build.py build clang --jobs "$BUILD_JOBS" 2>&1 | tee .ci/llvm-bootstrap.log
+          python3 tools/ci-llvm.py export .ci/llvm-bootstrap.tar.gz
+      - name: Verify complete bootstrap state
+        run: python3 tools/ci-llvm.py verify
+      - name: Save verified LLVM bootstrap cache
+        if: steps.llvm-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .ci/llvm-bootstrap.tar.gz
+          key: ${{ steps.llvm-cache.outputs.cache-primary-key }}
+      - name: Share LLVM state with consumer jobs
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: llvm-bootstrap-state
+          path: .ci/llvm-bootstrap.tar.gz
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+      - name: Save LLVM compiler objects
+        if: always() && steps.compiler-cache.outcome == 'success'
+        continue-on-error: true
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .ci/ccache
+          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
+      - name: Report compiler cache statistics
+        if: always()
+        run: ccache --show-stats
+      - name: Upload bootstrap evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: llvm-bootstrap-logs
+          path: |
+            .ci/*.json
+            .ci/*.log
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7

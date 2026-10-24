@@ -1,0 +1,7 @@
+/.cache/
+/.sources/
+/.build/
+/dist/
+/.bootstrap-*/
+/.dist.previous/
+**/__pycache__/

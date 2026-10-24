@@ -1,0 +1,25 @@
+{
+  "passed": true,
+  "nativeJavaUsed": false,
+  "nodeRequired": false,
+  "execution": "Wasm JVM guest",
+  "path": "/nonexistent",
+  "distributionUnchanged": true,
+  "cases": [
+    "virtual-reference-return-with-tail-dispatch",
+    "java-base-module",
+    "java-management-module",
+    "application-unnamed-module-and-loader",
+    "nest-host-loader",
+    "exception-dispatch",
+    "file-io",
+    "random-file-read-seek-length-and-channel-size",
+    "unsigned-single-byte-file-input",
+    "interface-initialization-order-and-parent-exclusion",
+    "most-specific-interface-default",
+    "static-member-initializes-declarer",
+    "missing-file-exists-returns-false",
+    "interface-field-inherited-through-class",
+    "virtual-call-does-not-initialize-interface"
+  ]
+}

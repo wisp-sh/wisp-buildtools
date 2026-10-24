@@ -1,0 +1,76 @@
+# Pinned build inventory consumed by scripts/sdk.py.
+schema_version = 1
+name = "llvm"
+status = "sdk-packaging-implemented"
+build_driver = "../clang/build-clang-wasi.sh"
+
+[llvm]
+repository = "https://github.com/llvm/llvm-project"
+revision = "d297af3b3d7a086d64f1477cfa682a16fcfa3260"
+archive = "llvm-project-d297af3.tar.gz"
+archive_url = "https://codeload.github.com/llvm/llvm-project/tar.gz/d297af3b3d7a086d64f1477cfa682a16fcfa3260"
+archive_sha256 = "a7a2aef19e40094ed4fb3115f76306dd1c54a0021f2254c9d312d47448165848"
+source_directory = ".sources/llvm-project"
+archive_directory = ".sources"
+patches = ["patches/0001-clang-wasip3-in-process.patch"]
+# The C/C++ compiler uses the combined patch. Other frontends can apply
+# shared_patches first, then clang_patches for the C/C++ frontend.
+patch_scope = "llvm-wasi-and-clang-integration"
+shared_patches = ["patches/0001-llvm-wasi.patch"]
+clang_patches = ["patches/0002-clang-in-process.patch"]
+
+[build]
+bootstrap_platform = "linux-x86_64"
+compiler_host_target = "wasm32-wasip3"
+application_target = "wasm32-unknown-unknown"
+llvm_targets = ["WebAssembly"]
+llvm_projects = ["clang", "lld"]
+llvm_threads = false
+llvm_assertions = false
+shared_libraries = false
+default_optimization = "O1"
+optimization_variants = ["O1", "Os", "Oz"]
+compiler_stack_bytes = 1048576
+native_table_generators = ["llvm-tblgen", "clang-tblgen"]
+build_directories = "../clang/.toolchains"
+
+[inputs.wasi_sdk]
+version = "34.0"
+archive = "wasi-sdk-34.0-x86_64-linux.tar.gz"
+url = "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz"
+sha256 = "b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4"
+
+[inputs.wasmtime]
+version = "49.0.4"
+archive = "wasmtime-v49.0.4-x86_64-linux.tar.xz"
+url = "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.4/wasmtime-v49.0.4-x86_64-linux.tar.xz"
+sha256 = "6561abd54bdf941b6519cce883e0857cc9bce94d92c65287ed838d895a27f5a9"
+
+[inputs.wasm_tools]
+version = "1.262.0"
+archive = "wasm-tools-1.262.0-x86_64-linux.tar.gz"
+url = "https://github.com/bytecodealliance/wasm-tools/releases/download/v1.262.0/wasm-tools-1.262.0-x86_64-linux.tar.gz"
+sha256 = "655b8df67d54c3ef9b52fc237c4e94bbfbb5f5f43825245cb0940a7002a9ed65"
+
+[inputs.ninja]
+version = "1.13.2"
+archive = "ninja-linux.zip"
+url = "https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-linux.zip"
+sha256 = "5749cbc4e668273514150a80e387a957f933c6ed3f5f11e03fb30955e2bbead6"
+
+[sdk]
+status = "packagable-from-existing-build"
+id = "llvm-24-d297af3-wasip3-o1"
+build_directory = "../clang/.toolchains/build-p3"
+required_libraries = ["LLVMCore", "LLVMSupport", "LLVMBitReader", "LLVMBitWriter", "LLVMPasses", "LLVMWebAssemblyCodeGen", "lldCommon", "lldWasm"]
+extra_provenance = ["../clang/patches/0002-driverless-clang-wasm.patch"]
+
+[rust]
+status = "source-build-required"
+profile = "../rust/toolchain.json"
+llvm_compatibility = "ported-llvm24-wrapper-syntax-checked"
+llvm_version = "24.0.0git"
+llvm_repository = "https://github.com/llvm/llvm-project"
+llvm_revision = "d297af3b3d7a086d64f1477cfa682a16fcfa3260"
+compiler_host_target = "wasm32-wasip3"
+# Rust reuses this SDK's static LLVM/LLD libraries without a second LLVM build.

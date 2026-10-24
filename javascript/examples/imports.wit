@@ -1,0 +1,10 @@
+package toolchain:javascript;
+
+interface host-math {
+    add: func(a: f64, b: f64) -> f64;
+}
+
+world imported-arithmetic {
+    import host-math;
+    export add: func(a: f64, b: f64) -> f64;
+}

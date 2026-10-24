@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "mode": "dry-run",
+  "status": "dry-run-passed",
+  "sourceRoot": "/home/luap/vise-buildtools/rust-wasm/build/source-rust-cf327c206854",
+  "sourceLockSha256": "77cebf4f4ca1f522ff012a3f15ac8003a39c8535cbee1bcb9e7ee3690385f652",
+  "buildDriverSha256": "d7ac461606401065215ecfa42b9abc0c8f6f1246a15257c4034f3c36f402c2a9",
+  "runnerSha256": "5b5763a2d6b75997d0ed2a577653f292879307c28de62e0a3082a3fae60a923a",
+  "configSha256": "0f7ecdea0957caef7c28ee60e28ea679a38f548fdb0a3beee4b7d8a4e80ea006",
+  "inputs": {
+    "sourceRevisions": {
+      "rust": "cf327c2068549194a29160499c2ecafa9061e46e",
+      "llvm": "69bd8547e9cc1268ca41339c98b2b17d13d69be3",
+      "stdarch": "ace72223a0e321c1b0a37b5862aa756fe8ab5111",
+      "backtrace": "230570f2dac80a601f5c0b30da00cc9480bd35eb"
+    },
+    "sourcePreparationReceiptSha256": "e75ee5032786e3b53932f93acc10bf1b3c9fc596f084dabc1802967d2151f1b5",
+    "sourceInputs": {
+      "Cargo.lock": "5aa9d98c74b94e0fd2f2ccd3ca8859bb2d84f12c8adf3bb0cc6edc04866011ae",
+      "src/stage0": "d6399a7f63c8f337e6185c335ab99df72073c93ac916dc36993398f8c4ab7219",
+      "src/version": "9cbdfdb58bcc5bbe0b6c578e62775f3d11d323ee711fa79eccdc0ac463776c1d",
+      "x.py": "90ce27a2de89a6b324d3b73eca89ec56908905bad5cda43c7eac13c76968671b",
+      "src/bootstrap/bootstrap.py": "e6d333fed66b471aaa8b94a9a40544a08f2aa494db6ab1932b2c0949f6922dbf",
+      "src/bootstrap/src/core/build_steps/llvm.rs": "dcc8cc7742546354045ac673c14fd59b32c5e5b1da5036ff5f1dfcd2c5fd9205",
+      "src/bootstrap/src/core/build_steps/install.rs": "163de58b406955ccdc441bf7603ce65ba242ba9cb7833a485005bd057c84c7c7",
+      "src/bootstrap/src/core/build_steps/compile.rs": "d0fa9a363e94953cec6d012ecdca0c2683ccb5dedaf3890b5d78fdf1554452d6",
+      "src/bootstrap/src/core/builder.rs": "c392531c8ae75834886f302d7e5aaa06b594acd779ee169920b9a9789acec4d6",
+      "compiler/rustc_llvm/build.rs": "7f127b61fac99d955ada2d2e61830b1f3c6a2d37fb63f513518c9059e28a4371",
+      "library/sysroot/Cargo.toml": "b14f28592dc71cacab1f6b684c505ef03e41f4aca585c8b718f120d178c66834",
+      "src/llvm-project/cmake/Modules/LLVMVersion.cmake": "dbbd84943e80788793422406ccb8b71bf57ffdca28ac8bcb5d1b5f14228d92be"
+    },
+    "wasiSdkArchiveSha256": "c6c38aab56e5de88adf6c1ebc9c3ae8da72f88ec2b656fb024eda8d4167a0bc5",
+    "verification": "locked source-preparation receipt plus current configuration input hashes; source tree may contain the selected backport"
+  },
+  "macroPatch": {
+    "path": "/home/luap/vise-buildtools/rust-wasm/patches/0001-rust-1.83-wasm-proc-macro-bridge.patch",
+    "sha256": "5f64c188f3889714d243c26e36dbf8a1b994f7a18527163bf549902ea57dc7f2",
+    "reverseApplyCheckPassed": true
+  },
+  "compilerHost": "wasm32-wasip1-threads",
+  "applicationTargets": [
+    "wasm32-wasip1",
+    "wasm32-unknown-unknown"
+  ],
+  "bootstrapStage": 2,
+  "nativeTools": {
+    "ninja": {
+      "path": "/home/luap/vise-buildtools/wlang/.toolchains/bin/ninja",
+      "sha256": "607e668f90dd6cd82e1a42ae572647ad1b1fd43063964295b9547836d8c15d99"
+    },
+    "cmake": {
+      "path": "/usr/bin/cmake",
+      "sha256": "6e1dccda39845415d68eabb934c598998949c99ec4668625d571aee1827b05c7"
+    },
+    "cc": {
+      "path": "/usr/bin/x86_64-linux-gnu-gcc-15",
+      "sha256": "b5f1b773a7c733738352000c92a077dc5852a1a2fc6d836b1e411be1e9ec5f88"
+    },
+    "cxx": {
+      "path": "/usr/bin/x86_64-linux-gnu-g++-15",
+      "sha256": "e6718f7e0c7d057c3ff77b550c603da9bc4030e3ede3c053705acce1293dbe4d"
+    }
+  },
+  "command": [
+    "/usr/bin/python3.14",
+    "-I",
+    "/home/luap/vise-buildtools/rust-wasm/build/source-rust-cf327c206854/x.py",
+    "install",
+    "--stage",
+    "2",
+    "--config",
+    "/home/luap/vise-buildtools/rust-wasm/build/compiler-source-build/config.toml",
+    "-j",
+    "2",
+    "compiler/rustc",
+    "library/std",
+    "--dry-run"
+  ],
+  "cwd": "/home/luap/vise-buildtools/rust-wasm/build/source-rust-cf327c206854",
+  "environment": {
+    "WASI_SDK_PATH": "/home/luap/vise-buildtools/rust-wasm/downloads/wasi-sdk-24.0-x86_64-linux",
+    "WASI_SYSROOT": "/home/luap/vise-buildtools/rust-wasm/downloads/wasi-sdk-24.0-x86_64-linux/share/wasi-sysroot",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_BUILD_JOBS": "2",
+    "CMAKE_BUILD_PARALLEL_LEVEL": "2",
+    "RUSTFLAGS": "-Wwarnings",
+    "CARGO_HOME": "/home/luap/vise-buildtools/rust-wasm/cache/compiler-cargo"
+  },
+  "installPrefix": "/home/luap/vise-buildtools/rust-wasm/build/compiler-source-build/install",
+  "compilerBuildCompleted": false,
+  "proceduralMacroAcceptancePassed": false,
+  "sdkProbe": {
+    "argv": [
+      "/home/luap/vise-buildtools/rust-wasm/downloads/wasi-sdk-24.0-x86_64-linux/bin/wasm32-wasip1-threads-clang++",
+      "--sysroot=/home/luap/vise-buildtools/rust-wasm/downloads/wasi-sdk-24.0-x86_64-linux/share/wasi-sysroot",
+      "-pthread",
+      "-D_WASI_EMULATED_MMAN",
+      "/home/luap/vise-buildtools/rust-wasm/build/compiler-source-build/sdk-probe.cpp",
+      "-lwasi-emulated-mman",
+      "-Wl,--max-memory=4294967296",
+      "-Wl,-z,stack-size=1048576",
+      "-Wl,--stack-first",
+      "-o",
+      "/home/luap/vise-buildtools/rust-wasm/build/compiler-source-build/sdk-probe.wasm"
+    ],
+    "exitCode": 0,
+    "stderr": ""
+  },
+  "exitCode": 0
+}

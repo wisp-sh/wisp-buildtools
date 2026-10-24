@@ -1,0 +1,29 @@
+module ScalarText
+from "string" include String
+from "char" include Char
+from "runtime/unsafe/wasmi32" include WasmI32
+from "runtime/dataStructures" include DataStructures
+from "runtime/numbers" include Numbers
+
+// Scalar calls retain all strings in Grain-managed global roots.
+let mut input = ""
+let mut output = ""
+provide let text = () => input
+provide let result = value => output = value
+@unsafe
+provide let reset = () => { input = ""; output = ""; 0n }
+@unsafe
+provide let push = (cp: WasmI32) => {
+  if (WasmI32.gtU(cp, 0x10ffffn)) { return -1n }
+  let n = DataStructures.tagSimpleNumber(cp)
+  if (!Char.isValid(n)) { return -1n }
+  input = input ++ Char.toString(Char.fromCode(n))
+  return 0n
+}
+@unsafe
+provide let length = () => Numbers.coerceNumberToWasmI32(String.length(output))
+@unsafe
+provide let codepoint = (index: WasmI32) => {
+  if (WasmI32.geU(index, length())) { return -1n }
+  return Numbers.coerceNumberToWasmI32(String.charCodeAt(DataStructures.tagSimpleNumber(index), output))
+}

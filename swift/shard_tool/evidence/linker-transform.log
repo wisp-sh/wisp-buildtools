@@ -1,0 +1,14 @@
+wisp-swift-shard: unsupported section: defined tables/memories/tags, data, data-count, or start
+Traceback (most recent call last):
+  File "/home/luap/vise-buildtools/swift/shard.py", line 114, in <module>
+    print(json.dumps(ensure(args.input, args.out, args.shards, args.name, lock_held=args.lock_held)))
+                     ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/luap/vise-buildtools/swift/shard.py", line 101, in ensure
+    subprocess.run([str(binary), "--input", str(source), "--out", str(out),
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                    "--shards", str(shards), "--name", name], stdout=subprocess.DEVNULL, check=True)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/home/luap/vise-buildtools/swift/shard_tool/target/debug/wisp-swift-shard', '--input', '/home/luap/vise-buildtools/llvm/dist/swift-shared/wasm-ld-llvm.so.wasm', '--out', '/home/luap/.t3/projects/wisp-pkgs/.cache/swift-small/linker', '--shards', '4', '--name', 'wasm-ld']' returned non-zero exit status 1.

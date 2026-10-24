@@ -1,0 +1,48 @@
+{
+  "name": "wasm-opt-Os",
+  "raw_bytes": 61978351,
+  "stripped_bytes": 61978351,
+  "gzip9_bytes": 20637703,
+  "warm": {
+    "startup_ms": 695.267788,
+    "codegen_ms": 7.248393999999962,
+    "link_ms": 1.1574990000000298,
+    "compile_link_ms": 8.391854999999964,
+    "total_ms": 734.504184,
+    "peak_rss_kib": 391368
+  },
+  "warm_runs": [
+    {
+      "startup_ms": 1929.989718,
+      "codegen_ms": 13.377003000000059,
+      "link_ms": 2.046734000000015,
+      "compile_link_ms": 15.423737000000074,
+      "total_ms": 2000.681707,
+      "peak_rss_kib": 391368
+    },
+    {
+      "startup_ms": 695.267788,
+      "codegen_ms": 6.899042000000009,
+      "link_ms": 1.1574990000000298,
+      "compile_link_ms": 8.056541000000038,
+      "total_ms": 734.504184,
+      "peak_rss_kib": 391356
+    },
+    {
+      "startup_ms": 638.615049,
+      "codegen_ms": 7.248393999999962,
+      "link_ms": 1.143461000000002,
+      "compile_link_ms": 8.391854999999964,
+      "total_ms": 679.754862,
+      "peak_rss_kib": 391468
+    }
+  ],
+  "cold": {
+    "startup_ms": 27959.02529,
+    "codegen_ms": 6.132449999997334,
+    "link_ms": 0.658266000002186,
+    "compile_link_ms": 6.79071599999952,
+    "total_ms": 28236.653886,
+    "peak_rss_kib": 1964840
+  }
+}

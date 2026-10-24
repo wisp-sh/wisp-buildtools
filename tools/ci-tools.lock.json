@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "platform": "linux-x86_64",
+  "downloads": {
+    "wasmtime": {
+      "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.4/wasmtime-v49.0.4-x86_64-linux.tar.xz",
+      "sha256": "6561abd54bdf941b6519cce883e0857cc9bce94d92c65287ed838d895a27f5a9",
+      "executable": "wasmtime-v49.0.4-x86_64-linux/wasmtime",
+      "executableSha256": "edd1cc98eac2fe1759bcc43aaf5f8c0b935ca1447fc78517d01f3a352d535c72"
+    },
+    "wasm-tools": {
+      "url": "https://github.com/bytecodealliance/wasm-tools/releases/download/v1.262.0/wasm-tools-1.262.0-x86_64-linux.tar.gz",
+      "sha256": "655b8df67d54c3ef9b52fc237c4e94bbfbb5f5f43825245cb0940a7002a9ed65",
+      "executable": "wasm-tools-1.262.0-x86_64-linux/wasm-tools",
+      "executableSha256": "fe6a056dc03269b06f53e0cff926101c17d4f4ea37fbaa077d049c0d18acb211"
+    },
+    "wac": {
+      "url": "https://github.com/bytecodealliance/wac/releases/download/v0.12.0/wac-cli-x86_64-unknown-linux-musl",
+      "sha256": "7cd490edbd452221ef89e6750fc43eacc9b71b1242095eb577cb9a3bf0d3beda",
+      "executable": "wac",
+      "executableSha256": "7cd490edbd452221ef89e6750fc43eacc9b71b1242095eb577cb9a3bf0d3beda",
+      "format": "file"
+    },
+    "binaryen": {
+      "url": "https://github.com/WebAssembly/binaryen/releases/download/version_133/binaryen-version_133-x86_64-linux.tar.gz",
+      "sha256": "2dc9c7813f5375db93d96ead4b78222fcc3e2677bbb832297af4797782a37489",
+      "executable": "binaryen-version_133/bin/wasm-opt",
+      "executableSha256": "8f25e9fd5db0fc5f210003aaa432922feb2e52d309e430def2f929e34da9466b",
+      "additionalFiles": {
+        "binaryen-version_133/bin/wasm-split": "4bf081365684646acef187628ff26669b409e4291765a97e8cfd006e823d4758"
+      }
+    },
+    "go-1.27.2": {
+      "url": "https://go.dev/dl/go1.27.2.linux-amd64.tar.gz",
+      "sha256": "ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5",
+      "executable": "go/bin/go"
+    },
+    "actionlint": {
+      "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz",
+      "sha256": "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8",
+      "executable": "actionlint"
+    },
+    "wasmtime-python": {
+      "url": "https://files.pythonhosted.org/packages/6b/49/d62b41a6ae9063681bb6af018ff49b75d49f853bbf672c7ddebedf21d69e/wasmtime-49.0.0-py3-none-manylinux1_x86_64.whl",
+      "sha256": "94f0288f9e1c33924995a72bb769f4c4e2885002391589dd6992cdaa35d1990a",
+      "format": "wheel",
+      "executable": "wasmtime/__init__.py",
+      "additionalFiles": {
+        "wasmtime/linux-x86_64/_libwasmtime.so": "9594714d3c73c3087ab3d42d9614cf72973b25c181b8625ffcc46a8a75972d7e"
+      }
+    },
+    "wasi-sdk-34": {
+      "url": "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz",
+      "sha256": "b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4",
+      "executable": "wasi-sdk-34.0-x86_64-linux/bin/clang"
+    }
+  },
+  "rustBootstrap": {
+    "version": "1.99.1",
+    "target": "wasm32-wasip1"
+  }
+}

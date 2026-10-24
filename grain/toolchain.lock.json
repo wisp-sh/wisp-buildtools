@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "version": "0.7.2",
+  "source": {
+    "repository": "https://github.com/grain-lang/grain",
+    "revision": "49829d7966b38b177291f7e91f5eb81c65ec07aa",
+    "archive": {
+      "url": "https://codeload.github.com/grain-lang/grain/tar.gz/49829d7966b38b177291f7e91f5eb81c65ec07aa",
+      "sha256": "85ae3fcae60560f677632ac319d29ce92b99cea3315c733cd18137f42e2ffb1c",
+      "size": 1484148
+    }
+  },
+  "compiler": {
+    "release": {
+      "url": "https://github.com/grain-lang/grain/releases/download/grain-v0.7.2/grain-linux-x64",
+      "sha256": "82658891d33f5431e7bd260f0c00b8e86c43eb9182c5327f41db25d60b54dadd",
+      "size": 79185888
+    },
+    "javascript": {
+      "sha256": "0a85cf0120aafd873e41eb901a18090453010f8f819074b77c14e1c359cafd1e",
+      "size": 20872240,
+      "payloadOffset": 70326696,
+      "offset": 3640,
+      "compressedSize": 2116299,
+      "preludeOffset": 79099665,
+      "payloadSize": 8772969,
+      "vfsKey": "0/1/2/3/4/8"
+    },
+    "jsOfOcaml": "6.0.1",
+    "binaryen": "124.0.1"
+  },
+  "stdlib": {
+    "url": "https://registry.npmjs.org/@grain/stdlib/-/stdlib-0.7.2.tgz",
+    "sha256": "f91cdf68db4b607b354b4158d89d3681fa2e619d6118a9b435a84b38106c6c46",
+    "size": 406987
+  },
+  "quickjs": {
+    "version": "2026-06-04",
+    "archiveVersion": "2026-06-04",
+    "url": "https://bellard.org/quickjs/quickjs-2026-06-04.tar.xz",
+    "sha256": "b376e839b322978313d929fd20663b11ba58b75df5a46c126dd19ea2fa70ad2a",
+    "size": 621500
+  },
+  "bootstrapWasiSdk": {
+    "version": "34.0",
+    "url": "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz",
+    "sha256": "b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4",
+    "clangSha256": "061f88b9f4c48f3742434c2513d5038ab7fa4dc27abff5cb13b5eaedcb51d6ea",
+    "wasmLdSha256": "ec1daef61bc84256bf7c4a8491b3ea9abcc7163d9aaf6aa8e8bc6faa18f99043"
+  }
+}

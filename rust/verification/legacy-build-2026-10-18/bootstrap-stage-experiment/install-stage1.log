@@ -1,0 +1,29 @@
+warn: Looks like you are trying to bootstrap Rust from a source that is neither a git clone nor distributed tarball.
+This build may fail due to missing submodules unless you put them in place manually.
+Building bootstrap
+    Finished `dev` profile [unoptimized] target(s) in 0.49s
+warning: unable to check if the upstream master branch is old due to error: rust-lang/rust remote not found
+warning: the upstream master branch is used to determine if files have been modified
+warning: if it is not updated, this may cause files to be needlessly reformatted
+Building LLVM for x86_64-unknown-linux-gnu
+Building stage0 library artifacts (x86_64-unknown-linux-gnu)
+Building compiler artifacts (stage0 -> stage1, x86_64-unknown-linux-gnu)
+Creating a sysroot for stage1 compiler (use `rustup toolchain link 'name' build/host/stage1`)
+Building LLVM for wasm32-wasip1-threads
+could not determine CMAKE_SYSTEM_NAME from the target `wasm32-wasip1-threads`, build may fail
+Building stage0 library artifacts (x86_64-unknown-linux-gnu -> wasm32-wasip1-threads)
+Building compiler artifacts (stage0:x86_64-unknown-linux-gnu -> stage1:wasm32-wasip1-threads)
+Creating a sysroot for stage1 compiler (wasm32-wasip1-threads) (use `rustup toolchain link 'name' build/wasm32-wasip1-threads/stage1`)
+Building stage0 tool rust-installer (x86_64-unknown-linux-gnu)
+Dist rustc-1.83.0-dev-wasm32-wasip1-threads
+Installing stage1 rustc (wasm32-wasip1-threads)
+Building stage1 library artifacts (x86_64-unknown-linux-gnu -> wasm32-wasip1-threads)
+Dist rust-std-1.83.0-dev-wasm32-wasip1-threads
+Installing stage1 std (wasm32-wasip1-threads)
+Building stage1 library artifacts (x86_64-unknown-linux-gnu -> wasm32-wasip1)
+Dist rust-std-1.83.0-dev-wasm32-wasip1
+Installing stage1 std (wasm32-wasip1)
+Building stage1 library artifacts (x86_64-unknown-linux-gnu -> wasm32-unknown-unknown)
+Dist rust-std-1.83.0-dev-wasm32-unknown-unknown
+Installing stage1 std (wasm32-unknown-unknown)
+Build completed successfully in 0:00:01

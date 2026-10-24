@@ -1,0 +1,27 @@
+[
+  [
+    "src/includes.h",
+    "#include <condition_variable>\n",
+    ""
+  ],
+  [
+    "src/includes.h",
+    "#include <mutex>\n",
+    ""
+  ],
+  [
+    "src/includes.h",
+    "#include <thread>\n",
+    ""
+  ],
+  [
+    "src/utils.h",
+    "inline thread_local uintptr_t stackfloor",
+    "inline uintptr_t stackfloor"
+  ],
+  [
+    "src/typecheck_exprs.h",
+    "min(exitat + 1, stmts.size())",
+    "min<size_t>(exitat + 1, stmts.size())"
+  ]
+]

@@ -1,0 +1,15 @@
+package toolchain:javascript;
+
+interface data {
+    record summary {
+        count: u32,
+        total: f64,
+        label: string,
+    }
+    summarize: func(values: list<f64>, label: string) -> summary;
+    safe-divide: func(a: f64, b: f64) -> result<f64, string>;
+}
+
+world typed-data {
+    export data;
+}

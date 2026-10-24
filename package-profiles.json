@@ -1,0 +1,1720 @@
+{
+  "schema": 1,
+  "platform": "wasm32-wasi",
+  "packageVersion": "0.1.0",
+  "tools": {
+    "clang": {
+      "include": [
+        "clang/.toolchains/build-p3/bin/clang-wasm.component",
+        "clang/.toolchains/llvm-project/LICENSE.TXT",
+        "clang/DRIVERLESS.md",
+        "clang/include"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "clang",
+          "path": "clang/.toolchains/build-p3/bin/clang-wasm.component",
+          "format": "wasm-component"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Wisp Wasmtime host",
+          "kind": "runtime-host",
+          "version": "49.0.1",
+          "included": false,
+          "note": "Wisp-owned execution host with WASI Preview 3 and external Component core-module imports. Select it with WISP_WASMTIME. The engine is not part of this compiler package."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "clang/include/*",
+          "role": "headers"
+        },
+        {
+          "pattern": "*/licenses/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/LICENSE*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/COPYRIGHT*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/README.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/DRIVERLESS.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/manifest.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/manifest.toml",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.lock.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/SHA256SUMS*",
+          "role": "metadata"
+        },
+        {
+          "pattern": "clang/*.component",
+          "role": "compiler"
+        },
+        {
+          "pattern": "clang/.toolchains/build-p3/bin/*",
+          "role": "compiler"
+        }
+      ]
+    },
+    "go": {
+      "include": [
+        "go/README.md",
+        "go/scripts/build.py",
+        "go/scripts/wasmbuild",
+        "go/dist/go-toolchain-full-1.27.2"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "build",
+          "path": "go/scripts/build.py",
+          "format": "host-script"
+        },
+        {
+          "name": "compile",
+          "path": "go/dist/go-toolchain-full-1.27.2/bin/compile.wasm",
+          "format": "wasm-core"
+        },
+        {
+          "name": "asm",
+          "path": "go/dist/go-toolchain-full-1.27.2/bin/asm.wasm",
+          "format": "wasm-core"
+        },
+        {
+          "name": "link",
+          "path": "go/dist/go-toolchain-full-1.27.2/bin/link.wasm",
+          "format": "wasm-core"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Python",
+          "kind": "orchestrator",
+          "version": "3.12+",
+          "included": false,
+          "note": "Native file I/O and orchestration host. This is the supported common workspace baseline; application source compilation executes in Wasm."
+        },
+        {
+          "name": "Wasmtime",
+          "kind": "runtime-host",
+          "version": "49.0.1",
+          "included": false,
+          "note": "External Wasmtime 49.0.1 CLI is tested. Select it with the required --wasmtime argument. No native Go installation or network is needed to compile local Go sources."
+        },
+        {
+          "name": "Go module installer",
+          "kind": "orchestrator",
+          "version": "",
+          "included": false,
+          "note": "Optional external installer for fetching ordinary Go modules in Wisp workflows. The direct local-package build adapter does not invoke native Go or fetch modules."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "*/licenses/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/LICENSE*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/COPYRIGHT*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/README.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/DRIVERLESS.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/manifest.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/manifest.toml",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.lock.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/SHA256SUMS*",
+          "role": "metadata"
+        },
+        {
+          "pattern": "go/dist/*/bin/*",
+          "role": "compiler"
+        },
+        {
+          "pattern": "go/dist/*/goroot/pkg/include/*",
+          "role": "headers"
+        },
+        {
+          "pattern": "go/dist/*/goroot/pkg/*",
+          "role": "stdlib"
+        },
+        {
+          "pattern": "go/scripts/*",
+          "role": "adapter"
+        }
+      ]
+    },
+    "llvm": {
+      "include": [
+        "llvm/README.md",
+        "llvm/shared.py",
+        "llvm/dist/shared",
+        "llvm/SHARED.md"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "llvm24",
+          "path": "llvm/dist/shared/lib/llvm24.so.wasm",
+          "format": "wasm-core"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Wisp Wasmtime host",
+          "kind": "runtime-host",
+          "version": "49.0.1",
+          "included": false,
+          "note": "Wisp supplies the execution engine and loads the four verified shared core modules. This package supplies LLVM and its Wasm C/C++ runtime libraries; source bootstrap SDKs and native hosts are excluded."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "llvm/dist/shared/lib/*",
+          "role": "runtime"
+        },
+        {
+          "pattern": "*/licenses/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/LICENSE*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/COPYRIGHT*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/README.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/DRIVERLESS.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/manifest.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/manifest.toml",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.lock.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/SHA256SUMS*",
+          "role": "metadata"
+        },
+        {
+          "pattern": "llvm/artifacts/*/include/*",
+          "role": "headers"
+        },
+        {
+          "pattern": "llvm/artifacts/*/lib/*",
+          "role": "sdk"
+        },
+        {
+          "pattern": "llvm/artifacts/*/bin/*",
+          "role": "adapter"
+        },
+        {
+          "pattern": "llvm/artifacts/*/share/*",
+          "role": "metadata"
+        }
+      ]
+    },
+    "rust": {
+      "include": [
+        "rust/README.md",
+        "rust/dist/compiler/toolchain.json",
+        "rust/dist/compiler/scripts/runner.py",
+        "rust/dist/compiler/licenses",
+        "rust/dist/compiler/build/bootstrap",
+        "rust/dist/compiler/build-report.json",
+        "rust/dist/compiler/runtime-adapter.json",
+        "rust/dist/compiler/source-build.json",
+        "rust/dist/compiler/verification",
+        "rust/dist/compiler/source-lock.json",
+        "rust/dist/compiler/build-driver.py"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "build",
+          "path": "rust/dist/compiler/scripts/runner.py",
+          "format": "host-script"
+        },
+        {
+          "name": "rustc",
+          "path": "rust/dist/compiler/build/bootstrap/rustc.wasm",
+          "format": "wasm-component"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Python",
+          "kind": "orchestrator",
+          "version": "3.12+",
+          "included": false,
+          "note": "Native file I/O and orchestration host. This is the supported common workspace baseline; application source compilation executes in Wasm."
+        },
+        {
+          "name": "Wasmtime",
+          "kind": "runtime-host",
+          "version": "49.0.1",
+          "included": false,
+          "note": "External Wasmtime host with WASIp3 component support, selected by WISP_RUST_WASMTIME or --wasmtime."
+        },
+        {
+          "name": "Cargo",
+          "kind": "orchestrator",
+          "version": "",
+          "included": false,
+          "note": "Native cargo metadata --locked --offline is required on every Cargo project build. Cargo version is not pinned by the adapter. Registry dependencies must be vendored before building, using cargo vendor. Rust compilation, build scripts and procedural macros execute in Wasm; native rustc is not needed."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "*/licenses/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/LICENSE*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/COPYRIGHT*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/README.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/DRIVERLESS.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/manifest.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/manifest.toml",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.lock.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/SHA256SUMS*",
+          "role": "metadata"
+        },
+        {
+          "pattern": "rust/dist/compiler/build/bootstrap/rustc.wasm",
+          "role": "compiler"
+        },
+        {
+          "pattern": "rust/dist/compiler/build/bootstrap/sysroot/*",
+          "role": "stdlib"
+        },
+        {
+          "pattern": "rust/dist/compiler/scripts/*",
+          "role": "adapter"
+        }
+      ]
+    },
+    "zig": {
+      "include": [
+        "zig/README.md",
+        "zig/compile.py",
+        "zig/toolchain.lock.json",
+        "zig/dist"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "build",
+          "path": "zig/compile.py",
+          "format": "host-script"
+        },
+        {
+          "name": "zig",
+          "path": "zig/dist/zig.wasm",
+          "format": "wasm-core"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Python",
+          "kind": "orchestrator",
+          "version": "3.12+",
+          "included": false,
+          "note": "Native file I/O and orchestration host. This is the supported common workspace baseline; application source compilation executes in Wasm."
+        },
+        {
+          "name": "Wisp Wasmtime host",
+          "kind": "runtime-host",
+          "version": "49.0.1",
+          "included": false,
+          "note": "Wisp-owned execution host with WASI Preview 3 and external Component core-module imports. Select it with WISP_WASMTIME. The engine is not part of this compiler package."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "*/licenses/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/LICENSE*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/COPYRIGHT*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/README.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/DRIVERLESS.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/manifest.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/manifest.toml",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.lock.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/SHA256SUMS*",
+          "role": "metadata"
+        },
+        {
+          "pattern": "zig/dist/zig.wasm",
+          "role": "compiler"
+        },
+        {
+          "pattern": "zig/dist/include/*",
+          "role": "headers"
+        },
+        {
+          "pattern": "zig/dist/lib/*",
+          "role": "stdlib"
+        },
+        {
+          "pattern": "zig/compile.py",
+          "role": "adapter"
+        }
+      ]
+    },
+    "assemblyscript": {
+      "include": [
+        "assemblyscript/README.md",
+        "assemblyscript/LICENSE",
+        "assemblyscript/compile.py",
+        "assemblyscript/src/runtime.py",
+        "assemblyscript/dist"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "build",
+          "path": "assemblyscript/compile.py",
+          "format": "host-script"
+        },
+        {
+          "name": "assemblyscript",
+          "path": "assemblyscript/dist/assemblyscript.wasm",
+          "format": "wasm-core"
+        },
+        {
+          "name": "binaryen",
+          "path": "assemblyscript/dist/binaryen.wasm",
+          "format": "wasm-core"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Python",
+          "kind": "orchestrator",
+          "version": "3.12+",
+          "included": false,
+          "note": "Native file I/O and orchestration host. This is the supported common workspace baseline; application source compilation executes in Wasm."
+        },
+        {
+          "name": "Wasmtime Python bindings",
+          "kind": "runtime-host",
+          "version": "49.0.0",
+          "included": false,
+          "note": "Wisp-owned Wasmtime Python bindings and native engine, selected by WISP_WASMTIME_PYTHON. Required host callbacks use the Python API. Node and npm are bootstrap-only requirements."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "*/licenses/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/LICENSE*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/COPYRIGHT*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/README.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/DRIVERLESS.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/manifest.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/manifest.toml",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.lock.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/SHA256SUMS*",
+          "role": "metadata"
+        },
+        {
+          "pattern": "assemblyscript/dist/std/*",
+          "role": "stdlib"
+        },
+        {
+          "pattern": "assemblyscript/dist/abi-shims/*",
+          "role": "adapter"
+        },
+        {
+          "pattern": "assemblyscript/dist/*.wasm",
+          "role": "compiler"
+        },
+        {
+          "pattern": "assemblyscript/src/*",
+          "role": "adapter"
+        },
+        {
+          "pattern": "assemblyscript/compile.py",
+          "role": "adapter"
+        }
+      ]
+    },
+    "nim": {
+      "include": [
+        "nim/README.md",
+        "nim/LICENSE",
+        "nim/compile.py",
+        "nim/toolchain.lock.json",
+        "nim/dist"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "build",
+          "path": "nim/compile.py",
+          "format": "host-script"
+        },
+        {
+          "name": "nim",
+          "path": "nim/dist/bin/nim.wasm",
+          "format": "wasm-core"
+        },
+        {
+          "name": "clang",
+          "path": "nim/dist/bin/c-backend.wasm",
+          "format": "wasm-component"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Python",
+          "kind": "orchestrator",
+          "version": "3.12+",
+          "included": false,
+          "note": "Native file I/O and orchestration host. This is the supported common workspace baseline; application source compilation executes in Wasm."
+        },
+        {
+          "name": "Wisp Wasmtime host",
+          "kind": "runtime-host",
+          "version": "49.0.1",
+          "included": false,
+          "note": "Wisp-owned execution host with WASI Preview 3 and external Component core-module imports. Select it with WISP_WASMTIME. The engine is not part of this compiler package."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "*/licenses/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/LICENSE*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/COPYRIGHT*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/README.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/DRIVERLESS.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/manifest.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/manifest.toml",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.lock.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/SHA256SUMS*",
+          "role": "metadata"
+        },
+        {
+          "pattern": "nim/dist/bin/*",
+          "role": "compiler"
+        },
+        {
+          "pattern": "nim/dist/clang/include/*",
+          "role": "headers"
+        },
+        {
+          "pattern": "nim/dist/sysroot/include/*",
+          "role": "headers"
+        },
+        {
+          "pattern": "nim/dist/lib/*",
+          "role": "stdlib"
+        },
+        {
+          "pattern": "nim/dist/sysroot/lib/*",
+          "role": "stdlib"
+        },
+        {
+          "pattern": "nim/dist/compat*",
+          "role": "adapter"
+        },
+        {
+          "pattern": "nim/dist/unsupported_processes.c",
+          "role": "adapter"
+        },
+        {
+          "pattern": "nim/compile.py",
+          "role": "adapter"
+        }
+      ]
+    },
+    "javascript": {
+      "include": [
+        "javascript/README.md",
+        "javascript/compile.py",
+        "javascript/toolchain.py",
+        "javascript/typescript.py",
+        "javascript/checksums",
+        "javascript/.toolchains/wasm",
+        "javascript/.toolchains/runtimes"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "build",
+          "path": "javascript/compile.py",
+          "format": "host-script"
+        },
+        {
+          "name": "componentize",
+          "path": "javascript/.toolchains/wasm/componentize.wasm",
+          "format": "wasm-core"
+        },
+        {
+          "name": "esbuild",
+          "path": "javascript/.toolchains/wasm/esbuild.wasm",
+          "format": "wasm-core"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Python",
+          "kind": "orchestrator",
+          "version": "3.12+",
+          "included": false,
+          "note": "Native file I/O and orchestration host. This is the supported common workspace baseline; application source compilation executes in Wasm."
+        },
+        {
+          "name": "Wasmtime",
+          "kind": "runtime-host",
+          "version": "49.0.1",
+          "included": false,
+          "note": "External CLI; this version is tested. Supplies WASI Preview 1 and Component Model execution. Set WISP_WASMTIME or install wasmtime on PATH."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "*/licenses/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/LICENSE*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/COPYRIGHT*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/README.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/DRIVERLESS.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/manifest.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/manifest.toml",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.lock.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/SHA256SUMS*",
+          "role": "metadata"
+        },
+        {
+          "pattern": "javascript/.toolchains/wasm/*",
+          "role": "compiler"
+        },
+        {
+          "pattern": "javascript/.toolchains/runtimes/*",
+          "role": "runtime"
+        },
+        {
+          "pattern": "javascript/checksums/*",
+          "role": "metadata"
+        },
+        {
+          "pattern": "javascript/*.py",
+          "role": "adapter"
+        },
+        {
+          "pattern": "wasm_tools.py",
+          "role": "adapter"
+        }
+      ]
+    },
+    "python": {
+      "include": [
+        "python/README.md",
+        "python/LICENSE",
+        "python/LICENSE.python",
+        "python/bootstrap.py",
+        "python/compile.py",
+        "python/scripts",
+        "python/packager/Cargo.toml",
+        "python/packager/Cargo.lock",
+        "python/packager/src",
+        "python/toolchain.lock.json",
+        "python/dist",
+        "python/runtime",
+        "python/wit"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "build",
+          "path": "python/compile.py",
+          "format": "host-script"
+        },
+        {
+          "name": "packager",
+          "path": "python/dist/python-packager.wasm",
+          "format": "wasm-core"
+        },
+        {
+          "name": "cpython-template",
+          "path": "python/dist/template.component.wasm",
+          "format": "wasm-component"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Python",
+          "kind": "orchestrator",
+          "version": "3.12+",
+          "included": false,
+          "note": "Native file I/O and orchestration host. This is the supported common workspace baseline; application source compilation executes in Wasm."
+        },
+        {
+          "name": "Wasmtime",
+          "kind": "runtime-host",
+          "version": "49.0.1",
+          "included": false,
+          "note": "External CLI; this version is tested. Supplies WASI Preview 1 and Component Model execution. Set WISP_WASMTIME or install wasmtime on PATH."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "*/licenses/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/LICENSE*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/COPYRIGHT*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/README.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/DRIVERLESS.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/manifest.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/manifest.toml",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.lock.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/SHA256SUMS*",
+          "role": "metadata"
+        },
+        {
+          "pattern": "python/dist/template.component.wasm",
+          "role": "runtime"
+        },
+        {
+          "pattern": "python/dist/python-packager.wasm",
+          "role": "compiler"
+        },
+        {
+          "pattern": "python/dist/*.wit",
+          "role": "adapter"
+        },
+        {
+          "pattern": "python/dist/runtime/*",
+          "role": "adapter"
+        },
+        {
+          "pattern": "python/dist/verification.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "python/compile.py",
+          "role": "adapter"
+        },
+        {
+          "pattern": "python/scripts/common.py",
+          "role": "adapter"
+        },
+        {
+          "pattern": "python/bootstrap.py",
+          "role": "metadata"
+        },
+        {
+          "pattern": "python/packager/*",
+          "role": "metadata"
+        },
+        {
+          "pattern": "python/scripts/wasm.py",
+          "role": "metadata"
+        },
+        {
+          "pattern": "python/runtime/*",
+          "role": "metadata"
+        },
+        {
+          "pattern": "python/wit/*",
+          "role": "metadata"
+        },
+        {
+          "pattern": "wasm_tools.py",
+          "role": "adapter"
+        }
+      ]
+    },
+    "wasm-tools": {
+      "include": [
+        "wasm-tools/README.md",
+        "wasm-tools/toolchain.lock.json",
+        "wasm-tools/dist",
+        "wasm_tools.py",
+        "wasm-tools/adapter.lock.json"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "wasm-tools",
+          "path": "wasm-tools/dist/wasm-tools.wasm",
+          "format": "wasm-core"
+        },
+        {
+          "name": "preview1-reactor-adapter",
+          "path": "wasm-tools/dist/wasi_snapshot_preview1.reactor.wasm",
+          "format": "wasm-core"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Python",
+          "kind": "orchestrator",
+          "version": "3.12+",
+          "included": false,
+          "note": "Native file I/O and orchestration host. This is the supported common workspace baseline; application source compilation executes in Wasm."
+        },
+        {
+          "name": "Wasmtime",
+          "kind": "runtime-host",
+          "version": "49.0.1",
+          "included": false,
+          "note": "External CLI; this version is tested. Supplies WASI Preview 1 and Component Model execution. Set WISP_WASMTIME or install wasmtime on PATH."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "wasm-tools/dist/wasi_snapshot_preview1.reactor.wasm",
+          "role": "runtime"
+        },
+        {
+          "pattern": "*/licenses/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/LICENSE*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/COPYRIGHT*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/README.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/DRIVERLESS.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/manifest.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/manifest.toml",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.lock.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/SHA256SUMS*",
+          "role": "metadata"
+        },
+        {
+          "pattern": "wasm-tools/dist/wasm-tools.wasm",
+          "role": "compiler"
+        },
+        {
+          "pattern": "wasm_tools.py",
+          "role": "adapter"
+        }
+      ]
+    },
+    "grain": {
+      "include": [
+        "grain/README.md",
+        "grain/LICENSE",
+        "grain/compile.py",
+        "grain/component.py",
+        "grain/toolchain.lock.json",
+        "grain/dist"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "build",
+          "path": "grain/compile.py",
+          "format": "host-script"
+        },
+        {
+          "name": "grainc",
+          "path": "grain/dist/grainc.wasm",
+          "format": "wasm-core"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Python",
+          "kind": "orchestrator",
+          "version": "3.12+",
+          "included": false,
+          "note": "File I/O, source staging and Wasm guest orchestration. Source compilation runs entirely inside the Wasm QuickJS guest."
+        },
+        {
+          "name": "Wasmtime",
+          "kind": "runtime-host",
+          "version": "49.0.1",
+          "included": false,
+          "note": "Wisp-provided external execution host. Select it with WISP_WASMTIME; no engine or native Grain/Node compiler is bundled."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "*/licenses/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/LICENSE*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/README.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/manifest.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.lock.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "grain/dist/stdlib/*",
+          "role": "stdlib"
+        },
+        {
+          "pattern": "grain/dist/grainc.js",
+          "role": "compiler"
+        },
+        {
+          "pattern": "grain/dist/grainc.wasm",
+          "role": "compiler"
+        },
+        {
+          "pattern": "grain/*.py",
+          "role": "adapter"
+        }
+      ]
+    },
+    "swift": {
+      "include": [
+        "swift/README.md",
+        "swift/LICENSE",
+        "swift/compile.py",
+        "swift/runtime.py",
+        "swift/toolchain.lock.json",
+        "swift/src/adapter.swift",
+        "swift/dist"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "build",
+          "path": "swift/compile.py",
+          "format": "host-script"
+        },
+        {
+          "name": "swift-frontend",
+          "path": "swift/dist/bin/swift-frontend.wasm",
+          "format": "wasm-core"
+        },
+        {
+          "name": "wasm-ld",
+          "path": "swift/dist/bin/wasm-ld.wasm",
+          "format": "wasm-core"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Python",
+          "kind": "orchestrator",
+          "version": "3.12+",
+          "included": false,
+          "note": "File I/O and guest orchestration. Swift compilation and linking execute inside Wasm."
+        },
+        {
+          "name": "Wasmtime Python bindings",
+          "kind": "runtime-host",
+          "version": "49.0.0",
+          "included": false,
+          "note": "Wisp-owned external bindings and engine, selected with WISP_WASMTIME_PYTHON. They instantiate the compiler primary and its matching shared backend before guest entry. No engine or native swiftc is bundled. Component assembly also uses the shared wasm-tools CLI host."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "*/licenses/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/LICENSE*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/README.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/manifest.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.lock.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "swift/dist/bin/*",
+          "role": "compiler"
+        },
+        {
+          "pattern": "swift/dist/sysroot/*",
+          "role": "stdlib"
+        },
+        {
+          "pattern": "swift/*.py",
+          "role": "adapter"
+        },
+        {
+          "pattern": "swift/src/*",
+          "role": "adapter"
+        }
+      ]
+    },
+    "llvm-swift": {
+      "include": [
+        "llvm/dist/swift-shared"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "swift-llvm",
+          "path": "llvm/dist/swift-shared/swift-frontend-llvm.so.wasm",
+          "format": "wasm-core"
+        },
+        {
+          "name": "swift-linker-llvm",
+          "path": "llvm/dist/swift-shared/wasm-ld-llvm.so.wasm",
+          "format": "wasm-core"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Wisp Wasmtime Python host",
+          "kind": "runtime-host",
+          "version": "49.0.0",
+          "included": false,
+          "note": "External bindings and engine supplied by Wisp. These backend modules use an image-specific table ABI matched to the exact Swift compiler and linker primary hashes; LLVM24 and Rust LLVM19 are separate profiles."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "*/licenses/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/manifest.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*",
+          "role": "runtime"
+        }
+      ]
+    },
+    "jvm": {
+      "include": [
+        "jvm/README.md",
+        "jvm/LICENSE",
+        "jvm/runner.py",
+        "jvm/runtime.py",
+        "jvm/toolchain.lock.json",
+        "jvm/dist"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "jvm",
+          "path": "jvm/dist/jvm.wasm",
+          "format": "wasm-core"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Python",
+          "kind": "orchestrator",
+          "version": "3.12+",
+          "included": false,
+          "note": "File I/O, input snapshots and guest orchestration. Compiler and backend code execute in Wasm."
+        },
+        {
+          "name": "Wasmtime",
+          "kind": "runtime-host",
+          "version": "49.0.1",
+          "included": false,
+          "note": "Wisp-owned external CLI with WASI Preview1, tail calls and exceptions. No engine or native JVM is bundled."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "*/licenses/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/legal/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/LICENSE*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/README.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/manifest.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.lock.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "jvm/*.py",
+          "role": "adapter"
+        },
+        {
+          "pattern": "jvm/dist/jvm.wasm",
+          "role": "runtime"
+        },
+        {
+          "pattern": "jvm/dist/boot.jar",
+          "role": "stdlib"
+        },
+        {
+          "pattern": "jvm/dist/jdk/*",
+          "role": "stdlib"
+        }
+      ]
+    },
+    "teavm": {
+      "include": [
+        "teavm/README.md",
+        "teavm/LICENSE",
+        "teavm/compile.py",
+        "teavm/component.py",
+        "teavm/c_backend.py",
+        "teavm/reactor.py",
+        "teavm/toolchain.lock.json",
+        "teavm/dist"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "build",
+          "path": "teavm/compile.py",
+          "format": "host-script"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Python",
+          "kind": "orchestrator",
+          "version": "3.12+",
+          "included": false,
+          "note": "File I/O, input snapshots and guest orchestration. Compiler and backend code execute in Wasm."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "*/licenses/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/legal/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/LICENSE*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/README.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/manifest.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.lock.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "teavm/*.py",
+          "role": "adapter"
+        },
+        {
+          "pattern": "teavm/dist/java-sdk.jar",
+          "role": "sdk"
+        },
+        {
+          "pattern": "teavm/dist/jars/*",
+          "role": "compiler"
+        },
+        {
+          "pattern": "teavm/dist/launcher/*",
+          "role": "compiler"
+        },
+        {
+          "pattern": "teavm/dist/bin/*",
+          "role": "compiler"
+        },
+        {
+          "pattern": "teavm/dist/sysroot/*",
+          "role": "sdk"
+        },
+        {
+          "pattern": "teavm/dist/wasi-entry.c",
+          "role": "runtime"
+        }
+      ]
+    },
+    "java": {
+      "include": [
+        "java/README.md",
+        "java/LICENSE",
+        "java/compile.py",
+        "java/toolchain.lock.json",
+        "java/dist"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "build",
+          "path": "java/compile.py",
+          "format": "host-script"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Python",
+          "kind": "orchestrator",
+          "version": "3.12+",
+          "included": false,
+          "note": "File I/O, input snapshots and guest orchestration. Compiler and backend code execute in Wasm."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "*/licenses/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/legal/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/LICENSE*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/README.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/manifest.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.lock.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "java/*.py",
+          "role": "adapter"
+        },
+        {
+          "pattern": "java/dist/*",
+          "role": "compiler"
+        }
+      ]
+    },
+    "kotlin": {
+      "include": [
+        "kotlin/README.md",
+        "kotlin/LICENSE",
+        "kotlin/compile.py",
+        "kotlin/toolchain.lock.json",
+        "kotlin/dist"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "build",
+          "path": "kotlin/compile.py",
+          "format": "host-script"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Python",
+          "kind": "orchestrator",
+          "version": "3.12+",
+          "included": false,
+          "note": "File I/O, input snapshots and guest orchestration. Compiler and backend code execute in Wasm."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "*/licenses/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/legal/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/LICENSE*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/README.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/manifest.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.lock.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "kotlin/*.py",
+          "role": "adapter"
+        },
+        {
+          "pattern": "kotlin/dist/*",
+          "role": "compiler"
+        }
+      ]
+    },
+    "ocaml": {
+      "include": [
+        "ocaml/README.md",
+        "ocaml/compile.py",
+        "ocaml/runner.py",
+        "ocaml/backend.py",
+        "ocaml/toolchain.lock.json",
+        "ocaml/examples",
+        "ocaml/dist",
+        "ocaml/licenses"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "build",
+          "path": "ocaml/compile.py",
+          "format": "host-script"
+        },
+        {
+          "name": "ocamlrun",
+          "path": "ocaml/dist/bin/ocamlrun.wasm",
+          "format": "wasm-core"
+        },
+        {
+          "name": "ocamlc",
+          "path": "ocaml/dist/bin/ocamlc.byte",
+          "format": "data"
+        },
+        {
+          "name": "c-backend",
+          "path": "ocaml/dist/bin/c-backend.wasm",
+          "format": "wasm-component"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Python",
+          "kind": "orchestrator",
+          "version": "3.12+",
+          "included": false,
+          "note": "File I/O and Wasm tool orchestration."
+        },
+        {
+          "name": "Wasmtime with exception support",
+          "kind": "runtime-host",
+          "version": "49.0.1",
+          "included": false,
+          "note": "Set WISP_OCAML_WASMTIME or WISP_BOOTSTRAP_WASMTIME for OCaml. WISP_WASMTIME selects the shared LLVM execution host."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "ocaml/dist/bin/*",
+          "role": "compiler"
+        },
+        {
+          "pattern": "ocaml/dist/lib/*",
+          "role": "stdlib"
+        },
+        {
+          "pattern": "ocaml/dist/sysroot/*",
+          "role": "sdk"
+        },
+        {
+          "pattern": "*/licenses/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/README.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/manifest.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.lock.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "ocaml/*.py",
+          "role": "adapter"
+        },
+        {
+          "pattern": "ocaml/dist/src/*",
+          "role": "adapter"
+        }
+      ]
+    },
+    "goose": {
+      "include": [
+        "goose/README.md",
+        "goose/compile.py",
+        "goose/runner.py",
+        "goose/toolchain.lock.json",
+        "goose/dist"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "build",
+          "path": "goose/compile.py",
+          "format": "host-script"
+        },
+        {
+          "name": "goose",
+          "path": "goose/dist/bin/goose.wasm",
+          "format": "wasm-core"
+        },
+        {
+          "name": "clang",
+          "path": "goose/dist/bin/c-backend.wasm",
+          "format": "wasm-component"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Python",
+          "kind": "orchestrator",
+          "version": "3.12+",
+          "included": false,
+          "note": "File I/O and Wasm tool orchestration."
+        },
+        {
+          "name": "Wisp Wasmtime host",
+          "kind": "runtime-host",
+          "version": "49.0.1",
+          "included": false,
+          "note": "Wasm exceptions for the frontend; WASI Preview 3 and external core-module imports for shared LLVM. Set WISP_WASMTIME."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "goose/dist/bin/*",
+          "role": "compiler"
+        },
+        {
+          "pattern": "goose/dist/stdlib/*",
+          "role": "stdlib"
+        },
+        {
+          "pattern": "goose/dist/runtime/*",
+          "role": "runtime"
+        },
+        {
+          "pattern": "goose/dist/sysroot/*",
+          "role": "sdk"
+        },
+        {
+          "pattern": "*/licenses/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/README.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "*/manifest.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.lock.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "goose/*.py",
+          "role": "adapter"
+        }
+      ]
+    }
+  }
+}

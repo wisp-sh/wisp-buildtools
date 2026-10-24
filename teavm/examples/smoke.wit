@@ -1,0 +1,5 @@
+package demo:teavm-smoke@0.1.0;
+
+world smoke {
+    export answer: func() -> u32;
+}

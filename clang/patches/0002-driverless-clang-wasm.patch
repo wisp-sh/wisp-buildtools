@@ -1,0 +1,15 @@
+--- a/clang/tools/driver/CMakeLists.txt
++++ b/clang/tools/driver/CMakeLists.txt
+@@ -42 +42 @@
+-list(APPEND LLVM_OPTIONAL_SOURCES clang_p3_main.cpp)
++list(APPEND LLVM_OPTIONAL_SOURCES clang_p3_main.cpp clang_wasm_main.cpp)
+@@ -99,0 +100 @@
++  target_link_options(clang-p3 PRIVATE "LINKER:-Map=${CMAKE_BINARY_DIR}/clang-p3.map")
+@@ -100,0 +102,7 @@
++  add_clang_tool(clang-wasm
++    clang_wasm_main.cpp
++    DEPENDS intrinsics_gen target_parser_gen)
++  clang_target_link_libraries(clang-wasm PRIVATE
++    clangBasic clangCodeGen clangFrontend clangOptions lldCommon lldWasm)
++  target_include_directories(clang-wasm PRIVATE ${LLVM_MAIN_SRC_DIR}/../lld/include)
++  target_link_options(clang-wasm PRIVATE "LINKER:-Map=${CMAKE_BINARY_DIR}/clang-wasm.map")

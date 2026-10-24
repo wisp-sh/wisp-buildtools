@@ -1,0 +1,21 @@
+[package]
+name = "wisp-javascript-componentize"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[dependencies]
+anyhow = "1.0"
+wit-dylib = "=0.258.0"
+wit-parser = "=0.258.0"
+wit-component = { version = "=0.258.0", features = ["dummy-module"] }
+wasm-encoder = "=0.258.0"
+wasmparser = "=0.258.0"
+wasi-preview1-component-adapter-provider = "=47.0.4"
+wasm-compose = "=0.258.0"
+indexmap = "2"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true

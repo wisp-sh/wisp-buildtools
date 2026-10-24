@@ -1,0 +1,13 @@
+--- a/src/commands/run.rs
++++ b/src/commands/run.rs
+@@ -460,8 +460,8 @@
+                         bail!("support for --preload disabled at compile time");
+                     }
+                     #[cfg(feature = "component-model")]
+-                    CliLinker::Component(_) => {
+-                        bail!("--preload cannot be used with components");
++                    CliLinker::Component(linker) => {
++                        linker.root().module(name, &preload_module)?;
+                     }
+                 }
+             }

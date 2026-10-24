@@ -1,0 +1,16 @@
+package wisp:python@0.1.0;
+
+interface source {
+  get: func() -> string;
+}
+
+interface api {
+  validate: func() -> result<_, string>;
+  add: func(a: s32, b: s32) -> s32;
+  runtime-info: func() -> string;
+}
+
+world python-runtime {
+  import source;
+  export api;
+}

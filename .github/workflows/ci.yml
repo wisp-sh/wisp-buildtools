@@ -1,0 +1,109 @@
+name: Checks and compiler builds
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Check all build definitions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      toolchains: ${{ steps.matrix.outputs.toolchains }}
+      has-toolchains: ${{ steps.matrix.outputs.has-toolchains }}
+      llvm-toolchains: ${{ steps.matrix.outputs.llvm-toolchains }}
+      has-llvm-toolchains: ${{ steps.matrix.outputs.has-llvm-toolchains }}
+      has-rust-toolchains: ${{ steps.matrix.outputs.has-rust-toolchains }}
+      other-toolchains: ${{ steps.matrix.outputs.other-toolchains }}
+      has-other-toolchains: ${{ steps.matrix.outputs.has-other-toolchains }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Select toolchains affected by changed inputs
+        id: matrix
+        run: python3 tools/ci-select.py > build-selection.json
+      - name: Install shared Wasm tools for workspace checks
+        run: python3 tools/ci-prerequisites.py install wasm-tools
+      - name: Bootstrap shared Wasm tools
+        run: python3 build.py build wasm-tools
+      - name: Check manifest and build command behavior
+        run: |
+          python3 build.py list --json
+          python3 build.py plan all --json > build-plan.json
+          python3 test-build.py
+          python3 test-ci.py
+          python3 test-prerequisites.py
+          python3 test-llvm-ci.py
+          python3 test-packages.py
+          python3 test-workspace.py
+          python3 tools/ci-prerequisites.py check
+      - name: Check GitHub Actions workflows
+        run: python3 tools/ci-prerequisites.py lint
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: all-toolchain-build-plan
+          path: |
+            build-plan.json
+            build-selection.json
+          if-no-files-found: error
+          retention-days: 7
+
+  compilers:
+    name: Build ${{ matrix.toolchain }}
+    needs: checks
+    if: needs.checks.outputs.has-other-toolchains == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: ${{ fromJSON(needs.checks.outputs.other-toolchains) }}
+    uses: ./.github/workflows/toolchain.yml
+    with:
+      toolchain: ${{ matrix.toolchain }}
+      jobs: 2
+      timeout: 360
+
+  rust:
+    name: Build Rust with shared LLVM 24
+    needs: [checks, llvm-bootstrap]
+    if: needs.checks.outputs.has-rust-toolchains == 'true'
+    uses: ./.github/workflows/toolchain.yml
+    with:
+      toolchain: rust
+      runner: ${{ vars.RUST_RUNNER_JSON || '["ubuntu-24.04"]' }}
+      jobs: ${{ fromJSON(vars.RUST_BUILD_JOBS || '2') }}
+      timeout: 360
+      llvm-bootstrap: true
+
+  llvm-bootstrap:
+    name: Prepare shared Clang and LLVM
+    needs: checks
+    if: needs.checks.outputs.has-llvm-toolchains == 'true' || needs.checks.outputs.has-rust-toolchains == 'true'
+    uses: ./.github/workflows/llvm-bootstrap.yml
+    with:
+      runner: ${{ vars.LLVM_RUNNER_JSON || '["ubuntu-24.04"]' }}
+      jobs: ${{ fromJSON(vars.LLVM_BUILD_JOBS || '2') }}
+
+  llvm-compilers:
+    name: Build ${{ matrix.toolchain }}
+    needs: [checks, llvm-bootstrap]
+    if: needs.checks.outputs.has-llvm-toolchains == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: ${{ fromJSON(needs.checks.outputs.llvm-toolchains) }}
+    uses: ./.github/workflows/toolchain.yml
+    with:
+      toolchain: ${{ matrix.toolchain }}
+      runner: ${{ vars.LLVM_RUNNER_JSON || '["ubuntu-24.04"]' }}
+      jobs: ${{ fromJSON(vars.LLVM_BUILD_JOBS || '2') }}
+      timeout: 360
+      llvm-bootstrap: true

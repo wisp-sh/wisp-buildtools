@@ -1,0 +1,5 @@
+package demo:grain-startup@0.1.0;
+
+world startup {
+  export add: func(a: u32, b: u32) -> u32;
+}

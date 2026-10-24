@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "componentize_py": {
+    "version": "0.25.1",
+    "filename": "componentize_py-0.25.1-cp39-abi3-manylinux_2_28_x86_64.whl",
+    "url": "https://files.pythonhosted.org/packages/ed/c6/ad1431751ff1969a132323f6e2797ec38ccdf9d0a53aabb45d79221092a4/componentize_py-0.25.1-cp39-abi3-manylinux_2_28_x86_64.whl",
+    "sha256": "8623cd8cab8453cb0cd8bf03f3c7103420d06f2f3d360186a280a70a1ca5e89f"
+  },
+  "tools": {
+    "wasmtime": {
+      "version": "49.0.4",
+      "sha256": "edd1cc98eac2fe1759bcc43aaf5f8c0b935ca1447fc78517d01f3a352d535c72"
+    },
+    "wasm-tools": {
+      "version": "1.262.0",
+      "sha256": "fe6a056dc03269b06f53e0cff926101c17d4f4ea37fbaa077d049c0d18acb211"
+    },
+    "wac": {
+      "version": "0.12.0",
+      "sha256": "7cd490edbd452221ef89e6750fc43eacc9b71b1242095eb577cb9a3bf0d3beda"
+    },
+    "wasm-opt": {
+      "version": "133",
+      "sha256": "8f25e9fd5db0fc5f210003aaa432922feb2e52d309e430def2f929e34da9466b"
+    }
+  },
+  "python_license": {
+    "url": "https://raw.githubusercontent.com/python/cpython/v3.14.0/LICENSE",
+    "sha256": "b0e25a78cffb43f4d92de8b61ccfa1f1f98ecbc22330b54b5251e7b6ba010231"
+  },
+  "binaryen": {
+    "url": "https://github.com/WebAssembly/binaryen/releases/download/version_133/binaryen-version_133-x86_64-linux.tar.gz",
+    "sha256": "2dc9c7813f5375db93d96ead4b78222fcc3e2677bbb832297af4797782a37489",
+    "version": "133"
+  }
+}

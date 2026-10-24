@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "binaryenVersion": "120",
+  "rustRevision": "cf327c2068549194a29160499c2ecafa9061e46e",
+  "llvmRevision": "69bd8547e9cc1268ca41339c98b2b17d13d69be3",
+  "llvmVersion": "19.0.0git",
+  "namespace": "wisp-rust-llvm19-primary",
+  "symbolPatterns": [
+    "llvm::",
+    "LLVM",
+    "lld::",
+    "rustc_codegen_llvm"
+  ],
+  "minimumFunctions": 70000,
+  "selectionMethod": "LLVM/LLD archive-defined symbols matched by original function index, plus Rust LLVM backend names."
+}

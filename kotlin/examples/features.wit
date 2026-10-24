@@ -1,0 +1,4 @@
+package demo:kotlin-features@0.1.0;
+world features {
+    export answer: func() -> u32;
+}

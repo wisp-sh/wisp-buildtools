@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "javaSourceLevel": "21",
+  "compiler": {
+    "name": "Eclipse Compiler for Java",
+    "version": "3.46.100",
+    "url": "https://repo.maven.apache.org/maven2/org/eclipse/jdt/ecj/3.46.100/ecj-3.46.100.jar",
+    "bytes": 3384534,
+    "sha256": "74c93172475fee0cd4e6eefb44233516dd40525642da35d009146d97ea598229"
+  },
+  "license": {
+    "name": "EPL-2.0",
+    "url": "https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.txt",
+    "bytes": 14198,
+    "sha256": "0becf16567beb77fa252b7664631dd177c8f9a1889e48995b45379c7130e5303"
+  }
+}

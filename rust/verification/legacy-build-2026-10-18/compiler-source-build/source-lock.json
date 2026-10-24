@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "status": "experimental-macro-backport-awaiting-compiler-acceptance",
+  "rust_version": "1.83.0-dev",
+  "llvm_version": "19.0.0git",
+  "compiler_host_target": "wasm32-wasip1-threads",
+  "application_targets": [
+    "wasm32-wasip1",
+    "wasm32-unknown-unknown"
+  ],
+  "sources": [
+    {
+      "name": "rust",
+      "repository": "https://github.com/oligamiq/rust",
+      "revision": "cf327c2068549194a29160499c2ecafa9061e46e",
+      "destination": ".",
+      "url": "https://codeload.github.com/oligamiq/rust/tar.gz/cf327c2068549194a29160499c2ecafa9061e46e",
+      "archive_root": "rust-cf327c2068549194a29160499c2ecafa9061e46e",
+      "archive_bytes": 26887247,
+      "unpacked_bytes": 133167168,
+      "sha256": "7c72732cbe770eabc5a96b948de49970595138c9cd23917b78340fb0402af858"
+    },
+    {
+      "name": "llvm",
+      "repository": "https://github.com/YoWASP/llvm-project",
+      "revision": "69bd8547e9cc1268ca41339c98b2b17d13d69be3",
+      "destination": "src/llvm-project",
+      "url": "https://codeload.github.com/YoWASP/llvm-project/tar.gz/69bd8547e9cc1268ca41339c98b2b17d13d69be3",
+      "archive_root": "llvm-project-69bd8547e9cc1268ca41339c98b2b17d13d69be3",
+      "archive_bytes": 216683532,
+      "unpacked_bytes": 1645972861,
+      "sha256": "ee514315d39e2ec20997da9da134465c6143ba8304aa4f8709995bdc06d72aae"
+    },
+    {
+      "name": "stdarch",
+      "repository": "https://github.com/rust-lang/stdarch",
+      "revision": "ace72223a0e321c1b0a37b5862aa756fe8ab5111",
+      "destination": "library/stdarch",
+      "url": "https://codeload.github.com/rust-lang/stdarch/tar.gz/ace72223a0e321c1b0a37b5862aa756fe8ab5111",
+      "archive_root": "stdarch-ace72223a0e321c1b0a37b5862aa756fe8ab5111",
+      "archive_bytes": 1536062,
+      "unpacked_bytes": 24289413,
+      "sha256": "50c79b04e026cd86b9598d1ea08aa723fe59d8eb958211114ca5f0cbb11753a8"
+    },
+    {
+      "name": "backtrace",
+      "repository": "https://github.com/rust-lang/backtrace-rs",
+      "revision": "230570f2dac80a601f5c0b30da00cc9480bd35eb",
+      "destination": "library/backtrace",
+      "url": "https://codeload.github.com/rust-lang/backtrace-rs/tar.gz/230570f2dac80a601f5c0b30da00cc9480bd35eb",
+      "archive_root": "backtrace-rs-230570f2dac80a601f5c0b30da00cc9480bd35eb",
+      "archive_bytes": 98266,
+      "unpacked_bytes": 352051,
+      "sha256": "13f580d909125bb26c206fcf7b4bd928a543a16432bca1040e3e8413f756eee8"
+    }
+  ],
+  "macro_reference": {
+    "url": "https://github.com/bjorn3/rust/compare/28e8a8c81bf3b37909edac6c2a76e56f30cd492f...2aa6abf53dc8c597d5f9c6e5f195c4080b5a61bf.diff",
+    "sha256": "2441164f21c3f735ff16eb692bef5a9b06cd7f1718bee483f32aec6621ac73a3",
+    "bytes": 65126,
+    "path": "patches/reference/0001-wasm-proc-macros-wasmi.diff",
+    "pull_request": "https://github.com/rust-lang/rust/pull/157709",
+    "repository": "https://github.com/bjorn3/rust",
+    "base_revision": "28e8a8c81bf3b37909edac6c2a76e56f30cd492f",
+    "head_revision": "2aa6abf53dc8c597d5f9c6e5f195c4080b5a61bf",
+    "apply": false,
+    "reason": "Targets a newer rustc; adapt typed clients, handle counters, metadata lookup and interpreter version before applying.",
+    "interpreter_candidate": {
+      "crate": "wasmi",
+      "version": "0.40.0",
+      "declared_minimum_rust": "1.80",
+      "status": "compiled-in-native-and-wasm-bridge-test-hosts",
+      "reason": "The fork bootstraps using Rust1.82 beta; wasmi0.46 requires1.83 and PRwasmi1.0.9 requires1.86."
+    }
+  },
+  "macro_backport": {
+    "path": "patches/0001-rust-1.83-wasm-proc-macro-bridge.patch",
+    "sha256": "5f64c188f3889714d243c26e36dbf8a1b994f7a18527163bf549902ea57dc7f2",
+    "patched_cargo_lock_sha256": "5aa9d98c74b94e0fd2f2ccd3ca8859bb2d84f12c8adf3bb0cc6edc04866011ae",
+    "interpreter": "wasmi 0.40.0",
+    "macro_target": "wasm32-unknown-unknown",
+    "status": "experimental-not-application-acceptance",
+    "bridge_check": "patches/port-check/check.py",
+    "compiler_build_driver": "scripts/build-compiler.py",
+    "required_acceptance": ["derive", "serde"]
+  },
+  "build_patches": [
+    {
+      "path": "patches/0002-llvm-smallvector-cstdint.patch",
+      "sha256": "aa572b26fc0ee90bfd36c678676f6a2c2c1d3b103332d631e4099e3093821b21",
+      "reason": "LLVM SmallVector uses uint32_t/uint64_t directly; GCC 15 no longer provides cstdint through incidental includes.",
+      "source_files": {
+        "src/llvm-project/llvm/include/llvm/ADT/SmallVector.h": "b917e69c07bd9a5641631955461c99c70ac4865aaedb9f1d44a2d1f4ebfd87d0"
+      }
+    }
+  ],
+  "wasi_sdk": {
+    "version": "24.0",
+    "platform": "x86_64-linux",
+    "url": "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-24/wasi-sdk-24.0-x86_64-linux.tar.gz",
+    "archive_bytes": 118879731,
+    "sha256": "c6c38aab56e5de88adf6c1ebc9c3ae8da72f88ec2b656fb024eda8d4167a0bc5",
+    "prepare_script_installs": false
+  },
+  "bootstrap": {
+    "host": "x86_64-unknown-linux-gnu",
+    "date": "2024-09-04",
+    "channel": "beta",
+    "source_file": "src/stage0",
+    "artifacts": [
+      {
+        "url": "https://static.rust-lang.org/dist/2024-09-04/rustc-beta-x86_64-unknown-linux-gnu.tar.xz",
+        "sha256": "82845313e17067dac361eada63fdf2479fc177e8aa97aba5cb40a50861e276bc"
+      },
+      {
+        "url": "https://static.rust-lang.org/dist/2024-09-04/rust-std-beta-x86_64-unknown-linux-gnu.tar.xz",
+        "sha256": "a7a3f5245067b2967bbc4bd010ac3a6e9613cc9b6462c53cdcf0b91eab6cddbb"
+      },
+      {
+        "url": "https://static.rust-lang.org/dist/2024-09-04/cargo-beta-x86_64-unknown-linux-gnu.tar.xz",
+        "sha256": "8f8948750141c3ee8a50e575f196bd972876e784cf1793b256a5a9462c9e3d44"
+      }
+    ],
+    "prepare_script_installs": false
+  },
+  "llvm_sdk_research": {
+    "checked_at": "2026-10-18",
+    "status": "no-compatible-linkable-LLVM-release-found-in-checked-upstreams",
+    "toolchain_builder_revision": "a65ee6dcc85de6e5bc4591a75901da17b345c847",
+    "checked_urls": [
+      "https://github.com/oligamiq/toolchain-for-building-rustc/releases/tag/v0.1.0-release",
+      "https://github.com/oligamiq/toolchain-for-building-rustc/blob/a65ee6dcc85de6e5bc4591a75901da17b345c847/toolchain-for-building-rustc/src/main.rs",
+      "https://github.com/oligamiq/rust_wasm/releases/tag/v0.2.1-release",
+      "https://github.com/YoWASP/clang/releases"
+    ],
+    "finding": "The toolchain-builder release packages native cross-GCC/sysroots; --only-llvm rewrites bootstrap configuration. rust_wasm LLVM assets are linked tool executables, not LLVM static-library SDKs. A source build remains necessary unless a matching build cache is supplied."
+  },
+  "unprepared_inputs": [
+    "Cargo registry source dependencies from the pinned Rust Cargo.lock",
+    "WASI SDK tool executables",
+    "Native compiler, CMake and Ninja",
+    "Native stage0 bootstrap artifacts listed above"
+  ],
+  "source_build_status": "see-separate-compiler-build-report",
+  "macro_support_status": "experimental-backport-requires-rebuilt-compiler-acceptance"
+}

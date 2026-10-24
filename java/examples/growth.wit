@@ -1,0 +1,5 @@
+package demo:java-growth@0.1.0;
+
+world growth {
+    export answer: func() -> u32;
+}

@@ -1,0 +1,109 @@
+--- a/wasmtime-cli-38.0.4/src/commands/run.rs
++++ b/wasmtime-cli-38.0.4/src/commands/run.rs
+@@ -58,6 +58,10 @@
+         value_parser = parse_preloads,
+     )]
+     pub preloads: Vec<(String, PathBuf)>,
++    /// Instantiate dependencies after the main module and before its entry point.
++    /// Each NAME exposes the main instance to that dependency module.
++    #[arg(long = "postload", number_of_values = 1, value_name = "NAME=MODULE_PATH", value_parser = parse_preloads)]
++    pub postloads: Vec<(String, PathBuf)>,
+ 
+     /// Override the value of `argv[0]`, typically the name of the executable of
+     /// the application being run.
+@@ -462,6 +466,20 @@
+                         "failed to instantiate {:?}",
+                         self.module_and_args[0]
+                     ))?;
++
++                // Binaryen split modules fill this instance's function table.
++                // Instantiate them before guest entry, in this same Store.
++                let mut exposed = std::collections::HashSet::new();
++                for (namespace, path) in &self.postloads {
++                    if exposed.insert(namespace) {
++                        linker.instance(&mut *store, namespace, instance)?;
++                    }
++                    let dependency = self.run.load_module(store.engine(), path)?;
++                    linker
++                        .instantiate_async(&mut *store, dependency.unwrap_core())
++                        .await
++                        .with_context(|| format!("failed to postload {}", path.display()))?;
++                }
+ 
+                 // If `_initialize` is present, meaning a reactor, then invoke
+                 // the function.
+@@ -956,9 +974,14 @@
+                 wasmtime_wasi_threads::add_to_linker(linker, store, &module, |host| {
+                     host.wasi_threads.as_ref().unwrap()
+                 })?;
+-                store.data_mut().wasi_threads = Some(Arc::new(WasiThreadsCtx::new(
++                let postloads = self.postloads.iter().map(|(namespace, path)| {
++                    let target = self.run.load_module(store.engine(), path)?;
++                    Ok((namespace.clone(), target.unwrap_core().clone()))
++                }).collect::<Result<Vec<_>>>()?;
++                store.data_mut().wasi_threads = Some(Arc::new(WasiThreadsCtx::new_with_postloads(
+                     module.clone(),
+                     Arc::new(linker.clone()),
++                    postloads,
+                 )?));
+             }
+         }
+--- a/wasmtime-wasi-threads-38.0.4/src/lib.rs
++++ b/wasmtime-wasi-threads-38.0.4/src/lib.rs
+@@ -16,17 +16,26 @@
+ pub struct WasiThreadsCtx<T> {
+     instance_pre: Arc<InstancePre<T>>,
+     tid: AtomicI32,
++    postload_linker: Arc<Linker<T>>,
++    postloads: Arc<Vec<(String, Module)>>,
+ }
+ 
+ impl<T: Clone + Send + 'static> WasiThreadsCtx<T> {
+     pub fn new(module: Module, linker: Arc<Linker<T>>) -> Result<Self> {
++        Self::new_with_postloads(module, linker, Vec::new())
++    }
++
++    /// Recreate split-module dependencies in each spawned thread's Store.
++    pub fn new_with_postloads(module: Module, linker: Arc<Linker<T>>, postloads: Vec<(String, Module)>) -> Result<Self> {
+         let instance_pre = Arc::new(linker.instantiate_pre(&module)?);
+         let tid = AtomicI32::new(0);
+-        Ok(Self { instance_pre, tid })
++        Ok(Self { instance_pre, tid, postload_linker: linker, postloads: Arc::new(postloads) })
+     }
+ 
+     pub fn spawn(&self, host: T, thread_start_arg: i32) -> Result<i32> {
+         let instance_pre = self.instance_pre.clone();
++        let postload_linker = self.postload_linker.clone();
++        let postloads = self.postloads.clone();
+ 
+         // Check that the thread entry point is present. Why here? If we check
+         // for this too early, then we cannot accept modules that do not have an
+@@ -72,6 +81,19 @@
+                     instance_pre.instantiate(&mut store)
+                 }
+                 .unwrap();
++
++                let mut linker = (*postload_linker).clone();
++                let mut exposed = std::collections::HashSet::new();
++                for (namespace, module) in postloads.iter() {
++                    if exposed.insert(namespace) {
++                        linker.instance(&mut store, namespace, instance).unwrap();
++                    }
++                    if module.engine().is_async() {
++                        wasmtime_wasi::runtime::in_tokio(linker.instantiate_async(&mut store, module)).unwrap();
++                    } else {
++                        linker.instantiate(&mut store, module).unwrap();
++                    }
++                }
+ 
+                 let thread_entry_point = instance
+                     .get_typed_func::<(i32, i32), ()>(&mut store, WASI_ENTRY_POINT)
+--- a/wasmtime-cli-38.0.4/Cargo.toml
++++ b/wasmtime-cli-38.0.4/Cargo.toml
+@@ -822,3 +822,6 @@
+ 
+ [profile.release.build-override]
+ opt-level = 0
++
++[patch.crates-io]
++wasmtime-wasi-threads = { path = "../wasmtime-wasi-threads-38.0.4" }

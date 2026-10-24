@@ -1,0 +1,6 @@
+/.cache/
+/.build/
+/.bootstrap-*/
+/.dist-previous/
+/dist/
+**/__pycache__/

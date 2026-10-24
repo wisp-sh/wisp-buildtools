@@ -1,0 +1,114 @@
+--- a/clang/tools/driver/CMakeLists.txt
++++ b/clang/tools/driver/CMakeLists.txt
+@@ -39,6 +39,8 @@
+   endif()
+ endif()
+ 
++list(APPEND LLVM_OPTIONAL_SOURCES clang_p3_main.cpp)
++
+ add_clang_tool(clang
+   driver.cpp
+   cc1_main.cpp
+@@ -79,6 +81,24 @@
+ endif()
+ 
+ add_dependencies(clang clang-resource-headers)
++
++# A single-process compiler for the WASIp3 compiler-hosting experiment.
++# Compile to a relocatable Core Wasm object through the integrated cc1, then
++# link it with the wasm LLD library in this same process.
++if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
++  add_clang_tool(clang-p3
++    driver.cpp
++    cc1_main.cpp
++    cc1as_main.cpp
++    cc1gen_reproducer_main.cpp
++    clang_p3_main.cpp
++    DEPENDS intrinsics_gen target_parser_gen)
++  clang_target_link_libraries(clang-p3 PRIVATE
++    clangBasic clangCodeGen clangDriver clangFrontend clangFrontendTool
++    clangOptions clangSerialization lldCommon lldWasm)
++  target_include_directories(clang-p3 PRIVATE ${LLVM_MAIN_SRC_DIR}/../lld/include)
++  add_dependencies(clang-p3 clang-resource-headers)
++endif()
+ 
+ if(NOT CLANG_LINKS_TO_CREATE)
+   set(CLANG_LINKS_TO_CREATE clang++ clang-cl clang-cpp)
+--- /dev/null
++++ b/clang/tools/driver/clang_p3_main.cpp
+@@ -0,0 +1,44 @@
++// Minimal WASIp3 compiler host: integrated Clang cc1, then in-process wasm LLD.
++#include "lld/Common/Driver.h"
++#include "llvm/Support/InitLLVM.h"
++#include "llvm/Support/Driver.h"
++#include "llvm/Support/raw_ostream.h"
++
++#include <string>
++#include <vector>
++
++int clang_main(int argc, char **argv, const llvm::ToolContext &);
++LLD_HAS_DRIVER(wasm)
++
++int main(int argc, char **argv) {
++  llvm::InitLLVM Init(argc, argv);
++  llvm::errs() << "clang-p3: ready\n";
++  if (argc != 4 || std::string(argv[2]) != "-o") {
++    llvm::errs() << "usage: clang-p3 /work/input.cpp -o /work/output.wasm\n";
++    return 2;
++  }
++
++  const std::string object = std::string(argv[3]) + ".o";
++  std::vector<const char *> clangArgs = {
++      "clang", "--target=wasm32-unknown-unknown", "-x", "c++",
++      "-ffreestanding", "-nostdinc", "-nostdinc++", "-fintegrated-cc1",
++      "-c", argv[1], "-o", object.c_str()};
++  std::vector<char *> mutableArgs;
++  for (const char *arg : clangArgs)
++    mutableArgs.push_back(const_cast<char *>(arg));
++
++  llvm::ToolContext context(argv[0], nullptr, false);
++  const int compileResult =
++      clang_main(static_cast<int>(mutableArgs.size()), mutableArgs.data(), context);
++  if (compileResult)
++    return compileResult;
++  llvm::errs() << "clang-p3: codegen-complete\n";
++
++  const char *linkArgs[] = {"wasm-ld", "--no-entry", "--export=add",
++                            object.c_str(), "-o", argv[3]};
++  const lld::DriverDef wasmDriver = {lld::Wasm, &lld::wasm::link};
++  const lld::Result linkResult =
++      lld::lldMain(linkArgs, llvm::outs(), llvm::errs(), {wasmDriver});
++  llvm::errs() << "clang-p3: link-complete\n";
++  return linkResult.retCode;
++}
+--- a/clang/tools/driver/driver.cpp
++++ b/clang/tools/driver/driver.cpp
+@@ -55,7 +55,7 @@
+ #include <optional>
+ #include <set>
+ #include <system_error>
+-#if LLVM_ON_UNIX
++#if LLVM_ON_UNIX && !defined(__wasi__)
+ #include <signal.h>
+ #endif
+ 
+@@ -474,7 +474,7 @@
+     Res = 1;
+ #endif
+ 
+-#if LLVM_ON_UNIX
++#if LLVM_ON_UNIX && !defined(__wasi__)
+   // On Unix, signals are represented by return codes of 128 plus the signal
+   // number. If the return code indicates it was from a signal handler, raise
+   // the signal so that the exit code includes the signal number, as required
+--- a/clang/lib/Driver/Driver.cpp
++++ b/clang/lib/Driver/Driver.cpp
+@@ -1959,7 +1959,7 @@
+     CrashDiagDir = "/";
+   path::append(CrashDiagDir, "Library/Logs/DiagnosticReports");
+   int PID =
+-#if LLVM_ON_UNIX
++#if LLVM_ON_UNIX && !defined(__wasi__)
+       getpid();
+ #else
+       0;

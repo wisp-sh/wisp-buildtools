@@ -1,0 +1,7 @@
+.downloads/
+.sources/
+.work/
+dist/
+work/
+__pycache__/
+*.pyc

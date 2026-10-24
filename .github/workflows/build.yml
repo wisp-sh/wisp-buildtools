@@ -1,0 +1,135 @@
+name: Build all toolchains
+
+on:
+  workflow_dispatch:
+    inputs:
+      toolchain:
+        description: Compiler to build, or all
+        type: choice
+        default: all
+        options:
+          - all
+          - clang
+          - go
+          - grain
+          - ocaml
+          - goose
+          - swift
+          - java
+          - kotlin
+          - jvm
+          - teavm
+          - llvm-swift
+          - llvm
+          - rust
+          - zig
+          - assemblyscript
+          - nim
+          - javascript
+          - python
+          - wasm-tools
+      runner:
+        description: JSON runner labels, use ["self-hosted","linux","x64","buildtools"] for a larger machine
+        type: string
+        default: '["ubuntu-24.04"]'
+      jobs:
+        description: Native bootstrap compile jobs, 1 through 8
+        type: choice
+        default: '2'
+        options: ['1', '2', '4', '8']
+
+permissions:
+  contents: read
+
+jobs:
+  select:
+    name: Select toolchains
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      toolchains: ${{ steps.matrix.outputs.toolchains }}
+      llvm-toolchains: ${{ steps.matrix.outputs.llvm-toolchains }}
+      has-llvm-toolchains: ${{ steps.matrix.outputs.has-llvm-toolchains }}
+      has-rust-toolchains: ${{ steps.matrix.outputs.has-rust-toolchains }}
+      other-toolchains: ${{ steps.matrix.outputs.other-toolchains }}
+      has-other-toolchains: ${{ steps.matrix.outputs.has-other-toolchains }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Create matrix from the checked-in manifest
+        id: matrix
+        env:
+          SELECTED_TOOLCHAIN: ${{ inputs.toolchain }}
+          RUNNER_LABELS: ${{ inputs.runner }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import runpy
+          from pathlib import Path
+
+          manifest = json.loads(Path("buildtools.json").read_text())
+          selected = os.environ["SELECTED_TOOLCHAIN"]
+          tools = list(manifest["tools"]) if selected == "all" else [selected]
+          if any(tool not in manifest["tools"] for tool in tools):
+              raise SystemExit("Unknown toolchain")
+          labels = json.loads(os.environ["RUNNER_LABELS"])
+          if not isinstance(labels, list) or not labels or any(not isinstance(label, str) or not label for label in labels):
+              raise SystemExit("runner must be a nonempty JSON array of runner labels")
+          runpy.run_path("tools/ci-select.py")["write_github_outputs"](tools)
+          PY
+
+  compilers:
+    name: Build ${{ matrix.toolchain }}
+    needs: select
+    if: needs.select.outputs.has-other-toolchains == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        toolchain: ${{ fromJSON(needs.select.outputs.other-toolchains) }}
+    uses: ./.github/workflows/toolchain.yml
+    with:
+      toolchain: ${{ matrix.toolchain }}
+      runner: ${{ inputs.runner }}
+      jobs: ${{ fromJSON(inputs.jobs) }}
+      timeout: 360
+
+  rust:
+    name: Build Rust with shared LLVM 24
+    needs: [select, llvm-bootstrap]
+    if: needs.select.outputs.has-rust-toolchains == 'true'
+    uses: ./.github/workflows/toolchain.yml
+    with:
+      toolchain: rust
+      runner: ${{ inputs.runner }}
+      jobs: ${{ fromJSON(inputs.jobs) }}
+      timeout: 360
+      llvm-bootstrap: true
+
+  llvm-bootstrap:
+    name: Prepare shared Clang and LLVM
+    needs: select
+    if: needs.select.outputs.has-llvm-toolchains == 'true' || needs.select.outputs.has-rust-toolchains == 'true'
+    uses: ./.github/workflows/llvm-bootstrap.yml
+    with:
+      runner: ${{ inputs.runner }}
+      jobs: ${{ fromJSON(inputs.jobs) }}
+
+  llvm-compilers:
+    name: Build ${{ matrix.toolchain }}
+    needs: [select, llvm-bootstrap]
+    if: needs.select.outputs.has-llvm-toolchains == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        toolchain: ${{ fromJSON(needs.select.outputs.llvm-toolchains) }}
+    uses: ./.github/workflows/toolchain.yml
+    with:
+      toolchain: ${{ matrix.toolchain }}
+      runner: ${{ inputs.runner }}
+      jobs: ${{ fromJSON(inputs.jobs) }}
+      timeout: 360
+      llvm-bootstrap: true

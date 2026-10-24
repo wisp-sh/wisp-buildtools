@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "goose": {
+    "repository": "https://github.com/aardappel/goose",
+    "revision": "94cc64daeabcae6f072dc1fe2b864acda5a001bc",
+    "url": "https://codeload.github.com/aardappel/goose/tar.gz/94cc64daeabcae6f072dc1fe2b864acda5a001bc",
+    "sha256": "cc6d218196ad7309d5cead7af9534f82d5e65989a1fb622ca2f375f27e3f8baf",
+    "license": "Apache-2.0"
+  },
+  "wasiSdk": {
+    "version": "34.0",
+    "provider": "clang/.toolchains/wasi-sdk-34.0-x86_64-linux",
+    "target": "wasm32-wasip1"
+  },
+  "profile": "scalar-v1"
+}

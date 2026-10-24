@@ -1,0 +1,5 @@
+package demo:scalar@0.1.0;
+
+world scalar {
+    export add: func(a: s32, b: s32) -> s32;
+}

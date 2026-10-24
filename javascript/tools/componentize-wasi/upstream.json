@@ -1,0 +1,18 @@
+{
+  "source": "https://raw.githubusercontent.com/andreiltd/componentize-qjs/v0.4.5/crates/core/src/codegen.rs",
+  "version": "0.4.5",
+  "sha256": "e8669fc96d85da927229c0b25a53a612757156fe161aae57a2b9b263c3057444",
+  "license": "Apache-2.0",
+  "vendoredFiles": {
+    "src/codegen.rs": {
+      "url": "https://raw.githubusercontent.com/andreiltd/componentize-qjs/v0.4.5/crates/core/src/codegen.rs",
+      "upstreamSha256": "e8669fc96d85da927229c0b25a53a612757156fe161aae57a2b9b263c3057444",
+      "modifications": "None"
+    },
+    "src/stubwasi.rs": {
+      "url": "https://raw.githubusercontent.com/andreiltd/componentize-qjs/v0.4.5/crates/core/src/stubwasi.rs",
+      "upstreamSha256": "6b53a8c190a7303f2e61dcf4ee330ee1227ead81b76e3842ca3d034451c334a4",
+      "modifications": "In-memory wasm-compose graph instead of temporary files; validation-only authored-import stubs; constant insecure-seed and wall/monotonic clock startup implementations, with all other WASI calls trapping."
+    }
+  }
+}

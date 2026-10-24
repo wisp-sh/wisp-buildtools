@@ -1,0 +1,48 @@
+{
+  "name": "wasm-opt-Oz",
+  "raw_bytes": 59657909,
+  "stripped_bytes": 59657909,
+  "gzip9_bytes": 20284350,
+  "warm": {
+    "startup_ms": 623.705283,
+    "codegen_ms": 7.791140000000041,
+    "link_ms": 1.1866929999999911,
+    "compile_link_ms": 8.977205000000026,
+    "total_ms": 663.785795,
+    "peak_rss_kib": 382420
+  },
+  "warm_runs": [
+    {
+      "startup_ms": 635.007404,
+      "codegen_ms": 7.791140000000041,
+      "link_ms": 1.186064999999985,
+      "compile_link_ms": 8.977205000000026,
+      "total_ms": 676.833001,
+      "peak_rss_kib": 382420
+    },
+    {
+      "startup_ms": 623.705283,
+      "codegen_ms": 7.738477999999986,
+      "link_ms": 1.2310439999999971,
+      "compile_link_ms": 8.969521999999984,
+      "total_ms": 663.785795,
+      "peak_rss_kib": 382420
+    },
+    {
+      "startup_ms": 610.468384,
+      "codegen_ms": 7.805737000000022,
+      "link_ms": 1.1866929999999911,
+      "compile_link_ms": 8.992430000000013,
+      "total_ms": 650.890217,
+      "peak_rss_kib": 381912
+    }
+  ],
+  "cold": {
+    "startup_ms": 28288.767633,
+    "codegen_ms": 7.643491999999242,
+    "link_ms": 0.7772079999995185,
+    "compile_link_ms": 8.42069999999876,
+    "total_ms": 28591.316939,
+    "peak_rss_kib": 1950968
+  }
+}

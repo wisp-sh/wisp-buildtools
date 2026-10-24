@@ -1,0 +1,1983 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 36213a1e4e481..07543d8317531 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -43,6 +43,12 @@ version = "0.2.21"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
+ 
++[[package]]
++name = "ambient-authority"
++version = "0.0.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "e9d4ee0d472d1cd2e28c97dfa124b3d8d992e10eb0a035f33f5d12e3a177ba3b"
++
+ [[package]]
+ name = "android_system_properties"
+ version = "0.1.5"
+@@ -264,6 +270,17 @@ dependencies = [
+  "wait-timeout",
+ ]
+ 
++[[package]]
++name = "async-trait"
++version = "0.1.89"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "9035ad2d096bed7955a320ee7e2230574d28fd3c3a0f186cbea1ff3c7eed5dbb"
++dependencies = [
++ "proc-macro2",
++ "quote",
++ "syn 2.0.117",
++]
++
+ [[package]]
+ name = "autocfg"
+ version = "1.5.0"
+@@ -282,7 +299,7 @@ dependencies = [
+  "miniz_oxide",
+  "object 0.36.7",
+  "rustc-demangle",
+- "windows-targets",
++ "windows-targets 0.52.6",
+ ]
+ 
+ [[package]]
+@@ -442,6 +459,72 @@ dependencies = [
+  "serde_core",
+ ]
+ 
++[[package]]
++name = "cap-fs-ext"
++version = "3.4.5"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "d5528f85b1e134ae811704e41ef80930f56e795923f866813255bc342cc20654"
++dependencies = [
++ "cap-primitives",
++ "cap-std",
++ "io-lifetimes",
++ "windows-sys 0.59.0",
++]
++
++[[package]]
++name = "cap-primitives"
++version = "3.4.5"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "b6cf3aea8a5081171859ef57bc1606b1df6999df4f1110f8eef68b30098d1d3a"
++dependencies = [
++ "ambient-authority",
++ "fs-set-times",
++ "io-extras",
++ "io-lifetimes",
++ "ipnet",
++ "maybe-owned",
++ "rustix 1.1.2",
++ "rustix-linux-procfs",
++ "windows-sys 0.59.0",
++ "winx",
++]
++
++[[package]]
++name = "cap-rand"
++version = "3.4.5"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "d8144c22e24bbcf26ade86cb6501a0916c46b7e4787abdb0045a467eb1645a1d"
++dependencies = [
++ "ambient-authority",
++ "rand 0.8.7",
++]
++
++[[package]]
++name = "cap-std"
++version = "3.4.5"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "b6dc3090992a735d23219de5c204927163d922f42f575a0189b005c62d37549a"
++dependencies = [
++ "cap-primitives",
++ "io-extras",
++ "io-lifetimes",
++ "rustix 1.1.2",
++]
++
++[[package]]
++name = "cap-time-ext"
++version = "3.4.5"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "def102506ce40c11710a9b16e614af0cde8e76ae51b1f48c04b8d79f4b671a80"
++dependencies = [
++ "ambient-authority",
++ "cap-primitives",
++ "iana-time-zone",
++ "once_cell",
++ "rustix 1.1.2",
++ "winx",
++]
++
+ [[package]]
+ name = "capstone"
+ version = "0.14.0"
+@@ -1417,6 +1500,17 @@ version = "2.3.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
+ 
++[[package]]
++name = "fd-lock"
++version = "4.0.4"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "0ce92ff622d6dadf7349484f42c93271a0d49b7cc4d466a936405bacbe10aa78"
++dependencies = [
++ "cfg-if",
++ "rustix 1.1.2",
++ "windows-sys 0.59.0",
++]
++
+ [[package]]
+ name = "features-status-dump"
+ version = "0.1.0"
+@@ -1527,6 +1621,17 @@ dependencies = [
+  "autocfg",
+ ]
+ 
++[[package]]
++name = "fs-set-times"
++version = "0.20.3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "94e7099f6313ecacbe1256e8ff9d617b75d1bcb16a6fddef94866d225a01a14a"
++dependencies = [
++ "io-lifetimes",
++ "rustix 1.1.2",
++ "windows-sys 0.59.0",
++]
++
+ [[package]]
+ name = "fs_extra"
+ version = "1.3.0"
+@@ -1630,7 +1735,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "1033caf0b349c518623b5396bfb2cf0bddf44f0306d543a250e5743297aafd10"
+ dependencies = [
+  "fnv",
+- "hashbrown",
++ "hashbrown 0.17.1",
+  "indexmap",
+  "stable_deref_trait",
+ ]
+@@ -1678,6 +1783,15 @@ dependencies = [
+  "serde",
+ ]
+ 
++[[package]]
++name = "hashbrown"
++version = "0.15.5"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "9229cfe53dfd69f0609a49f65461bd93001ea1ef889cd5529dd176593f5338a1"
++dependencies = [
++ "foldhash 0.1.5",
++]
++
+ [[package]]
+ name = "hashbrown"
+ version = "0.17.1"
+@@ -1979,7 +2093,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "d466e9454f08e4a911e14806c24e16fba1b4c121d1ea474396f396069cf949d9"
+ dependencies = [
+  "equivalent",
+- "hashbrown",
++ "hashbrown 0.17.1",
+  "serde",
+  "serde_core",
+ ]
+@@ -2058,6 +2172,22 @@ dependencies = [
+  "unic-langid",
+ ]
+ 
++[[package]]
++name = "io-extras"
++version = "0.18.4"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "2285ddfe3054097ef4b2fe909ef8c3bcd1ea52a8f0d274416caebeef39f04a65"
++dependencies = [
++ "io-lifetimes",
++ "windows-sys 0.59.0",
++]
++
++[[package]]
++name = "io-lifetimes"
++version = "2.0.4"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "06432fb54d3be7964ecd3649233cddf80db2832f47fec34c01f65b3d9d774983"
++
+ [[package]]
+ name = "ipc-channel"
+ version = "0.22.0"
+@@ -2077,6 +2207,12 @@ dependencies = [
+  "windows 0.61.3",
+ ]
+ 
++[[package]]
++name = "ipnet"
++version = "2.12.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "d98f6fed1fde3f8c21bc40a1abb88dd75e67924f9cffc3ef95607bad8017f8e2"
++
+ [[package]]
+ name = "is_terminal_polyfill"
+ version = "1.70.2"
+@@ -2383,6 +2519,12 @@ dependencies = [
+  "walkdir",
+ ]
+ 
++[[package]]
++name = "linux-raw-sys"
++version = "0.4.15"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "d26c52dbd32dccf2d10cac7725f8eae5296885fb5703b261f7d0a0739ec807ab"
++
+ [[package]]
+ name = "linux-raw-sys"
+ version = "0.11.0"
+@@ -2456,6 +2598,12 @@ dependencies = [
+  "regex-automata",
+ ]
+ 
++[[package]]
++name = "maybe-owned"
++version = "0.3.4"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "4facc753ae494aeb6e3c22f839b158aebd4f9270f55cd3c79906c45476c47ab4"
++
+ [[package]]
+ name = "md-5"
+ version = "0.10.6"
+@@ -2785,7 +2933,7 @@ checksum = "2e5a6c098c7a3b6547378093f5cc30bc54fd361ce711e05293a5cc589562739b"
+ dependencies = [
+  "crc32fast",
+  "flate2",
+- "hashbrown",
++ "hashbrown 0.17.1",
+  "indexmap",
+  "memchr",
+  "ruzstd",
+@@ -3257,13 +3405,24 @@ dependencies = [
+  "ptr_meta",
+ ]
+ 
++[[package]]
++name = "rand"
++version = "0.8.7"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "22f6172bdec972074665ed81ed53b71da00bfc44b65a753cfde883ec4c702a1a"
++dependencies = [
++ "libc",
++ "rand_chacha 0.3.1",
++ "rand_core 0.6.4",
++]
++
+ [[package]]
+ name = "rand"
+ version = "0.9.3"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "7ec095654a25171c2124e9e3393a930bddbffdc939556c914957a4c3e0a87166"
+ dependencies = [
+- "rand_chacha",
++ "rand_chacha 0.9.0",
+  "rand_core 0.9.3",
+ ]
+ 
+@@ -3278,6 +3437,16 @@ dependencies = [
+  "rand_core 0.10.1",
+ ]
+ 
++[[package]]
++name = "rand_chacha"
++version = "0.3.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
++dependencies = [
++ "ppv-lite86",
++ "rand_core 0.6.4",
++]
++
+ [[package]]
+ name = "rand_chacha"
+ version = "0.9.0"
+@@ -3288,6 +3457,15 @@ dependencies = [
+  "rand_core 0.9.3",
+ ]
+ 
++[[package]]
++name = "rand_core"
++version = "0.6.4"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
++dependencies = [
++ "getrandom 0.2.16",
++]
++
+ [[package]]
+ name = "rand_core"
+ version = "0.9.3"
+@@ -3458,7 +3636,7 @@ checksum = "d9776093b7ca170454ab1406954f7b7d97a57c51dc6c0642957fb2ef25c2d399"
+ dependencies = [
+  "bytecheck",
+  "bytes",
+- "hashbrown",
++ "hashbrown 0.17.1",
+  "indexmap",
+  "munge",
+  "ptr_meta",
+@@ -3919,7 +4097,7 @@ dependencies = [
+  "either",
+  "elsa",
+  "ena",
+- "hashbrown",
++ "hashbrown 0.17.1",
+  "indexmap",
+  "jobserver",
+  "libc",
+@@ -4430,6 +4608,8 @@ dependencies = [
+  "rustc_target",
+  "tempfile",
+  "tracing",
++ "wasmi",
++ "wasmi_wasi",
+ ]
+ 
+ [[package]]
+@@ -5160,6 +5340,19 @@ dependencies = [
+  "unicode-width 0.1.14",
+ ]
+ 
++[[package]]
++name = "rustix"
++version = "0.38.44"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "fdb5bc1ae2baa591800df16c9ca78619bf65c0488b41b96ccec5d11220d8c154"
++dependencies = [
++ "bitflags",
++ "errno",
++ "libc",
++ "linux-raw-sys 0.4.15",
++ "windows-sys 0.59.0",
++]
++
+ [[package]]
+ name = "rustix"
+ version = "1.1.2"
+@@ -5169,10 +5362,20 @@ dependencies = [
+  "bitflags",
+  "errno",
+  "libc",
+- "linux-raw-sys",
++ "linux-raw-sys 0.11.0",
+  "windows-sys 0.61.2",
+ ]
+ 
++[[package]]
++name = "rustix-linux-procfs"
++version = "0.1.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "2fc84bf7e9aa16c4f2c758f27412dc9841341e16aa682d9c7ac308fe3ee12056"
++dependencies = [
++ "once_cell",
++ "rustix 1.1.2",
++]
++
+ [[package]]
+ name = "rustversion"
+ version = "1.0.22"
+@@ -5477,6 +5680,12 @@ dependencies = [
+  "color-eyre",
+ ]
+ 
++[[package]]
++name = "spin"
++version = "0.9.8"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
++
+ [[package]]
+ name = "stable_deref_trait"
+ version = "1.2.1"
+@@ -5502,6 +5711,16 @@ version = "1.1.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+ 
++[[package]]
++name = "string-interner"
++version = "0.19.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "23de088478b31c349c9ba67816fa55d9355232d63c3afea8bf513e31f0f1d2c0"
++dependencies = [
++ "hashbrown 0.15.5",
++ "serde",
++]
++
+ [[package]]
+ name = "string_cache"
+ version = "0.9.0"
+@@ -5595,6 +5814,22 @@ dependencies = [
+  "windows 0.62.2",
+ ]
+ 
++[[package]]
++name = "system-interface"
++version = "0.27.3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "cc4592f674ce18521c2a81483873a49596655b179f71c5e05d10c1fe66c78745"
++dependencies = [
++ "bitflags",
++ "cap-fs-ext",
++ "cap-std",
++ "fd-lock",
++ "io-lifetimes",
++ "rustix 0.38.44",
++ "windows-sys 0.59.0",
++ "winx",
++]
++
+ [[package]]
+ name = "tabled"
+ version = "0.15.0"
+@@ -5625,7 +5860,7 @@ dependencies = [
+  "fastrand",
+  "getrandom 0.3.3",
+  "once_cell",
+- "rustix",
++ "rustix 1.1.2",
+  "windows-sys 0.61.2",
+ ]
+ 
+@@ -5680,7 +5915,7 @@ dependencies = [
+  "indicatif",
+  "num",
+  "rand 0.9.3",
+- "rand_chacha",
++ "rand_chacha 0.9.0",
+  "rayon",
+ ]
+ 
+@@ -5737,7 +5972,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "b5938a79ecf9cb8198d525ddb37cd8841f66ab98073f6a123af7ed7cdcbb73ae"
+ dependencies = [
+  "gimli 0.34.0",
+- "hashbrown",
++ "hashbrown 0.17.1",
+  "itertools",
+  "object 0.39.1",
+  "tracing",
+@@ -6354,6 +6589,30 @@ dependencies = [
+  "wit-bindgen-rt",
+ ]
+ 
++[[package]]
++name = "wasi-common"
++version = "36.0.10"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "c12f0cd37e6a4513802e3918a9d891ce846d69a7594225b558eafc588c16e7fb"
++dependencies = [
++ "anyhow",
++ "bitflags",
++ "cap-fs-ext",
++ "cap-rand",
++ "cap-std",
++ "cap-time-ext",
++ "fs-set-times",
++ "io-extras",
++ "io-lifetimes",
++ "log",
++ "rustix 1.1.2",
++ "system-interface",
++ "thiserror 2.0.17",
++ "tracing",
++ "wiggle",
++ "windows-sys 0.60.2",
++]
++
+ [[package]]
+ name = "wasi-preview1-component-adapter-provider"
+ version = "46.0.1"
+@@ -6465,6 +6724,68 @@ dependencies = [
+  "wasmparser 0.257.1",
+ ]
+ 
++[[package]]
++name = "wasmi"
++version = "1.0.9"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "22bf475363d09d960b48275c4ea9403051add498a9d80c64dbc91edabab9d1d0"
++dependencies = [
++ "spin",
++ "wasmi_collections",
++ "wasmi_core",
++ "wasmi_ir",
++ "wasmparser 0.228.0",
++ "wat",
++]
++
++[[package]]
++name = "wasmi_collections"
++version = "1.0.9"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "85851acbdffd675a9b699b3590406a1d37fc1e1fd073743c7c9cf47c59caacba"
++dependencies = [
++ "string-interner",
++]
++
++[[package]]
++name = "wasmi_core"
++version = "1.0.9"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "ef64cf60195d1f937dbaed592a5afce3e6d86868fb8070c5255bc41539d68f9d"
++dependencies = [
++ "libm",
++]
++
++[[package]]
++name = "wasmi_ir"
++version = "1.0.9"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "5dcb572ce4400e06b5475819f3d6b9048513efbca785f0b9ef3a41747f944fd8"
++dependencies = [
++ "wasmi_core",
++]
++
++[[package]]
++name = "wasmi_wasi"
++version = "1.0.9"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "dd3c9f1b4e454adae2feccb7d4606263b978b2211e93bb8338d17d563f4b3821"
++dependencies = [
++ "wasi-common",
++ "wasmi",
++ "wiggle",
++]
++
++[[package]]
++name = "wasmparser"
++version = "0.228.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "4abf1132c1fdf747d56bbc1bb52152400c70f336870f968b85e89ea422198ae3"
++dependencies = [
++ "bitflags",
++ "indexmap",
++]
++
+ [[package]]
+ name = "wasmparser"
+ version = "0.247.0"
+@@ -6483,12 +6804,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "d92fc335fb6d48f46bda1d8b26b69e28320c15ac3272208333833d6e217e2b4a"
+ dependencies = [
+  "bitflags",
+- "hashbrown",
++ "hashbrown 0.17.1",
+  "indexmap",
+  "semver",
+  "serde",
+ ]
+ 
++[[package]]
++name = "wast"
++version = "35.0.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "2ef140f1b49946586078353a453a1d28ba90adfc54dde75710bc1931de204d68"
++dependencies = [
++ "leb128",
++]
++
+ [[package]]
+ name = "wast"
+ version = "257.0.1"
+@@ -6508,7 +6838,7 @@ version = "1.257.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "672e5495f00c5fc6c6b502205bae4708aa4dd13d969754438743afe0a8af0f1d"
+ dependencies = [
+- "wast",
++ "wast 257.0.1",
+ ]
+ 
+ [[package]]
+@@ -6533,6 +6863,46 @@ dependencies = [
+  "string_cache_codegen",
+ ]
+ 
++[[package]]
++name = "wiggle"
++version = "36.0.10"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "7aed7ef247a05956b0a25e7905fdb709ae89e506547af42897e40301b0658d07"
++dependencies = [
++ "anyhow",
++ "async-trait",
++ "bitflags",
++ "thiserror 2.0.17",
++ "tracing",
++ "wiggle-macro",
++]
++
++[[package]]
++name = "wiggle-generate"
++version = "36.0.10"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "2c9d5550c5f49730d0a8babd089771ff7412e598cf8f7bbe3b647b8e2147a11b"
++dependencies = [
++ "anyhow",
++ "heck",
++ "proc-macro2",
++ "quote",
++ "syn 2.0.117",
++ "witx",
++]
++
++[[package]]
++name = "wiggle-macro"
++version = "36.0.10"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "602175405f0c04fd47439ad6afc5e151c4864883259254d3676562bfb00a7ce8"
++dependencies = [
++ "proc-macro2",
++ "quote",
++ "syn 2.0.117",
++ "wiggle-generate",
++]
++
+ [[package]]
+ name = "winapi-util"
+ version = "0.1.11"
+@@ -6753,7 +7123,16 @@ version = "0.59.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "1e38bc4d79ed67fd075bcc251a1c39b32a1776bbe92e5bef1f0bf1f8c531853b"
+ dependencies = [
+- "windows-targets",
++ "windows-targets 0.52.6",
++]
++
++[[package]]
++name = "windows-sys"
++version = "0.60.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "f2f500e4d28234f72040990ec9d39e3a6b950f9f22d3dba18416c35882612bcb"
++dependencies = [
++ "windows-targets 0.53.5",
+ ]
+ 
+ [[package]]
+@@ -6771,14 +7150,31 @@ version = "0.52.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "9b724f72796e036ab90c1021d4780d4d3d648aca59e491e6b98e725b84e99973"
+ dependencies = [
+- "windows_aarch64_gnullvm",
+- "windows_aarch64_msvc",
+- "windows_i686_gnu",
+- "windows_i686_gnullvm",
+- "windows_i686_msvc",
+- "windows_x86_64_gnu",
+- "windows_x86_64_gnullvm",
+- "windows_x86_64_msvc",
++ "windows_aarch64_gnullvm 0.52.6",
++ "windows_aarch64_msvc 0.52.6",
++ "windows_i686_gnu 0.52.6",
++ "windows_i686_gnullvm 0.52.6",
++ "windows_i686_msvc 0.52.6",
++ "windows_x86_64_gnu 0.52.6",
++ "windows_x86_64_gnullvm 0.52.6",
++ "windows_x86_64_msvc 0.52.6",
++]
++
++[[package]]
++name = "windows-targets"
++version = "0.53.5"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "4945f9f551b88e0d65f3db0bc25c33b8acea4d9e41163edf90dcd0b19f9069f3"
++dependencies = [
++ "windows-link 0.2.1",
++ "windows_aarch64_gnullvm 0.53.1",
++ "windows_aarch64_msvc 0.53.1",
++ "windows_i686_gnu 0.53.1",
++ "windows_i686_gnullvm 0.53.1",
++ "windows_i686_msvc 0.53.1",
++ "windows_x86_64_gnu 0.53.1",
++ "windows_x86_64_gnullvm 0.53.1",
++ "windows_x86_64_msvc 0.53.1",
+ ]
+ 
+ [[package]]
+@@ -6805,48 +7201,96 @@ version = "0.52.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "32a4622180e7a0ec044bb555404c800bc9fd9ec262ec147edd5989ccd0c02cd3"
+ 
++[[package]]
++name = "windows_aarch64_gnullvm"
++version = "0.53.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "a9d8416fa8b42f5c947f8482c43e7d89e73a173cead56d044f6a56104a6d1b53"
++
+ [[package]]
+ name = "windows_aarch64_msvc"
+ version = "0.52.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "09ec2a7bb152e2252b53fa7803150007879548bc709c039df7627cabbd05d469"
+ 
++[[package]]
++name = "windows_aarch64_msvc"
++version = "0.53.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "b9d782e804c2f632e395708e99a94275910eb9100b2114651e04744e9b125006"
++
+ [[package]]
+ name = "windows_i686_gnu"
+ version = "0.52.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "8e9b5ad5ab802e97eb8e295ac6720e509ee4c243f69d781394014ebfe8bbfa0b"
+ 
++[[package]]
++name = "windows_i686_gnu"
++version = "0.53.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "960e6da069d81e09becb0ca57a65220ddff016ff2d6af6a223cf372a506593a3"
++
+ [[package]]
+ name = "windows_i686_gnullvm"
+ version = "0.52.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "0eee52d38c090b3caa76c563b86c3a4bd71ef1a819287c19d586d7334ae8ed66"
+ 
++[[package]]
++name = "windows_i686_gnullvm"
++version = "0.53.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "fa7359d10048f68ab8b09fa71c3daccfb0e9b559aed648a8f95469c27057180c"
++
+ [[package]]
+ name = "windows_i686_msvc"
+ version = "0.52.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "240948bc05c5e7c6dabba28bf89d89ffce3e303022809e73deaefe4f6ec56c66"
+ 
++[[package]]
++name = "windows_i686_msvc"
++version = "0.53.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "1e7ac75179f18232fe9c285163565a57ef8d3c89254a30685b57d83a38d326c2"
++
+ [[package]]
+ name = "windows_x86_64_gnu"
+ version = "0.52.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "147a5c80aabfbf0c7d901cb5895d1de30ef2907eb21fbbab29ca94c5b08b1a78"
+ 
++[[package]]
++name = "windows_x86_64_gnu"
++version = "0.53.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "9c3842cdd74a865a8066ab39c8a7a473c0778a3f29370b5fd6b4b9aa7df4a499"
++
+ [[package]]
+ name = "windows_x86_64_gnullvm"
+ version = "0.52.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "24d5b23dc417412679681396f2b49f3de8c1473deb516bd34410872eff51ed0d"
+ 
++[[package]]
++name = "windows_x86_64_gnullvm"
++version = "0.53.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "0ffa179e2d07eee8ad8f57493436566c7cc30ac536a3379fdf008f47f6bb7ae1"
++
+ [[package]]
+ name = "windows_x86_64_msvc"
+ version = "0.52.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
+ 
++[[package]]
++name = "windows_x86_64_msvc"
++version = "0.53.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "d6bbff5f0aada427a1e5a6da5f1f98158182f26556f345ac9e04d36d0ebed650"
++
+ [[package]]
+ name = "winnow"
+ version = "0.5.40"
+@@ -6880,6 +7324,16 @@ version = "0.1.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "3ab703352da6a72f35c39a533526393725640575bb211f61987a2748323ad956"
+ 
++[[package]]
++name = "winx"
++version = "0.36.4"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "3f3fd376f71958b862e7afb20cfe5a22830e1963462f3a17f49d82a6c1d1f42d"
++dependencies = [
++ "bitflags",
++ "windows-sys 0.59.0",
++]
++
+ [[package]]
+ name = "wit-bindgen-rt"
+ version = "0.39.0"
+@@ -6915,7 +7369,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "6f815340f0bb65d9775ae21e56b503b496683557b9b627b195d2766c25fb24ae"
+ dependencies = [
+  "anyhow",
+- "hashbrown",
++ "hashbrown 0.17.1",
+  "id-arena",
+  "indexmap",
+  "log",
+@@ -6927,6 +7381,18 @@ dependencies = [
+  "wasmparser 0.257.1",
+ ]
+ 
++[[package]]
++name = "witx"
++version = "0.9.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "e366f27a5cabcddb2706a78296a40b8fcc451e1a6aba2fc1d94b4a01bdaaef4b"
++dependencies = [
++ "anyhow",
++ "log",
++ "thiserror 1.0.69",
++ "wast 35.0.2",
++]
++
+ [[package]]
+ name = "writeable"
+ version = "0.6.4"
+@@ -6944,7 +7410,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "32e45ad4206f6d2479085147f02bc2ef834ac85886624a23575ae137c8aa8156"
+ dependencies = [
+  "libc",
+- "rustix",
++ "rustix 1.1.2",
+ ]
+ 
+ [[package]]
+diff --git a/README.md b/README.md
+index ed35016eb3a23..3e84fdab3312b 100644
+--- a/README.md
++++ b/README.md
+@@ -1,3 +1,11 @@
++```
++WASI_SDK_PATH=../wasi-sdk-33.0-x86_64-linux ./x.py build library --target wasm32-wasip1,x86_64-unknown-linux-gnu
++echo 'extern crate proc_macro; #[proc_macro] pub fn foo(a: proc_macro::TokenStream) -> proc_macro::TokenStream { println!("foo"); (a.to_string() + ";println!(\"Hello from wasm proc macro!\");").parse().unwrap() }' | rustc +stage1 - --crate-type proc-macro --target wasm32-wasip1 -Zwasm-proc-macros
++echo 'fn main() { foo::foo!(println!("Hello World")); }' | rustc +stage1 --extern foo=rust_out.wasm - --edition 2024 && ./rust_out
++WASI_SDK_PATH=../wasi-sdk-33.0-x86_64-linux ./x.py test tests/ui/proc-macro --set rust.wasm-proc-macros=true
++```
++
++
+ <div align="center">
+   <picture>
+     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/rust-lang/www.rust-lang.org/master/static/images/rust-social-wide-dark.svg">
+diff --git a/compiler/rustc_builtin_macros/src/lib.rs b/compiler/rustc_builtin_macros/src/lib.rs
+index 57759bb113401..206bcb5c424bf 100644
+--- a/compiler/rustc_builtin_macros/src/lib.rs
++++ b/compiler/rustc_builtin_macros/src/lib.rs
+@@ -14,6 +14,7 @@
+ 
+ use std::sync::Arc;
+ 
++use rustc_data_structures::sync::IntoDynSyncSend;
+ use rustc_expand::base::{MacroExpanderFn, ResolverExpand, SyntaxExtensionKind};
+ use rustc_expand::proc_macro::BangProcMacro;
+ use rustc_span::sym;
+@@ -147,8 +148,12 @@ pub fn register_builtin_macros(resolver: &mut dyn ResolverExpand) {
+         From: from::expand_deriving_from,
+     }
+ 
+-    let client = rustc_proc_macro::bridge::client::Client::expand1(rustc_proc_macro::quote);
+-    register(sym::quote, SyntaxExtensionKind::Bang(Arc::new(BangProcMacro { client })));
++    let client = rustc_proc_macro::bridge::client::Client::expand1(rustc_proc_macro::quote)
++        .into_dyn_client();
++    register(
++        sym::quote,
++        SyntaxExtensionKind::Bang(Arc::new(BangProcMacro { client: IntoDynSyncSend(client) })),
++    );
+     let requires = SyntaxExtensionKind::Attr(Arc::new(contracts::ExpandRequires));
+     register(sym::contracts_requires, requires);
+     let ensures = SyntaxExtensionKind::Attr(Arc::new(contracts::ExpandEnsures));
+diff --git a/compiler/rustc_codegen_ssa/src/back/linker.rs b/compiler/rustc_codegen_ssa/src/back/linker.rs
+index 2b9ed32f22773..ed01f62428fa0 100644
+--- a/compiler/rustc_codegen_ssa/src/back/linker.rs
++++ b/compiler/rustc_codegen_ssa/src/back/linker.rs
+@@ -1739,7 +1739,38 @@ fn exported_symbols_for_proc_macro_crate(tcx: TyCtxt<'_>) -> Vec<SymbolExport> {
+     let stable_crate_id = tcx.stable_crate_id(LOCAL_CRATE);
+     let proc_macro_decls_name = rustc_session::generate_proc_macro_decls_symbol(stable_crate_id);
+ 
+-    vec![symbol_export_from_raw_name(tcx, proc_macro_decls_name, SymbolExportKind::Data)]
++    if tcx.sess.target.is_like_wasm {
++        vec![
++            symbol_export_from_raw_name(tcx, proc_macro_decls_name, SymbolExportKind::Data),
++            symbol_export_from_raw_name(
++                tcx,
++                "__rustc_proc_macro_alloc_buffer".to_owned(),
++                SymbolExportKind::Text,
++            ),
++            symbol_export_from_raw_name(
++                tcx,
++                "__rustc_proc_macro_buffer_replace".to_owned(),
++                SymbolExportKind::Text,
++            ),
++            symbol_export_from_raw_name(
++                tcx,
++                "__rustc_proc_macro_buffer_ptr".to_owned(),
++                SymbolExportKind::Text,
++            ),
++            symbol_export_from_raw_name(
++                tcx,
++                "__rustc_proc_macro_buffer_len".to_owned(),
++                SymbolExportKind::Text,
++            ),
++            symbol_export_from_raw_name(
++                tcx,
++                "__rustc_proc_macro_call_client".to_owned(),
++                SymbolExportKind::Text,
++            ),
++        ]
++    } else {
++        vec![symbol_export_from_raw_name(tcx, proc_macro_decls_name, SymbolExportKind::Data)]
++    }
+ }
+ 
+ pub(crate) fn linked_symbols(
+diff --git a/compiler/rustc_expand/src/proc_macro.rs b/compiler/rustc_expand/src/proc_macro.rs
+index 5e01b851b75c7..9b298cfcd5e55 100644
+--- a/compiler/rustc_expand/src/proc_macro.rs
++++ b/compiler/rustc_expand/src/proc_macro.rs
+@@ -1,6 +1,7 @@
+ use rustc_ast as ast;
+ use rustc_ast::tokenstream::TokenStream;
+ use rustc_data_structures::AtomicRef;
++use rustc_data_structures::marker::IntoDynSyncSend;
+ use rustc_data_structures::profiling::TimingGuard;
+ use rustc_errors::ErrorGuaranteed;
+ use rustc_parse::parser::{AllowConstBlockItems, ForceCollect, Parser};
+@@ -31,7 +32,7 @@ fn record_expand_proc_macro<'a>(
+ }
+ 
+ pub struct BangProcMacro {
+-    pub client: pm::bridge::client::Client,
++    pub client: IntoDynSyncSend<pm::bridge::server::DynClient>,
+ }
+ 
+ impl base::BangProcMacro for BangProcMacro {
+@@ -58,7 +59,7 @@ impl base::BangProcMacro for BangProcMacro {
+ }
+ 
+ pub struct AttrProcMacro {
+-    pub client: pm::bridge::client::Client,
++    pub client: IntoDynSyncSend<pm::bridge::server::DynClient>,
+ }
+ 
+ impl base::AttrProcMacro for AttrProcMacro {
+@@ -88,7 +89,7 @@ impl base::AttrProcMacro for AttrProcMacro {
+ }
+ 
+ pub struct DeriveProcMacro {
+-    pub client: DeriveClient,
++    pub client: IntoDynSyncSend<DeriveClient>,
+ }
+ 
+ impl MultiItemModifier for DeriveProcMacro {
+@@ -113,9 +114,9 @@ impl MultiItemModifier for DeriveProcMacro {
+         let res = if ecx.sess.opts.incremental.is_some()
+             && ecx.sess.opts.unstable_opts.cache_proc_macros
+         {
+-            (*EXPAND_DERIVE_MACRO_CACHED)(invoc_id, input, ecx, self.client)
++            (*EXPAND_DERIVE_MACRO_CACHED)(invoc_id, input, ecx, self.client.0.clone())
+         } else {
+-            expand_derive_macro(invoc_id, input, ecx, self.client)
++            expand_derive_macro(invoc_id, input, ecx, &self.client)
+         };
+ 
+         let Ok(output) = res else {
+@@ -156,13 +157,13 @@ impl MultiItemModifier for DeriveProcMacro {
+     }
+ }
+ 
+-type DeriveClient = pm::bridge::client::Client;
++type DeriveClient = pm::bridge::server::DynClient;
+ 
+ pub fn expand_derive_macro(
+     invoc_id: LocalExpnId,
+     input: TokenStream,
+     ecx: &mut ExtCtxt<'_>,
+-    client: DeriveClient,
++    client: &DeriveClient,
+ ) -> Result<TokenStream, ()> {
+     let _timer =
+         ecx.sess.prof.generic_activity_with_arg_recorder("expand_proc_macro", |recorder| {
+diff --git a/compiler/rustc_expand_queries/src/derive.rs b/compiler/rustc_expand_queries/src/derive.rs
+index 1254013ad89bb..f0800cbeb5e91 100644
+--- a/compiler/rustc_expand_queries/src/derive.rs
++++ b/compiler/rustc_expand_queries/src/derive.rs
+@@ -4,7 +4,7 @@ use rustc_middle::ty::{TyCtxt, tls};
+ use rustc_proc_macro as pm;
+ use rustc_span::LocalExpnId;
+ 
+-type DeriveClient = pm::bridge::client::Client;
++type DeriveClient = pm::bridge::server::DynClient;
+ 
+ /// Stores the context necessary to expand a derive proc macro via a query.
+ struct QueryDeriveExpandCtx {
+@@ -29,7 +29,7 @@ impl QueryDeriveExpandCtx {
+     /// Must be called while the `enter` function is active.
+     fn with<F, R>(f: F) -> R
+     where
+-        F: for<'a, 'b> FnOnce(&'b mut ExtCtxt<'a>, DeriveClient) -> R,
++        F: for<'a, 'b> FnOnce(&'b mut ExtCtxt<'a>, &DeriveClient) -> R,
+     {
+         DERIVE_EXPAND_CTX.with(|ctx| {
+             let ectx = {
+@@ -42,7 +42,7 @@ impl QueryDeriveExpandCtx {
+                 unsafe { casted.as_mut().unwrap() }
+             };
+ 
+-            f(ectx, ctx.client)
++            f(ectx, &ctx.client)
+         })
+     }
+ }
+diff --git a/compiler/rustc_metadata/Cargo.toml b/compiler/rustc_metadata/Cargo.toml
+index a2ef8454ed6a6..b4ab8d74b10f2 100644
+--- a/compiler/rustc_metadata/Cargo.toml
++++ b/compiler/rustc_metadata/Cargo.toml
+@@ -33,6 +33,8 @@ rustc_structures = { path = "../rustc_structures" }
+ rustc_target = { path = "../rustc_target" }
+ tempfile = "3.7.1"
+ tracing = "0.1"
++wasmi = "1.0.9"
++wasmi_wasi = "1.0.9"
+ # tidy-alphabetical-end
+ 
+ [target.'cfg(target_os = "aix")'.dependencies]
+diff --git a/compiler/rustc_metadata/src/creader.rs b/compiler/rustc_metadata/src/creader.rs
+index c828ba13b8af6..96f9e4aa58b7c 100644
+--- a/compiler/rustc_metadata/src/creader.rs
++++ b/compiler/rustc_metadata/src/creader.rs
+@@ -11,7 +11,7 @@ use rustc_crate_store::{CrateDepKind, CrateSource, ExternCrate, ExternCrateSourc
+ use rustc_data_structures::fx::FxHashSet;
+ use rustc_data_structures::owned_slice::OwnedSlice;
+ use rustc_data_structures::svh::Svh;
+-use rustc_data_structures::sync::{self, FreezeReadGuard, FreezeWriteGuard};
++use rustc_data_structures::sync::{self, FreezeReadGuard, FreezeWriteGuard, IntoDynSyncSend};
+ use rustc_data_structures::unord::UnordMap;
+ use rustc_expand::base::SyntaxExtension;
+ use rustc_hir as hir;
+@@ -22,7 +22,7 @@ use rustc_lint_defs as lint;
+ use rustc_lint_defs::builtin::UNUSED_CRATE_DEPENDENCIES;
+ use rustc_middle::ty::data_structures::IndexSet;
+ use rustc_middle::ty::{TyCtxt, TyCtxtFeed};
+-use rustc_proc_macro::bridge::client::Client as ProcMacroClient;
++use rustc_proc_macro::bridge::server::DynClient;
+ use rustc_session::Session;
+ use rustc_session::config::mitigation_coverage::DeniedPartialMitigationLevel;
+ use rustc_session::config::{
+@@ -932,7 +932,7 @@ impl CStore {
+         &self,
+         path: &Path,
+         stable_crate_id: StableCrateId,
+-    ) -> Result<&'static [ProcMacroClient], CrateError> {
++    ) -> Result<Vec<IntoDynSyncSend<DynClient>>, CrateError> {
+         Ok(crate::host_dylib::dlsym_proc_macros(path, stable_crate_id)?)
+     }
+ 
+diff --git a/compiler/rustc_metadata/src/host_dylib.rs b/compiler/rustc_metadata/src/host_dylib.rs
+index 8f446d2651207..53674bec1e1ba 100644
+--- a/compiler/rustc_metadata/src/host_dylib.rs
++++ b/compiler/rustc_metadata/src/host_dylib.rs
+@@ -1,9 +1,12 @@
+ use std::error::Error;
+ use std::path::Path;
++use std::sync::Arc;
+ use std::time::Duration;
+ 
++use rustc_data_structures::sync::IntoDynSyncSend;
+ use rustc_fs_util::try_canonicalize;
+ use rustc_proc_macro::bridge::client::Client as ProcMacroClient;
++use rustc_proc_macro::bridge::server::DynClient;
+ use rustc_session::StableCrateId;
+ use tracing::debug;
+ 
+@@ -126,22 +129,182 @@ pub unsafe fn load_symbol_from_dylib<T: Copy>(
+ pub(crate) fn dlsym_proc_macros(
+     path: &Path,
+     stable_crate_id: StableCrateId,
+-) -> Result<&'static [ProcMacroClient], DylibError> {
++) -> Result<Vec<IntoDynSyncSend<DynClient>>, DylibError> {
+     let sym_name = rustc_session::generate_proc_macro_decls_symbol(stable_crate_id);
+     debug!("trying to dlsym proc_macros {} for symbol `{}`", path.display(), sym_name);
+ 
+     unsafe {
+         // FIXME(bjorn3) this depends on the unstable slice memory layout
+-        let result = crate::load_symbol_from_dylib::<*const &[ProcMacroClient]>(path, &sym_name);
++        let result = load_symbol_from_dylib::<*const &[ProcMacroClient]>(path, &sym_name);
+         match result {
+             Ok(result) => {
+                 debug!("loaded dlsym proc_macros {} for symbol `{}`", path.display(), sym_name);
+-                Ok(*result)
++                Ok((*result)
++                    .iter()
++                    .map(|proc_macro| IntoDynSyncSend(proc_macro.into_dyn_client()))
++                    .collect())
+             }
+-            Err(err) => {
+-                debug!("failed to dlsym proc_macros {} for symbol `{}`", path.display(), sym_name);
+-                Err(err.into())
++            Err(_err) => {
++                let engine = wasmi::Engine::default();
++                let module = wasmi::Module::new(&engine, std::fs::read(path).unwrap()).unwrap();
++
++                let mut store =
++                    wasmi::Store::new(&engine, wasmi_wasi::WasiCtxBuilder::new().build());
++                let mut linker = wasmi::Linker::new(&engine);
++                linker
++                    .func_wrap("env", "__rustc_proc_macro_dispatch", |_: u32, _: u32| -> () {
++                        unreachable!()
++                    })
++                    .unwrap();
++                wasmi_wasi::add_to_linker(&mut linker, |ctx| ctx).unwrap();
++                let instance = linker.instantiate_and_start(&mut store, &module).unwrap();
++
++                let memory = instance.get_export(&store, "memory").unwrap().into_memory().unwrap();
++
++                let sym = instance
++                    .get_export(&store, &sym_name)
++                    .unwrap()
++                    .into_global()
++                    .unwrap()
++                    .get(&store)
++                    .i32()
++                    .unwrap();
++
++                let mut data = [0; 8];
++                memory.read(&store, sym as usize, &mut data).unwrap();
++                let ptr = u32::from_le_bytes(data[..4].try_into().unwrap());
++                let len = u32::from_le_bytes(data[4..8].try_into().unwrap());
++
++                Ok((0..len)
++                    .map(|i| {
++                        let mut data = [0; 4];
++                        memory.read(&store, (ptr + 4 * i) as usize, &mut data).unwrap();
++                        let func_ptr = u32::from_le_bytes(data);
++
++                        IntoDynSyncSend(wasm_macro_client(engine.clone(), module.clone(), func_ptr))
++                    })
++                    .collect::<Vec<_>>())
+             }
+         }
+     }
+ }
++
++fn wasm_macro_client(engine: wasmi::Engine, module: wasmi::Module, func_ptr: u32) -> DynClient {
++    DynClient {
++        run: Arc::new(move |config| {
++            struct Ctx<'a> {
++                wasi_ctx: wasmi_wasi::WasiCtx,
++                dispatch: rustc_proc_macro::bridge::Closure<'a>,
++                client_refs: Option<ClientRefs>,
++            }
++
++            #[derive(Clone)]
++            struct ClientRefs {
++                memory: wasmi::Memory,
++                buffer_replace: wasmi::TypedFunc<(u32, u32), ()>,
++                buffer_ptr: wasmi::TypedFunc<(u32,), (u32,)>,
++                buffer_len: wasmi::TypedFunc<(u32,), (u32,)>,
++            }
++
++            impl ClientRefs {
++                fn read(
++                    &self,
++                    store: &mut impl wasmi::AsContextMut,
++                    buffer: u32,
++                ) -> Result<Vec<u8>, wasmi::Error> {
++                    let (buffer_ptr,) = self.buffer_ptr.call(&mut *store, (buffer,))?;
++                    let (buffer_len,) = self.buffer_len.call(&mut *store, (buffer,))?;
++                    let mut data = vec![0; buffer_len as usize];
++                    self.memory.read(store, buffer_ptr as usize, &mut data)?;
++                    Ok(data)
++                }
++            }
++
++            let mut store = wasmi::Store::new(
++                &engine,
++                Ctx {
++                    wasi_ctx: wasmi_wasi::WasiCtxBuilder::new()
++                        .inherit_stdout()
++                        .inherit_stderr()
++                        .build(),
++                    dispatch: config.dispatch,
++                    client_refs: None,
++                },
++            );
++            let mut linker: wasmi::Linker<Ctx<'_>> = wasmi::Linker::new(&engine);
++            linker
++                .func_new(
++                    "env",
++                    "__rustc_proc_macro_dispatch",
++                    wasmi::FuncType::new([wasmi::ValType::I32, wasmi::ValType::I32], []),
++                    |mut caller, inputs, _outputs| {
++                        let client_refs = caller.data().client_refs.clone().unwrap();
++                        let input_buffer = inputs[0].i32().unwrap().cast_unsigned();
++                        let output_buffer = inputs[1].i32().unwrap().cast_unsigned();
++
++                        let input_buffer_data = client_refs.read(&mut caller, input_buffer)?;
++
++                        let output_buffer_data =
++                            caller.data_mut().dispatch.call(input_buffer_data.into());
++
++                        client_refs.buffer_replace.call(
++                            &mut caller,
++                            (output_buffer, output_buffer_data.len().try_into().unwrap()),
++                        )?;
++                        let (output_buffer_ptr,) =
++                            client_refs.buffer_ptr.call(&mut caller, (output_buffer,))?;
++                        client_refs.memory.write(
++                            &mut caller,
++                            output_buffer_ptr as usize,
++                            &output_buffer_data,
++                        )?;
++
++                        Ok(())
++                    },
++                )
++                .unwrap();
++            wasmi_wasi::add_to_linker(&mut linker, |ctx| &mut ctx.wasi_ctx).unwrap();
++            let instance = linker.instantiate_and_start(&mut store, &module).unwrap();
++
++            fn get_func<T: wasmi::WasmParams, U: wasmi::WasmResults>(
++                instance: &wasmi::Instance,
++                store: &impl wasmi::AsContext,
++                name: &str,
++            ) -> wasmi::TypedFunc<T, U> {
++                instance.get_export(store, name).unwrap().into_func().unwrap().typed(store).unwrap()
++            }
++
++            let client_refs = ClientRefs {
++                memory: instance.get_export(&store, "memory").unwrap().into_memory().unwrap(),
++                buffer_replace: get_func(&instance, &store, "__rustc_proc_macro_buffer_replace"),
++                buffer_ptr: get_func(&instance, &store, "__rustc_proc_macro_buffer_ptr"),
++                buffer_len: get_func(&instance, &store, "__rustc_proc_macro_buffer_len"),
++            };
++            store.data_mut().client_refs = Some(client_refs.clone());
++
++            let alloc_buffer: wasmi::TypedFunc<(u32,), (u32,)> =
++                get_func(&instance, &store, "__rustc_proc_macro_alloc_buffer");
++
++            let call_client: wasmi::TypedFunc<(u32, u32), (u32,)> =
++                get_func(&instance, &store, "__rustc_proc_macro_call_client");
++
++            let (input_buffer,) =
++                alloc_buffer.call(&mut store, (config.input.len().try_into().unwrap(),)).unwrap();
++            let input_buffer_ptr =
++                client_refs.buffer_ptr.call(&mut store, (input_buffer,)).unwrap().0;
++            instance
++                .get_export(&store, "memory")
++                .unwrap()
++                .into_memory()
++                .unwrap()
++                .write(&mut store, input_buffer_ptr as usize, &config.input)
++                .unwrap();
++
++            let (output_buffer,) = call_client.call(&mut store, (input_buffer, func_ptr)).unwrap();
++
++            let output_buffer_data = client_refs.read(&mut store, output_buffer).unwrap();
++
++            output_buffer_data.into()
++        }),
++    }
++}
+diff --git a/compiler/rustc_metadata/src/locator.rs b/compiler/rustc_metadata/src/locator.rs
+index 23b51dfbf62c6..1bd5b87cbfe26 100644
+--- a/compiler/rustc_metadata/src/locator.rs
++++ b/compiler/rustc_metadata/src/locator.rs
+@@ -223,9 +223,10 @@ use rustc_data_structures::fx::{FxHashSet, FxIndexMap, FxIndexSet};
+ use rustc_data_structures::memmap::Mmap;
+ use rustc_data_structures::owned_slice::{OwnedSlice, slice_owned};
+ use rustc_data_structures::svh::Svh;
++use rustc_data_structures::sync::IntoDynSyncSend;
+ use rustc_errors::{DiagArgValue, IntoDiagArg};
+ use rustc_fs_util::try_canonicalize;
+-use rustc_proc_macro::bridge::client::Client as ProcMacroClient;
++use rustc_proc_macro::bridge::server::DynClient;
+ use rustc_session::filesearch::FileSearch;
+ use rustc_session::search_paths::PathKind;
+ use rustc_session::utils::CanonicalizedPath;
+@@ -987,7 +988,8 @@ pub fn get_proc_macros(
+     path: &Path,
+     metadata_loader: &dyn MetadataLoader,
+     cfg_version: &'static str,
+-) -> IoResult<Vec<(ProcMacroClient, ProcMacroKind)>> {
++) -> IoResult<Vec<(IntoDynSyncSend<DynClient>, ProcMacroKind)>> {
++    // FIXME support wasm proc-macros
+     let host_tuple = TargetTuple::from_tuple(config::host_tuple());
+     let (host, _) = Target::search(&host_tuple, Path::new(""), false).unwrap();
+ 
+@@ -1004,7 +1006,7 @@ pub fn get_proc_macros(
+     let proc_macro_info = metadata.get_proc_macro_info();
+     assert_eq!(proc_macro_info.len(), clients.len());
+ 
+-    Ok(clients.into_iter().copied().zip(proc_macro_info).collect())
++    Ok(clients.into_iter().zip(proc_macro_info).collect())
+ }
+ 
+ // ------------------------------------------ Error reporting -------------------------------------
+diff --git a/compiler/rustc_metadata/src/rmeta/decoder.rs b/compiler/rustc_metadata/src/rmeta/decoder.rs
+index c816c5a34d3e8..eafeb98b24dc3 100644
+--- a/compiler/rustc_metadata/src/rmeta/decoder.rs
++++ b/compiler/rustc_metadata/src/rmeta/decoder.rs
+@@ -12,7 +12,7 @@ use rustc_crate_store::{CrateSource, ExternCrate};
+ use rustc_data_structures::fingerprint::Fingerprint;
+ use rustc_data_structures::fx::FxIndexMap;
+ use rustc_data_structures::owned_slice::OwnedSlice;
+-use rustc_data_structures::sync::Lock;
++use rustc_data_structures::sync::{IntoDynSyncSend, Lock};
+ use rustc_data_structures::unhash::UnhashMap;
+ use rustc_expand::base::{SyntaxExtension, SyntaxExtensionKind};
+ use rustc_expand::proc_macro::{AttrProcMacro, BangProcMacro, DeriveProcMacro};
+@@ -28,7 +28,7 @@ use rustc_middle::middle::lib_features::LibFeatures;
+ use rustc_middle::mir::interpret::{AllocDecodingSession, AllocDecodingState};
+ use rustc_middle::ty::codec::TyDecoder;
+ use rustc_middle::ty::{RestrictionKind, Visibility};
+-use rustc_proc_macro::bridge::client::Client as ProcMacroClient;
++use rustc_proc_macro::bridge::server::DynClient;
+ use rustc_serialize::opaque::MemDecoder;
+ use rustc_serialize::{Decodable, Decoder};
+ use rustc_session::config::TargetModifier;
+@@ -107,7 +107,7 @@ pub(crate) struct CrateMetadata {
+     /// or `#[rustc_allow_incoherent_impl]`.
+     incoherent_impls: FxIndexMap<SimplifiedType, LazyArray<DefIndex>>,
+     /// Proc macro function pointers for this crate, if it's a proc macro crate.
+-    raw_proc_macros: Option<&'static [ProcMacroClient]>,
++    raw_proc_macros: Option<Vec<IntoDynSyncSend<DynClient>>>,
+     /// Source maps for code from the crate.
+     source_map_import_info: Lock<Vec<Option<ImportedSourceFile>>>,
+     /// For every definition in this crate, maps its `DefPathHash` to its `DefIndex`.
+@@ -1010,7 +1010,11 @@ impl CrateMetadata {
+         bug!("missing `{descr}` for {:?}", self.local_def_id(id))
+     }
+ 
+-    fn raw_proc_macro(&self, tcx: TyCtxt<'_>, id: DefIndex) -> (ProcMacroClient, ProcMacroKind) {
++    fn raw_proc_macro(
++        &self,
++        tcx: TyCtxt<'_>,
++        id: DefIndex,
++    ) -> (IntoDynSyncSend<DynClient>, ProcMacroKind) {
+         // DefIndex's in root.proc_macro_data have a one-to-one correspondence
+         // with items in 'raw_proc_macros'.
+         let (pos, (_id, kind)) = self
+@@ -1023,7 +1027,7 @@ impl CrateMetadata {
+             .enumerate()
+             .find(|(_pos, (i, _))| *i == id)
+             .unwrap();
+-        (self.raw_proc_macros.unwrap()[pos], kind.decode((self, tcx)))
++        (self.raw_proc_macros.as_ref().unwrap()[pos].clone(), kind.decode((self, tcx)))
+     }
+ 
+     fn opt_item_name(&self, item_index: DefIndex) -> Option<Symbol> {
+@@ -1954,7 +1958,7 @@ impl CrateMetadata {
+         tcx: TyCtxt<'_>,
+         blob: MetadataBlob,
+         root: CrateRoot,
+-        raw_proc_macros: Option<&'static [ProcMacroClient]>,
++        raw_proc_macros: Option<Vec<IntoDynSyncSend<DynClient>>>,
+         cnum: CrateNum,
+         cnum_map: CrateNumMap,
+         dep_kind: CrateDepKind,
+diff --git a/compiler/rustc_session/src/session.rs b/compiler/rustc_session/src/session.rs
+index 42c44b105b197..a668426171ff0 100644
+--- a/compiler/rustc_session/src/session.rs
++++ b/compiler/rustc_session/src/session.rs
+@@ -1305,7 +1305,7 @@ pub fn build_session(
+         dcx.handle().warn(warning)
+     }
+ 
+-    let wasm_proc_macro_tuple = TargetTuple::from_tuple("wasm32-wasip2");
++    let wasm_proc_macro_tuple = TargetTuple::from_tuple("wasm32-wasip1");
+     let (wasm_proc_macro_target, target_warnings) = Target::search(
+         &wasm_proc_macro_tuple,
+         sopts.sysroot.path(),
+diff --git a/library/proc_macro/src/bridge/buffer.rs b/library/proc_macro/src/bridge/buffer.rs
+index 3176b9ea35c8c..1e6d12ec877b5 100644
+--- a/library/proc_macro/src/bridge/buffer.rs
++++ b/library/proc_macro/src/bridge/buffer.rs
+@@ -1,7 +1,7 @@
+ //! Buffer management for same-process client<->server communication.
+ 
+ use std::mem::{self, ManuallyDrop};
+-use std::ops::Deref;
++use std::ops::{Deref, DerefMut};
+ use std::slice;
+ 
+ #[repr(C)]
+@@ -31,6 +31,13 @@ impl Deref for Buffer {
+     }
+ }
+ 
++impl DerefMut for Buffer {
++    #[inline]
++    fn deref_mut(&mut self) -> &mut [u8] {
++        unsafe { slice::from_raw_parts_mut(self.data as *mut u8, self.len) }
++    }
++}
++
+ impl Buffer {
+     #[inline]
+     pub(super) fn new() -> Self {
+diff --git a/library/proc_macro/src/bridge/client.rs b/library/proc_macro/src/bridge/client.rs
+index 48e6245ecf98b..0907971679842 100644
+--- a/library/proc_macro/src/bridge/client.rs
++++ b/library/proc_macro/src/bridge/client.rs
+@@ -297,3 +297,56 @@ impl Client {
+         }
+     }
+ }
++
++#[cfg(target_family = "wasm")]
++#[allow(unsafe_code)]
++#[unsafe(no_mangle)]
++fn __rustc_proc_macro_alloc_buffer(len: usize) -> *mut Buffer {
++    Box::into_raw(Box::new(Buffer::from(vec![0; len])))
++}
++
++#[cfg(target_family = "wasm")]
++#[allow(unsafe_code)]
++#[unsafe(no_mangle)]
++unsafe fn __rustc_proc_macro_buffer_replace(buffer: *mut Buffer, len: usize) {
++    unsafe { (*buffer) = Buffer::from(vec![0; len]) }
++}
++
++#[cfg(target_family = "wasm")]
++#[allow(unsafe_code)]
++#[unsafe(no_mangle)]
++unsafe fn __rustc_proc_macro_buffer_ptr(buffer: *mut Buffer) -> *mut u8 {
++    unsafe { (*buffer).as_mut_ptr() }
++}
++
++#[cfg(target_family = "wasm")]
++#[allow(unsafe_code)]
++#[unsafe(no_mangle)]
++unsafe fn __rustc_proc_macro_buffer_len(buffer: *mut Buffer) -> usize {
++    unsafe { (&*buffer).len() }
++}
++
++#[cfg(target_family = "wasm")]
++#[allow(unsafe_code)]
++#[unsafe(no_mangle)]
++fn __rustc_proc_macro_call_client(
++    input: &mut Buffer,
++    client: extern "C" fn(BridgeConfig<'_>) -> Buffer,
++) -> *mut Buffer {
++    #[link(wasm_import_module = "env")]
++    unsafe extern "C" {
++        fn __rustc_proc_macro_dispatch(input: &Buffer, output: &mut Buffer);
++    }
++
++    let dispatch = closure::Closure::from(Box::leak(Box::new(|input| {
++        let mut output = Buffer::new();
++        unsafe { __rustc_proc_macro_dispatch(&input, &mut output) }
++        output
++    })));
++
++    Box::into_raw(Box::new(client(BridgeConfig {
++        input: input.take(),
++        dispatch,
++        force_show_panics: true,
++    })))
++}
+diff --git a/library/proc_macro/src/bridge/closure.rs b/library/proc_macro/src/bridge/closure.rs
+index 88c4dd6630b15..56e06b9438427 100644
+--- a/library/proc_macro/src/bridge/closure.rs
++++ b/library/proc_macro/src/bridge/closure.rs
+@@ -5,7 +5,7 @@ use std::marker::PhantomData;
+ use super::Buffer;
+ 
+ #[repr(C)]
+-pub(super) struct Closure<'a> {
++pub struct Closure<'a> {
+     call: extern "C" fn(*mut Env, Buffer) -> Buffer,
+     env: *mut Env,
+     // Prevent Send and Sync impls.
+@@ -26,7 +26,7 @@ impl<'a, F: FnMut(Buffer) -> Buffer> From<&'a mut F> for Closure<'a> {
+ }
+ 
+ impl<'a> Closure<'a> {
+-    pub(super) fn call(&mut self, arg: Buffer) -> Buffer {
++    pub fn call(&mut self, arg: Buffer) -> Buffer {
+         (self.call)(self.env, arg)
+     }
+ }
+diff --git a/library/proc_macro/src/bridge/mod.rs b/library/proc_macro/src/bridge/mod.rs
+index 0761549b2e30d..b484e3fdc9abe 100644
+--- a/library/proc_macro/src/bridge/mod.rs
++++ b/library/proc_macro/src/bridge/mod.rs
+@@ -108,6 +108,7 @@ pub mod server;
+ mod symbol;
+ 
+ use buffer::Buffer;
++pub use closure::Closure;
+ pub use panic_message::PanicMessage;
+ use rpc::{Decode, Encode};
+ 
+@@ -119,13 +120,13 @@ use rpc::{Decode, Encode};
+ #[repr(C)]
+ pub struct BridgeConfig<'a> {
+     /// Buffer used to pass initial input to the client.
+-    input: Buffer,
++    pub input: Buffer,
+ 
+     /// Server-side function that the client uses to make requests.
+-    dispatch: closure::Closure<'a>,
++    pub dispatch: closure::Closure<'a>,
+ 
+     /// If 'true', always invoke the default panic hook
+-    force_show_panics: bool,
++    pub force_show_panics: bool,
+ }
+ 
+ impl !Send for BridgeConfig<'_> {}
+diff --git a/library/proc_macro/src/bridge/server.rs b/library/proc_macro/src/bridge/server.rs
+index ff525c6cd7735..55b8496171bd6 100644
+--- a/library/proc_macro/src/bridge/server.rs
++++ b/library/proc_macro/src/bridge/server.rs
+@@ -4,7 +4,7 @@ use std::cell::Cell;
+ use std::hash::Hash;
+ use std::ops::{Bound, Range};
+ use std::sync::atomic::AtomicU32;
+-use std::sync::mpsc;
++use std::sync::{Arc, mpsc};
+ use std::{panic, thread};
+ 
+ use crate::bridge::{
+@@ -139,7 +139,7 @@ pub trait ExecutionStrategy {
+         &self,
+         dispatcher: &mut Dispatcher<impl Server>,
+         input: Buffer,
+-        run_client: extern "C" fn(BridgeConfig<'_>) -> Buffer,
++        run_client: &(dyn Fn(BridgeConfig<'_>) -> Buffer + Sync),
+         force_show_panics: bool,
+     ) -> Buffer;
+ }
+@@ -188,30 +188,32 @@ impl ExecutionStrategy for MaybeCrossThread {
+         &self,
+         dispatcher: &mut Dispatcher<impl Server>,
+         input: Buffer,
+-        run_client: extern "C" fn(BridgeConfig<'_>) -> Buffer,
++        run_client: &(dyn Fn(BridgeConfig<'_>) -> Buffer + Sync),
+         force_show_panics: bool,
+     ) -> Buffer {
+         if self.cross_thread || ALREADY_RUNNING_SAME_THREAD.get() {
+             let (mut server, mut client) = MessagePipe::new();
+ 
+-            let join_handle = thread::spawn(move || {
+-                let mut dispatch = |b: Buffer| -> Buffer {
+-                    client.send(b);
+-                    client.recv().expect("server died while client waiting for reply")
+-                };
+-
+-                run_client(BridgeConfig {
+-                    input,
+-                    dispatch: (&mut dispatch).into(),
+-                    force_show_panics,
+-                })
+-            });
+-
+-            while let Some(b) = server.recv() {
+-                server.send(dispatcher.dispatch(b));
+-            }
++            thread::scope(|scope| {
++                let join_handle = scope.spawn(move || {
++                    let mut dispatch = |b: Buffer| -> Buffer {
++                        client.send(b);
++                        client.recv().expect("server died while client waiting for reply")
++                    };
++
++                    run_client(BridgeConfig {
++                        input,
++                        dispatch: (&mut dispatch).into(),
++                        force_show_panics,
++                    })
++                });
++
++                while let Some(b) = server.recv() {
++                    server.send(dispatcher.dispatch(b));
++                }
+ 
+-            join_handle.join().unwrap()
++                join_handle.join().unwrap()
++            })
+         } else {
+             let _guard = RunningSameThreadGuard::new();
+ 
+@@ -258,7 +260,7 @@ fn run_server<
+     strategy: &impl ExecutionStrategy,
+     server: S,
+     input: I,
+-    run_client: extern "C" fn(BridgeConfig<'_>) -> Buffer,
++    run_client: &(dyn Fn(BridgeConfig<'_>) -> Buffer + Sync),
+     force_show_panics: bool,
+ ) -> Result<O, PanicMessage> {
+     let mut dispatcher = Dispatcher { handle_store: HandleStore::new(), server };
+@@ -274,7 +276,18 @@ fn run_server<
+     Result::decode(&mut &buf[..], &mut dispatcher.handle_store)
+ }
+ 
++#[derive(Clone)]
++pub struct DynClient {
++    pub run: Arc<dyn Fn(BridgeConfig<'_>) -> Buffer + Send + Sync>,
++}
++
+ impl client::Client {
++    pub fn into_dyn_client(self) -> DynClient {
++        DynClient { run: Arc::new(move |config| (self.run)(config)) }
++    }
++}
++
++impl DynClient {
+     pub fn run1<S>(
+         &self,
+         strategy: &impl ExecutionStrategy,
+@@ -285,8 +298,8 @@ impl client::Client {
+     where
+         S: Server,
+     {
+-        let client::Client { run } = *self;
+-        run_server(strategy, server, <MarkedTokenStream<S>>::mark(input), run, force_show_panics)
++        let DynClient { run } = self;
++        run_server(strategy, server, <MarkedTokenStream<S>>::mark(input), &**run, force_show_panics)
+             .map(|s| <Option<MarkedTokenStream<S>>>::unmark(s).unwrap_or_default())
+     }
+ 
+@@ -301,12 +314,12 @@ impl client::Client {
+     where
+         S: Server,
+     {
+-        let client::Client { run } = *self;
++        let DynClient { run } = self;
+         run_server(
+             strategy,
+             server,
+             (<MarkedTokenStream<S>>::mark(input), <MarkedTokenStream<S>>::mark(input2)),
+-            run,
++            &**run,
+             force_show_panics,
+         )
+         .map(|s| <Option<MarkedTokenStream<S>>>::unmark(s).unwrap_or_default())
+diff --git a/src/bootstrap/src/core/build_steps/test.rs b/src/bootstrap/src/core/build_steps/test.rs
+index 47318d3c086f5..5add2addef085 100644
+--- a/src/bootstrap/src/core/build_steps/test.rs
++++ b/src/bootstrap/src/core/build_steps/test.rs
+@@ -2303,11 +2303,11 @@ NOTE: if you're sure you want to do this, please open an issue as to why. In the
+             builder.ensure(compile::Rustc::new(test_compiler, target));
+         }
+ 
+-        // Build the standard library for wasm32-wasip2 (current target for wasm proc macros).
++        // Build the standard library for wasm32-wasip1 (current target for wasm proc macros).
+         if builder.config.wasm_proc_macros {
+             builder.ensure(compile::Std::new(
+                 test_compiler,
+-                TargetSelection::from_user("wasm32-wasip2"),
++                TargetSelection::from_user("wasm32-wasip1"),
+             ));
+         }
+ 
+diff --git a/src/bootstrap/src/utils/cc_detect.rs b/src/bootstrap/src/utils/cc_detect.rs
+index b73a18a91e8f0..a180cb630c1e8 100644
+--- a/src/bootstrap/src/utils/cc_detect.rs
++++ b/src/bootstrap/src/utils/cc_detect.rs
+@@ -93,7 +93,7 @@ pub(crate) fn fill_compilers(sess: &mut Session) {
+     // as well. In the future it would be good to make this a no-op given that we shouldn't need to
+     // build any C/C++ code for wasm...
+     if sess.config.wasm_proc_macros {
+-        targets.insert(TargetSelection::from_user("wasm32-wasip2"));
++        targets.insert(TargetSelection::from_user("wasm32-wasip1"));
+     }
+ 
+     for target in targets {
+diff --git a/src/bootstrap/src/utils/proc_macro_deps.rs b/src/bootstrap/src/utils/proc_macro_deps.rs
+index 0cc8348571a5b..4fa5a6cbcbe37 100644
+--- a/src/bootstrap/src/utils/proc_macro_deps.rs
++++ b/src/bootstrap/src/utils/proc_macro_deps.rs
+@@ -4,6 +4,7 @@
+ pub static CRATES: &[&str] = &[
+     // tidy-alphabetical-start
+     "allocator_api2",
++    "anyhow",
+     "askama_derive",
+     "askama_parser",
+     "basic_toml",
+@@ -30,7 +31,9 @@ pub static CRATES: &[&str] = &[
+     "indexmap",
+     "intl_memoizer",
+     "intl_pluralrules",
++    "leb128",
+     "libc",
++    "log",
+     "memchr",
+     "minimal_lexical",
+     "nom",
+@@ -62,6 +65,8 @@ pub static CRATES: &[&str] = &[
+     "version_check",
+     "wasm_bindgen_macro_support",
+     "wasm_bindgen_shared",
++    "wast",
++    "wiggle_generate",
+     "winnow",
+     "yoke",
+     "zerofrom",
+diff --git a/src/tools/compiletest/src/runtest.rs b/src/tools/compiletest/src/runtest.rs
+index c728e56cf639d..af6efa54085b7 100644
+--- a/src/tools/compiletest/src/runtest.rs
++++ b/src/tools/compiletest/src/runtest.rs
+@@ -1401,23 +1401,11 @@ impl<'test> TestCx<'test> {
+             self.props.from_aux_file(&aux_path, self.variant.revision(), self.config);
+         if aux_type == Some(AuxType::ProcMacro) {
+             if self.config.wasm_proc_macros {
+-                aux_props.compile_flags.push("--target=wasm32-wasip2".to_owned());
++                aux_props.compile_flags.push("--target=wasm32-wasip1".to_owned());
+                 // Override any earlier linkers for now, otherwise we fail to build since compiletest
+                 // thinks we're building for a different target and passes its linker (if one is
+                 // configured).
+-                //
+-                // wasm32-wasip2 should in principle always be able to link with wasm-component-ld +
+-                // wasm-ld. This does mean that rust.lld needs to be enabled to build wasm-ld wrapper
+-                // around rust-lld.
+-                aux_props.compile_flags.push("-Clinker=wasm-component-ld".to_owned());
+-                aux_props.compile_flags.push(format!(
+-                    "-Clink-arg=--wasm-ld-path={}",
+-                    self.config
+-                        .sysroot_base
+-                        .join("lib/rustlib")
+-                        .join(&self.config.host)
+-                        .join("bin/gcc-ld/wasm-ld")
+-                ));
++                aux_props.compile_flags.push(format!("-Clinker=rust-lld",));
+             } else {
+                 aux_props.force_host = true;
+             }
+diff --git a/src/tools/rust-analyzer/crates/proc-macro-srv/src/dylib/proc_macros.rs b/src/tools/rust-analyzer/crates/proc-macro-srv/src/dylib/proc_macros.rs
+index 4976298d5fcd1..d6823d8ce98c8 100644
+--- a/src/tools/rust-analyzer/crates/proc-macro-srv/src/dylib/proc_macros.rs
++++ b/src/tools/rust-analyzer/crates/proc-macro-srv/src/dylib/proc_macros.rs
+@@ -2,6 +2,7 @@
+ use crate::{
+     ProcMacroClientHandle, ProcMacroKind, ProcMacroSrvSpan, TrackedEnv, token_stream::TokenStream,
+ };
++use rustc_data_structures::sync::IntoDynSyncSend;
+ use rustc_proc_macro::bridge;
+ 
+ impl From<bridge::PanicMessage> for crate::PanicMessage {
+@@ -10,11 +11,13 @@ impl From<bridge::PanicMessage> for crate::PanicMessage {
+     }
+ }
+ 
+-pub(crate) struct ProcMacros(Vec<(bridge::client::Client, rustc_metadata::ProcMacroKind)>);
++pub(crate) struct ProcMacros(
++    Vec<(IntoDynSyncSend<bridge::server::DynClient>, rustc_metadata::ProcMacroKind)>,
++);
+ 
+ impl ProcMacros {
+     pub(super) fn new(
+-        macros: Vec<(bridge::client::Client, rustc_metadata::ProcMacroKind)>,
++        macros: Vec<(IntoDynSyncSend<bridge::server::DynClient>, rustc_metadata::ProcMacroKind)>,
+     ) -> Self {
+         ProcMacros(macros)
+     }
+diff --git a/src/tools/rust-analyzer/crates/proc-macro-srv/src/lib.rs b/src/tools/rust-analyzer/crates/proc-macro-srv/src/lib.rs
+index e38d2ac11bce8..2ed3763a6715b 100644
+--- a/src/tools/rust-analyzer/crates/proc-macro-srv/src/lib.rs
++++ b/src/tools/rust-analyzer/crates/proc-macro-srv/src/lib.rs
+@@ -16,6 +16,7 @@
+ #![cfg_attr(test, expect(unreachable_pub))]
+ 
+ extern crate rustc_codegen_ssa;
++extern crate rustc_data_structures;
+ extern crate rustc_driver as _;
+ extern crate rustc_interface;
+ extern crate rustc_lexer;
+diff --git a/src/tools/tidy/src/deps.rs b/src/tools/tidy/src/deps.rs
+index 65a7890a5ecc2..6e1d37335e09f 100644
+--- a/src/tools/tidy/src/deps.rs
++++ b/src/tools/tidy/src/deps.rs
+@@ -294,25 +294,36 @@ const PERMITTED_RUSTC_DEPENDENCIES: &[&str] = &[
+     "adler2",
+     "aho-corasick",
+     "allocator-api2", // FIXME: only appears in Cargo.lock due to https://github.com/rust-lang/cargo/issues/10801
++    "ambient-authority",
++    "android_system_properties",
+     "annotate-snippets",
+     "anstream",
+     "anstyle",
+     "anstyle-parse",
+     "anstyle-query",
+     "anstyle-wincon",
++    "anyhow",
+     "ar_archive_writer",
+     "arrayref",
+     "arrayvec",
++    "async-trait",
+     "bitflags",
+     "blake3",
+     "block-buffer",
+     "block2",
+     "bstr",
++    "bumpalo",
++    "cap-fs-ext",
++    "cap-primitives",
++    "cap-rand",
++    "cap-std",
++    "cap-time-ext",
+     "cc",
+     "cfg-if",
+     "cfg_aliases",
+     "colorchoice",
+     "constant_time_eq",
++    "core-foundation-sys",
+     "cpufeatures",
+     "crc32fast",
+     "crossbeam-deque",
+@@ -338,6 +349,7 @@ const PERMITTED_RUSTC_DEPENDENCIES: &[&str] = &[
+     "errno",
+     "expect-test",
+     "fastrand",
++    "fd-lock",
+     "find-msvc-tools",
+     "flate2",
+     "fluent-bundle",
+@@ -345,12 +357,16 @@ const PERMITTED_RUSTC_DEPENDENCIES: &[&str] = &[
+     "fluent-syntax",
+     "fnv",
+     "foldhash",
++    "fs-set-times",
+     "generic-array",
+     "getopts",
+     "getrandom",
+     "gimli",
+     "gsgdt",
+     "hashbrown",
++    "heck",
++    "iana-time-zone",
++    "iana-time-zone-haiku",
+     "icu_list",
+     "icu_locale_core",
+     "icu_locale_fallback",
+@@ -360,6 +376,9 @@ const PERMITTED_RUSTC_DEPENDENCIES: &[&str] = &[
+     "indexmap",
+     "intl-memoizer",
+     "intl_pluralrules",
++    "io-extras",
++    "io-lifetimes",
++    "ipnet",
+     "is_terminal_polyfill",
+     "itertools",
+     "itoa",
+@@ -368,15 +387,19 @@ const PERMITTED_RUSTC_DEPENDENCIES: &[&str] = &[
+     "jiff-tzdb",
+     "jiff-tzdb-platform",
+     "jobserver",
++    "js-sys",
+     "lazy_static",
++    "leb128",
+     "leb128fmt",
+     "libc",
+     "libloading",
++    "libm",
+     "linux-raw-sys",
+     "litemap",
+     "lock_api",
+     "log",
+     "matchers",
++    "maybe-owned",
+     "md-5",
+     "measureme",
+     "memchr",
+@@ -424,6 +447,8 @@ const PERMITTED_RUSTC_DEPENDENCIES: &[&str] = &[
+     "rustc-stable-hash",
+     "rustc_apfloat",
+     "rustix",
++    "rustix-linux-procfs",
++    "rustversion",
+     "ruzstd", // via object in thorin-dwp
+     "ryu",
+     "schemars",
+@@ -444,11 +469,14 @@ const PERMITTED_RUSTC_DEPENDENCIES: &[&str] = &[
+     "shlex",
+     "simd-adler32",
+     "smallvec",
++    "spin",
+     "stable_deref_trait",
+     "static_assertions",
++    "string-interner",
+     "strsim",
+     "syn",
+     "synstructure",
++    "system-interface",
+     "tempfile",
+     "termize",
+     "thin-vec",
+@@ -485,8 +513,24 @@ const PERMITTED_RUSTC_DEPENDENCIES: &[&str] = &[
+     "valuable",
+     "version_check",
+     "wasi",
++    "wasi-common",
++    "wasm-bindgen",
++    "wasm-bindgen-macro",
++    "wasm-bindgen-macro-support",
++    "wasm-bindgen-shared",
+     "wasm-encoder",
++    "wasmi",
++    "wasmi_collections",
++    "wasmi_core",
++    "wasmi_ir",
++    "wasmi_wasi",
+     "wasmparser",
++    "wast",
++    "wast",
++    "wat",
++    "wiggle",
++    "wiggle-generate",
++    "wiggle-macro",
+     "windows",
+     "windows-collections",
+     "windows-core",
+@@ -498,8 +542,28 @@ const PERMITTED_RUSTC_DEPENDENCIES: &[&str] = &[
+     "windows-result",
+     "windows-strings",
+     "windows-sys",
++    "windows-targets",
++    "windows-targets",
+     "windows-threading",
++    "windows_aarch64_gnullvm",
++    "windows_aarch64_gnullvm",
++    "windows_aarch64_msvc",
++    "windows_aarch64_msvc",
++    "windows_i686_gnu",
++    "windows_i686_gnu",
++    "windows_i686_gnullvm",
++    "windows_i686_gnullvm",
++    "windows_i686_msvc",
++    "windows_i686_msvc",
++    "windows_x86_64_gnu",
++    "windows_x86_64_gnu",
++    "windows_x86_64_gnullvm",
++    "windows_x86_64_gnullvm",
++    "windows_x86_64_msvc",
++    "windows_x86_64_msvc",
++    "winx",
+     "wit-bindgen-rt@0.39.0", // pinned to a specific version due to using a binary blob: <https://github.com/rust-lang/rust/pull/136395#issuecomment-2692769062>
++    "witx",
+     "writeable",
+     "yoke",
+     "yoke-derive",
+diff --git a/src/tools/tidy/src/pal.rs b/src/tools/tidy/src/pal.rs
+index f1ac90ba0bc5e..0ed2bac989180 100644
+--- a/src/tools/tidy/src/pal.rs
++++ b/src/tools/tidy/src/pal.rs
+@@ -41,6 +41,7 @@ const EXCEPTION_PATHS: &[&str] = &[
+     "library/windows_link",
+     "library/panic_abort",
+     "library/panic_unwind",
++    "library/proc_macro/src/bridge/client.rs",
+     "library/unwind",
+     "library/rtstartup", // Not sure what to do about this. magic stuff for mingw
+     "library/test",      // Probably should defer to unstable `std::sys` APIs.

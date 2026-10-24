@@ -1,0 +1,8 @@
+package wisp:python-strings@0.1.0;
+interface source { get: func() -> string; }
+interface api {
+  validate: func() -> result<_, string>;
+  transform: func(text: string) -> result<string, string>;
+  runtime-info: func() -> string;
+}
+world python-strings { import wisp:python/source@0.1.0; export api; }

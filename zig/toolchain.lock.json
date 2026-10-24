@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "zig": {
+    "version": "0.17.0",
+    "url": "https://ziglang.org/download/0.17.0/zig-0.17.0.tar.xz",
+    "sha256": "b6c7f1728f043700d6529bac980800792f824256a9d2f1839b3d62beed0b8abd",
+    "stage1_sha256": "77c02ad2496aab66fb408f831a49ee8f7ed6746326388c972735707881cac770",
+    "stage1_header_sha256": "8ed26a04f91dba8c5ca6875780e68a729847c3b547a52aa79dd8bc656523f68b"
+  },
+  "clang_wasm": {
+    "repository": "../clang",
+    "source": "src/clang_wasm_main.cpp",
+    "llvm_revision": "d297af3b3d7a086d64f1477cfa682a16fcfa3260",
+    "default_artifact": "../clang/.toolchains/build-p3/bin/clang-wasm.component",
+    "sha256": "8b91a35d46702f0b1105d09314022b7d49df8196b4a3a77ed10d5dc1ad81b107",
+    "source_build": {
+      "receipt_schema": 1,
+      "recipe": "../buildtools.json",
+      "artifact": "clang/.toolchains/build-p3/bin/clang-wasm.component",
+      "required_interface": "wasi:cli/run@0.3.0",
+      "required_smoke_result": 42
+    }
+  },
+  "host_requirements": {
+    "wasmtime": {
+      "provider": "wisp",
+      "tested_version": "49.0.1",
+      "interfaces": [
+        "wasi_snapshot_preview1",
+        "wasi:cli/run@0.3.0"
+      ]
+    }
+  }
+}
