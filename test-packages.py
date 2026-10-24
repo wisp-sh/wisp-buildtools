@@ -209,6 +209,22 @@ class ContainerTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "build-machine path"):
                     self.package()
 
+    def test_jdk_module_approval_requires_the_exact_pinned_upstream_image(self):
+        relative = "jvm/dist/jdk/lib/modules"
+        lock = json.loads((ROOT / "jvm/toolchain.lock.json").read_text())
+        self.assertEqual(packages.PUBLIC_UPSTREAM_PAYLOADS[relative], lock["jdk"]["modulesSha256"])
+        path = self.root / relative
+        path.parent.mkdir(parents=True)
+        self.document["tools"]["compiler"]["package"]["include"].append(relative)
+        # A generated image has no approval merely because its filename or
+        # embedded example path matches the real upstream image.
+        public = b"/space/home/stax/sun/6thJan2004/zephyr/data/test.txt"
+        for payload in [public, public + b"\0/home/luap/private/source.java"]:
+            with self.subTest(payload=payload):
+                path.write_bytes(payload)
+                with self.assertRaisesRegex(ValueError, "build-machine path"):
+                    self.package()
+
     def test_personal_home_paths_still_block_publication(self):
         path = self.root / "compiler/dist/compiler.wasm"
         for builder in ["/home/luap", "/Users/luap", "/home/runner"]:
