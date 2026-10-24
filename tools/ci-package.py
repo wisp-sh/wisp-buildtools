@@ -13,6 +13,17 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def load_driver():
+    # Composite actions execute from the recipe checkout. run_path does not add
+    # the buildtools checkout to Python's import path as executing build.py does.
+    original_path = sys.path[:]
+    try:
+        sys.path.insert(0, str(ROOT))
+        return runpy.run_path(str(ROOT / 'build.py'))
+    finally:
+        sys.path[:] = original_path
+
+
 def targets(toolchain):
     allowed = {'clang', 'go', 'rust', 'zig', 'nim', 'assemblyscript', 'javascript',
                'python', 'grain', 'swift', 'java', 'kotlin'}
@@ -25,7 +36,7 @@ def targets(toolchain):
 
 def provision(toolchain, recipe_root):
     manifest = json.loads((ROOT / 'buildtools.json').read_text())
-    driver = runpy.run_path(str(ROOT / 'build.py'))
+    driver = load_driver()
     prerequisites = runpy.run_path(str(ROOT / 'tools/ci-prerequisites.py'))
     prerequisites['check_lock']()
     order = driver['dependency_order'](manifest, targets(toolchain))

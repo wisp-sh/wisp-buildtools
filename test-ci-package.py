@@ -3,6 +3,8 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -14,6 +16,17 @@ spec.loader.exec_module(ci)
 
 
 class PackageCompilerCI(unittest.TestCase):
+    def test_driver_import_from_an_unrelated_checkout(self):
+        script = (
+            'import runpy; '
+            f'ci = runpy.run_path({str(ROOT / "tools/ci-package.py")!r}); '
+            'driver = ci["load_driver"](); '
+            'manifest = driver["load_manifest"](); '
+            'assert driver["dependency_order"](manifest, ["go"]) == ["go"]'
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            subprocess.run([sys.executable, '-I', '-c', script], cwd=directory, check=True)
+
     def test_dependency_plans_cover_runtime_backends(self):
         import runpy
         driver = runpy.run_path(str(ROOT / 'build.py'))
