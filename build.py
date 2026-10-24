@@ -26,7 +26,9 @@ ROOT = Path(__file__).resolve().parent
 MANIFEST = ROOT / "buildtools.json"
 WASM_HEADERS = {b"\0asm\x01\0\0\0", b"\0asm\x0d\0\x01\0"}
 EXCLUDED = {".git", "__pycache__", "node_modules", "target", ".DS_Store",
-            ".work", ".cache", ".sources", ".downloads", ".bootstrap"}
+            ".work", ".cache", ".sources", ".downloads", ".bootstrap",
+            "evidence", ".evidence", "private", ".private", "benchmarks"}
+EXCLUDED_SUFFIXES = {".pyc", ".pyo", ".log", ".jsonl", ".time", ".dmp"}
 
 
 def digest(path: Path) -> str:
@@ -304,20 +306,14 @@ def record_rust_acceptance(candidate: Path, results: Path) -> None:
         raise ValueError("Rust acceptance requires all six successful application cases")
     manifest_path = candidate / "toolchain.json"
     manifest = json.loads(manifest_path.read_text())
-    evidence = candidate / "verification/acceptance"
-    evidence.mkdir(parents=True, exist_ok=True)
-    receipts = {}
-    for source in sorted(results.rglob("*")):
-        if source.is_file() and source.suffix in {".json", ".jsonl", ".log"}:
-            destination = evidence / source.relative_to(results)
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(source, destination)
-            receipts[destination.relative_to(candidate).as_posix()] = digest(destination)
+    # Keep execution logs and metadata in the caller's results directory. The
+    # runtime package needs the tested identities and a compact result only.
     adapter = {"schemaVersion": 1, "status": "passed",
                "scope": "All six standalone application acceptance cases passed.",
                "runnerSha256": digest(candidate / "scripts/runner.py"),
                "compilerSha256": digest(candidate / "build/bootstrap/rustc.wasm"),
-               "standaloneCases": sorted(required), "receiptFiles": receipts}
+               "standaloneCases": sorted(required), "receiptFiles": {},
+               "acceptanceResultSha256": digest(results / "results.json")}
     (candidate / "runtime-adapter.json").write_text(json.dumps(adapter, indent=2) + "\n")
     manifest["status"] = "standalone-verified"
     manifest["verification"].update(deriveAcceptancePassed=True, serdeAcceptancePassed=True,
@@ -326,7 +322,8 @@ def record_rust_acceptance(candidate: Path, results: Path) -> None:
     (candidate / "README.txt").write_text(
         f"Rust {manifest['rustVersion']} compiler hosted on {manifest['compilerHost']}.\n"
         "All six standalone application acceptance cases passed, including build scripts and Serde macros.\n"
-        "See verification/acceptance for execution evidence. Wisp registry interop is verified separately.\n")
+        "runtime-adapter.json records the tested identities and acceptance result hash.\n"
+        "Wisp registry interop is verified separately.\n")
 
 
 def check_artifacts(item: dict, root: Path) -> None:
@@ -473,7 +470,7 @@ def package_files(document: dict, selected: str, root: Path) -> dict[str, Path]:
         candidates = sorted(source.rglob("*")) if source.is_dir() else [source]
         for path in candidates:
             relative_file = path.relative_to(root)
-            if (EXCLUDED.intersection(relative_file.parts) or path.suffix in {".pyc", ".pyo"}
+            if (EXCLUDED.intersection(relative_file.parts) or path.suffix in EXCLUDED_SUFFIXES
                     or any(fnmatch.fnmatchcase(relative_file.as_posix(), pattern) for pattern in specification.get("exclude", []))):
                 continue
             if path.is_symlink():
@@ -488,12 +485,29 @@ def package_files(document: dict, selected: str, root: Path) -> dict[str, Path]:
 def package_tool(document: dict, name: str, *, root: Path, output_dir: Path) -> dict:
     files = package_files(document, name, root)
     manifest = adapter_repackage(name, root)
-    if manifest is None:
+    # Bootstrap tool locations are local diagnostics, not runtime paths. Keep
+    # their identities and hashes without publishing a developer's home path.
+    public_metadata = {}
+    if name == "python":
+        for relative in ("python/dist/manifest.json", "python/dist/strings/manifest.json"):
+            if relative not in files:
+                continue
+            metadata = json.loads(files[relative].read_text())
+            for key in ("native_bootstrap_tools", "bootstrapOnlyNativeTools"):
+                for tool in metadata.get(key, {}).values():
+                    if "path" in tool:
+                        tool["path"] = Path(tool["path"]).name
+            public_metadata[relative] = metadata
+    if manifest is not None:
+        public_metadata[f"{name}/dist/manifest.json"] = manifest
+    if not public_metadata:
         return packages.pack(document, name, files, root=root, output_dir=output_dir)
     with tempfile.TemporaryDirectory(prefix="wisp-adapter-repackage-") as temporary:
-        staged = Path(temporary) / "manifest.json"
-        staged.write_bytes(packages.canonical(manifest))
-        files[f"{name}/dist/manifest.json"] = staged
+        for relative, metadata in public_metadata.items():
+            staged = Path(temporary) / relative
+            staged.parent.mkdir(parents=True, exist_ok=True)
+            staged.write_bytes(packages.canonical(metadata))
+            files[relative] = staged
         return packages.pack(document, name, files, root=root, output_dir=output_dir)
 
 

@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")" && pwd)
+BUILD_ROOT=$(cd "$ROOT/.." && pwd)
 TOOLS="$ROOT/.toolchains"
 JOBS=${BUILD_JOBS:-8}
 COMPILER_OPT=${COMPILER_OPT:-O1}
@@ -86,8 +87,8 @@ cmake --fresh -S "$TOOLS/llvm-project/llvm" -B "$BUILD_DIR" -G Ninja \
   -DCMAKE_MAKE_PROGRAM="$TOOLS/bin/ninja" \
   -DCMAKE_TOOLCHAIN_FILE="$TOOLS/wasi-sdk-34.0-x86_64-linux/share/cmake/wasi-sdk-p3.cmake" \
   -DCMAKE_BUILD_TYPE=Release \
-  "-DCMAKE_C_FLAGS_RELEASE=-$COMPILER_OPT -DNDEBUG" \
-  "-DCMAKE_CXX_FLAGS_RELEASE=-$COMPILER_OPT -DNDEBUG" \
+  "-DCMAKE_C_FLAGS_RELEASE=-$COMPILER_OPT -DNDEBUG -ffile-prefix-map=\"$HOME\"=/build-user -ffile-prefix-map=\"$BUILD_ROOT\"=/wisp-buildtools" \
+  "-DCMAKE_CXX_FLAGS_RELEASE=-$COMPILER_OPT -DNDEBUG -ffile-prefix-map=\"$HOME\"=/build-user -ffile-prefix-map=\"$BUILD_ROOT\"=/wisp-buildtools" \
   "-DCMAKE_EXE_LINKER_FLAGS=-Wl,-z,stack-size=1048576" \
   -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
   '-DLLVM_ENABLE_PROJECTS=clang;lld' \

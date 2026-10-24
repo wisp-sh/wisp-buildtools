@@ -19,7 +19,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parent
 TOOL = ROOT / "shard_tool"
-LOCK = Path(os.environ.get("WISP_COMPILER_MEMORY_LOCK", "/home/luap/.t3/projects/wisp-pkgs/.cache/compiler-memory.lock"))
+LOCK = Path(os.environ.get("WISP_COMPILER_MEMORY_LOCK", ROOT.parent / ".cache/compiler-memory.lock"))
 
 
 def sha(path):

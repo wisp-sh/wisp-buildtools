@@ -124,14 +124,3 @@ jobs:
       - name: Report compiler cache statistics
         if: always()
         run: ccache --show-stats
-      - name: Upload bootstrap evidence
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: llvm-bootstrap-logs
-          path: |
-            .ci/*.json
-            .ci/*.log
-          include-hidden-files: true
-          if-no-files-found: warn
-          retention-days: 7

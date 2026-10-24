@@ -1,9 +1,5 @@
 # Build Rust 1.99.1 for WASIp3
 
-The 2026-10-20 local build passed the six standalone application cases and the
-activation smoke test. Its [verification receipt](../verification/rust-1.99.1-wasip3.json)
-records the exact compiler and SDK hashes. Wisp registry interop is separate.
-
 Run the complete build from the repository root:
 
 ```sh
@@ -16,6 +12,9 @@ through the shared LLVM bootstrap job, then builds Rust with `--no-deps`.
 Rust verifies its LLVM revision, host target, version and complete SHA-256
 inventory. It links the existing static archives instead of building LLVM again.
 Rust's upstream LLVM 23 is not a required build input for this port.
+Public distributions also need a Clang/LLVM SDK built with the repository's
+file-prefix remapping flags. Old static archives can carry local source paths
+into the Rust compiler even when rustc's own paths are remapped.
 
 The LLVM 24 compatibility code is in
 [the compiler patch](../patches/0001-rust-1.99-wasi-proc-macros.patch). It also
@@ -65,6 +64,8 @@ separate avoids an unnecessary native stage1 compiler and LLVM build.
 The configuration explicitly disables debug assertions as well as debug logging;
 upstream's `compiler` profile otherwise enables assertions. On WASI, sysroot
 searches reuse the runner's explicit `--sysroot` instead of looking for a driver DLL.
+`remap-debuginfo` maps compiler, dependency and sysroot source paths to stable
+Rust paths. Cached binaries built without it must be rebuilt before public packaging.
 
 Outputs go to `build/compiler-source-build-1.99.1/`. A dry run resolves the
 bootstrap steps but does not establish a successful compiler link. Actual
@@ -96,6 +97,3 @@ license notices, exact build report and original provenance snapshots. It
 creates `runtime-adapter.json` with pending status and a verification directory
 on a clean build. Application acceptance must run before the candidate is
 considered usable; packaging alone records no passed macro acceptance.
-
-The 2026-10-18 results in older documentation belong to Rust 1.83. They remain
-historical evidence and are not acceptance results for this release.

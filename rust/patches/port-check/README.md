@@ -44,8 +44,6 @@ loader and invocation records. Cargo uses the checked-in dependency lock;
 compilation uses at most two jobs and has a ten-minute limit per command.
 
 The proof reverses the selected patch in dry-run mode before and after the
-run, and records its SHA256 in `result.json`. The accompanying
-[`typecheck-receipt.json`](typecheck-receipt.json) records separate successful
-whole-compiler checks for native and Wasm hosts, with exact configurations
-and log hashes. See [the checkpoint note](../../docs/macro-port.md) for those
-commands and the remaining integration requirements.
+run, and records its SHA256 in `result.json`. Keep generated results and traces
+outside the source tree. This fixture covers the legacy Rust 1.83 bridge;
+[current compiler acceptance](../../tests/README.md) covers the selected release.

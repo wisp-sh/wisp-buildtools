@@ -10,7 +10,7 @@ developer's existing build directories.
 [`ci.yml`](../.github/workflows/ci.yml) runs on pushes and pull requests. It
 checks the build definitions for all tools and library profiles, runs the build command,
 toolchain-bundle validation and workspace helper tests, and validates the
-workflows with checksum-pinned actionlint. It uploads the complete build plan.
+workflows with checksum-pinned actionlint. Build plans stay in the runner workspace.
 
 After the checks pass, [`tools/ci-select.py`](../tools/ci-select.py) selects the
 affected targets from every tool and library profile in
@@ -37,8 +37,8 @@ target regardless of which files changed.
 
 Pushes compare the previous and new revision across the entire push. Pull
 requests compare the tested merge commit with the PR base. The job summary
-lists selected targets, and the build plan artifact includes
-`build-selection.json` with changed paths and selection reasons. To inspect a
+lists selected targets. The runner writes `build-selection.json` with changed
+paths and selection reasons. To inspect a
 comparison locally:
 
 ```sh
@@ -86,9 +86,11 @@ summary. These commands validate without checking out or executing Wisp.
 The sibling Wisp CLI can independently validate the same bundles with
 `wisp toolchain validate BUNDLE`; see [package details](packages.md).
 
-Build plans, package-validation results and logs are uploaded even when a later
-build or test step fails. Uploading workflow artifacts does not publish a GitHub
-release. The reported download size measures the Wisp bundle itself, before
+Public artifact uploads contain the compiler bundles and size reports. Build
+plans, raw test output, configurations and bootstrap logs stay in the runner
+workspace. Keep any development evidence that needs longer retention in the
+shared private evidence repository. Uploading workflow artifacts does not publish
+a GitHub release. The reported download size measures the Wisp bundle itself, before
 GitHub wraps the uploaded files in its artifact download.
 
 The default runner is `ubuntu-24.04`. Automatic builds have no explicit matrix
@@ -173,8 +175,9 @@ runner and compile job count for automatic builds. Manual builds use their
 runner and jobs inputs.
 
 Bootstrap failures print the last 100 lines of
-`rust/build/compiler-source-build-1.99.1/bootstrap.log`. Uploaded evidence includes
-the full log, report, configuration, SDK probe and preparation receipts.
+`rust/build/compiler-source-build-1.99.1/bootstrap.log` in the Actions console.
+The full log, report, configuration, SDK probe and preparation receipts stay
+in the runner workspace.
 
 ## Bootstrap tools
 
@@ -198,7 +201,7 @@ external host requirements separately from these bootstrap tools. Runtime hosts
 remain in CI's host directory and are excluded from compiler packages. Rust
 uses the shared Wasmtime 49 host with WASIp3 enabled. AssemblyScript and Swift
 use the pinned Wasmtime Python binding. Host build receipts are included in
-`.ci/prerequisites.json` with the uploaded build evidence.
+`.ci/prerequisites.json` in the runner workspace.
 GitHub Actions' checkout, setup and artifact actions are part of the CI
 runner, rather than dependencies of the installed compiler packages.
 

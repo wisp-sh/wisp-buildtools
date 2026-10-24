@@ -5,6 +5,7 @@ Run directly; the shared memory lock covers Cargo, transformation and small JITs
 Scratch and results live here, outside installed distributions.
 """
 import json
+import os
 from copy import deepcopy
 from pathlib import Path
 import shutil
@@ -14,7 +15,8 @@ from unittest.mock import patch
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-sys.path.insert(0, "/home/luap/vise/.tools/shared-hosts/wasmtime-python-49.0.0")
+if os.environ.get("WISP_WASMTIME_PYTHON"):
+    sys.path.insert(0, os.environ["WISP_WASMTIME_PYTHON"])
 import shard
 import wasmtime as w
 

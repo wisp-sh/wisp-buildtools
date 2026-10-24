@@ -112,6 +112,9 @@ runtime version, output size and SHA-256 values for every packaged file.
 `bootstrap.py` checks that manifest before reusing the package. `--force`
 rebuilds it. Binaryen cache keys include the unoptimized module, optimizer binary,
 shared library and optimization flags.
+The Cargo packager build remaps checkout paths to `/wisp-buildtools`.
+The runtime bundle includes only the scalar template and its checksummed files;
+experimental string templates and debug outputs are excluded.
 `verification.json` records checks from the latest successful `verify.py` run.
 Generated downloads, tool caches and `dist` are ignored by Git.
 

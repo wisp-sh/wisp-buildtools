@@ -1,4 +1,4 @@
-# Wisp build tools pre-alpha
+# Wisp build tools
 
 > Pre-alpha. APIs, package formats and supported interfaces may change.
 
@@ -6,8 +6,10 @@ Source repository: [wisp-sh/wisp-buildtools](https://github.com/wisp-sh/wisp-bui
 
 See the [language support matrix](docs/language-support.md) for verified features, API limits, hosts and per-language checks.
 
-One repository for the compilers and shared tools used by Wisp. Each language
-has a plain directory name. Wisp itself remains in the sibling `../wisp` checkout.
+Build and package WebAssembly-hosted compilers for Wisp. Each language directory
+contains its bootstrap scripts, compiler adapters, examples and verification
+commands. Compiler packages can be built from this repository alone. Wisp is
+needed for the optional application integration checks.
 
 | Directory | Current contents |
 | --- | --- |
@@ -30,11 +32,23 @@ has a plain directory name. Wisp itself remains in the sibling `../wisp` checkou
 | [python](python/README.md) | CPython WASI source compilation and Component packaging |
 | [wasm-tools](wasm-tools/README.md) | Shared WASIp1 WIT and Component assembly tools |
 
-All source files belong to the root repository. The original C/C++ and Go
-histories are parents of its consolidation commit; other toolchains had no
-commits. Existing uncommitted changes were retained. Generated compiler packages,
-downloads and build caches are ignored rather than checked into the source tree.
-See [repository migration](docs/repository.md) for the history import and local backups.
+## Getting started
+
+Use Linux x86_64 with Python 3.12 or newer. Bootstrap requirements differ by
+language; read its README before starting a build. Downloads, compiler packages
+and build caches are generated locally and ignored by Git.
+
+```sh
+git clone https://github.com/wisp-sh/wisp-buildtools.git
+cd wisp-buildtools
+python3 build.py list
+python3 build.py plan javascript --json
+```
+
+The plan lists the build commands and prerequisites without running them.
+For the same pinned prerequisites used in CI, see [CI builds](docs/ci.md).
+Start with one toolchain; building LLVM or Rust can require substantial memory
+and disk space. See [CONTRIBUTING.md](CONTRIBUTING.md) for development checks.
 
 ## Build toolchain packages
 
@@ -73,14 +87,12 @@ validation, installation and the boundary between compiler and host sizes.
 GitHub Actions definitions live in the root [`.github/workflows`](.github/workflows).
 See [CI builds](docs/ci.md) for automatic checks, full builds and runner requirements.
 
-## Use the existing compilers
+## Use installed compilers with Wisp
 
 From Wisp:
 
 ```sh
 source ../wisp-buildtools/env.sh
-# Configure the remaining Wisp packaging/composition tools as before.
-# This local checkout also has its complete environment in .tools/build/env.sh.
 ```
 
 The environment file selects the C/C++ Component, Go compiler package, Rust
@@ -90,7 +102,7 @@ relative to this directory. Rust uses `WISP_RUST` and the separately pinned
 It does not install or build tools. Native Go is needed only by examples that
 install ordinary Go modules, not by the Go compiler guests.
 
-## Build with the new language adapters
+## Compile application sources
 
 The workspace command selects the installed compiler in each language directory.
 Wisp consumes their outputs through its prebuilt Component units. Each language's
@@ -151,8 +163,11 @@ python3 "$WISP_TOOLCHAINS" build kotlin \
 
 Zig, AssemblyScript and Nim produce Core Wasm. Assemble their scalar library with
 the included WIT contract. Nim also needs the WASI reactor adapter, which runs its
-initializer before exported calls. Set `WISP_PREVIEW1_ADAPTER` to its path; this
-checkout's `.tools/build/env.sh` configures it.
+initializer before exported calls. After building `wasm-tools`, select its adapter:
+
+```sh
+export WISP_PREVIEW1_ADAPTER="$WISP_BUILDTOOLS_ROOT/wasm-tools/dist/wasi_snapshot_preview1.reactor.wasm"
+```
 
 ```sh
 python3 "$WISP_TOOLCHAINS" componentize out/zig.wasm \
@@ -248,33 +263,12 @@ Wasmtime remain the host orchestration and execution programs. This checks
 source builds after bootstrap; native bootstrap compilers do not run during
 the acceptance check.
 
-The [October 18, 2026 Wasm-only run](out/clang-integration/verification.json)
-passed all six language paths on Linux x86_64 with Wasmtime 49.0.1 and
-`wisp build --component-only`, with Node and native compiler tools blocked.
-Every admitted Component returned `42`, retained its original bytes, and
-rejected an altered artifact hash. The [process audit](out/clang-integration/execution-audit.json)
-records only Python, Wasmtime and Wisp execution, with no native compiler or
-Node invocation. Python's tested Component is 15,848,718 bytes, below the 16 MiB
-limit. The [JavaScript/TypeScript verifier](javascript/build/verify/verification.json)
-passed 19 checks, including typed imports, rich values, state persistence and
-failed-build publication. The [bootstrap reproducibility report](build/verification/javascript-bootstrap-reproducibility.json)
-records two independent JavaScript compiler builds with identical bytes, with
-and without Rust standard-library sources installed. The
-[final JS/TS integration check](out/monorepo-portable-js-final/verification.json)
-passed again after installing that compiler. Other language reports record their
-source-language and failure checks.
+## Shared LLVM builds
 
-## LLVM ownership and cached builds
-
-The existing LLVM source and source archive are now under
-`llvm/.sources/`. The existing LLVM/WASI port patch is under
-`llvm/patches/`. The C/C++ build uses those shared sources and patches.
-The source archive and extracted source remain
-ignored local resources, rather than vendored LLVM source in the new repo.
-
-LLVM build directories, wasi-sdk and native build helpers remain in
-`clang/.toolchains/`. Moving source ownership is complete; extracting and
-the source bootstrap SDK is implemented in `llvm/scripts/sdk.py`.
+LLVM sources download to `llvm/.sources/`. The WASI port patches live in
+`llvm/patches/`; C/C++ builds use those shared sources and patches.
+Build directories, wasi-sdk and native build helpers live in `clang/.toolchains/`.
+The source bootstrap SDK is implemented in `llvm/scripts/sdk.py`.
 `llvm/scripts/shared.py` turns its verified PIC objects into shared Wasm LLVM
 and C/C++ runtime libraries, then links small Clang and Nim consumers with
 external core-module imports. The installed `llvm` package contains shared
@@ -282,18 +276,15 @@ libraries and their integrity manifest; static bootstrap archives remain local.
 Rust 1.99.1 builds a WASIp3 compiler Component using this LLVM 24 SDK.
 It links the static backend into its Component and uses Wasmtime 49.
 
-Builds use the canonical directory names directly. C/C++ bootstrap regenerates
-its CMake configuration before compiling. Historical build receipts retain their
-original locations.
+## Package recipe Action
+
+The [package-build Action](.github/actions/package-build/action.yml) provisions
+compiler dependencies for `wisp-sh/wisp-pkgs`. It installs pinned bootstrap
+prerequisites in dependency order, builds each compiler, and exports its paths
+for application recipes. Swift also prepares the streamed compiler shards.
+Run `python3 test-ci-package.py` to check dependency and environment propagation.
 
 ## License
 
 Wisp-authored code in this repository uses Apache-2.0. Upstream sources, compiler
 payloads and packaged applications retain their own licenses and notices.
-
-The private [package-build Action](.github/actions/package-build/action.yml)
-provisions compiler dependencies for `wisp-sh/wisp-pkgs`. It installs pinned
-bootstrap prerequisites in dependency order, builds each compiler, and exports
-its paths for application recipes. Swift also prepares the streamed compiler
-shards. It carries no publication credentials. Run `python3 test-ci-package.py`
-to check dependency and environment propagation.

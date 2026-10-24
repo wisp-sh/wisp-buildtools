@@ -131,6 +131,66 @@ class ContainerTests(unittest.TestCase):
                          self.record["wasmBytes"] + self.record["nativeBytes"] + self.record["supportBytes"])
         self.assertEqual(self.record["bytes"], self.bundle.stat().st_size)
 
+    def test_private_evidence_and_debug_dumps_do_not_enter_public_bundle(self):
+        private = ["evidence/result.json", ".private/plan.md", "benchmarks/result.json",
+                   "runner.log", "macro-trace.jsonl", "frontend.time", "crash.dmp"]
+        public = ["manifest.json", "SHA256SUMS", "source-lock.json", "debug/elf.a"]
+        for relative in private + public:
+            path = self.root / "compiler/dist" / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(relative)
+        record = self.package()
+        bundle = Path(record["archive"])
+        packages.validate(bundle)
+        inventory = packages.read_manifest(bundle)["archive"]["inventory"]
+        for relative in private:
+            self.assertNotIn("compiler/dist/" + relative, inventory)
+        for relative in public:
+            self.assertIn("compiler/dist/" + relative, inventory)
+
+    def test_python_bootstrap_paths_are_portable_and_keep_integrity_hashes(self):
+        self.document["tools"]["python"] = fixture_tool("python")
+        base = self.root / "python"
+        (base / "dist/strings").mkdir(parents=True)
+        (base / "compile.py").write_text("# adapter\n")
+        (base / "dist/compiler.wasm").write_bytes(CORE)
+        for subdir, key in [("", "native_bootstrap_tools"), ("strings/", "bootstrapOnlyNativeTools")]:
+            path = base / ("dist/" + subdir + "manifest.json")
+            original = {"sha256": {"compiler.wasm": builds.digest(base / "dist/compiler.wasm")},
+                        key: {"wasmtime": {"path": "/home/developer/private/bin/wasmtime", "sha256": "a" * 64}}}
+            path.write_text(json.dumps(original))
+        record = self.package("python")
+        bundle = Path(record["archive"])
+        packages.validate(bundle)
+        with zipfile.ZipFile(bundle) as outer, tarfile.open(fileobj=io.BytesIO(outer.read("toolchain.tar.gz")), mode="r:gz") as archive:
+            for subdir, key in [("", "native_bootstrap_tools"), ("strings/", "bootstrapOnlyNativeTools")]:
+                relative = "python/dist/" + subdir + "manifest.json"
+                metadata = json.load(archive.extractfile("wisp-buildtools/" + relative))
+                self.assertEqual(metadata[key]["wasmtime"], {"path": "wasmtime", "sha256": "a" * 64})
+                self.assertIn("/home/developer/private", (self.root / relative).read_text())
+                self.assertEqual(metadata["sha256"]["compiler.wasm"], builds.digest(base / "dist/compiler.wasm"))
+
+    def test_build_machine_paths_in_binary_payloads_block_publication(self):
+        path = self.root / "compiler/dist/compiler.wasm"
+        original = self.bundle.read_bytes()
+        # Split the path at the packer's chunk boundary to exercise streaming.
+        private = str(Path.home()).encode() + b"/private/compiler.rs"
+        path.write_bytes(CORE + b"\0" * (1024 * 1024 - len(CORE) - 3) + private)
+        with self.assertRaisesRegex(ValueError, "build-machine path.*path remapping"):
+            self.package()
+        self.assertEqual(self.bundle.read_bytes(), original)
+
+    def test_size_report_uses_bundle_names_and_host_relative_paths(self):
+        host = self.root / "host"
+        host.mkdir()
+        (host / "engine.so").write_bytes(b"host engine")
+        with mock.patch.dict(packages.os.environ, {"WISP_WASMTIME_PYTHON": str(host)}):
+            report = packages.report([self.bundle, Path(self.shared_record["archive"])])
+        self.assertEqual(next(p for p in report["packages"] if p["tool"] == "compiler")["archive"], self.bundle.name)
+        measured = next(h for h in report["executionHosts"] if h["environment"] == "WISP_WASMTIME_PYTHON")
+        self.assertEqual(measured["files"][0]["path"], "engine.so")
+        self.assertNotIn(str(self.root), json.dumps(report))
+
     def test_report_measures_shared_paths_and_exact_content_once(self):
         other = self.package("shared")
         bundles = [self.bundle, Path(other["archive"])]

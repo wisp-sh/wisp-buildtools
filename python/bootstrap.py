@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import shlex
 import shutil
 import sys
 import tempfile
@@ -130,8 +131,15 @@ def main():
         staging = work / "dist"
         staging.mkdir()
         # Native Cargo is bootstrap-only. User builds execute this Wasm module.
+        cargo_environment = dict(os.environ)
+        remaps = [f"--remap-path-prefix={Path.home().resolve()}=/build-user",
+                  f"--remap-path-prefix={ROOT.parent.resolve()}=/wisp-buildtools"]
+        # Encoded flags preserve paths containing spaces and override RUSTFLAGS.
+        encoded = cargo_environment.get("CARGO_ENCODED_RUSTFLAGS")
+        flags = encoded.split("\x1f") if encoded else shlex.split(cargo_environment.get("RUSTFLAGS", ""))
+        cargo_environment["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join([*flags, *remaps])
         run(["cargo", "build", "--manifest-path", ROOT / "packager/Cargo.toml",
-             "--locked", "--release", "--target", "wasm32-wasip1"], timeout=600)
+             "--locked", "--release", "--target", "wasm32-wasip1"], timeout=600, env=cargo_environment)
         shutil.copyfile(ROOT / "packager/target/wasm32-wasip1/release/wisp-python-packager.wasm",
                         staging / "python-packager.wasm")
         template = staging / "template.component.wasm"
@@ -166,7 +174,7 @@ def main():
                     "packager_bootstrap_rust": run(["rustc", "--version"], capture=True).stdout.strip(),
                     "output": "WebAssembly Component", "runtime_info": runtime_info,
                     "component_bytes": template.stat().st_size,
-                    "native_bootstrap_tools": {name: {"path": str(path), "sha256": digest(path)}
+                    "native_bootstrap_tools": {name: {"path": path.name, "sha256": digest(path)}
                                                for name, path in tools.items()},
                     "sha256": files}
         (staging / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")

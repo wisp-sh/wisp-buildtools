@@ -49,14 +49,6 @@ jobs:
           python3 tools/ci-prerequisites.py check
       - name: Check GitHub Actions workflows
         run: python3 tools/ci-prerequisites.py lint
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: all-toolchain-build-plan
-          path: |
-            build-plan.json
-            build-selection.json
-          if-no-files-found: error
-          retention-days: 7
 
   compilers:
     name: Build ${{ matrix.toolchain }}

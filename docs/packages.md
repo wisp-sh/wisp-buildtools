@@ -78,6 +78,21 @@ compilers, static SDK archives, build trees and caches stay outside the bundles.
 Portable payloads use platform `wasm32-wasi`; admission rejects native binaries
 under that platform.
 
+Evidence directories, local benchmarks, logs, timing dumps and macro traces are
+excluded even when a containing runtime directory is included. Rust bundles
+retain compiler and sysroot inventories, source locks, the build-driver snapshot
+and the compact acceptance summary. The exact build-report hash stays in the
+toolchain metadata; verbose build reports and their local paths stay outside the
+release bundle. Python bootstrap metadata retains tool names and checksums,
+with local executable locations reduced to basenames. Packaging stages those
+metadata changes without modifying the installed compiler files.
+
+The packer also rejects payload bytes containing the build machine's checkout
+or home path. This includes compiler binaries and sysroot metadata. Rebuild
+older artifacts with path remapping before distributing them; changing their
+bytes after compilation would break their integrity inventories. Size reports
+use bundle filenames and paths relative to each measured host directory.
+
 | Measurement | Included |
 | --- | --- |
 | Download | Complete `.wisp.zip`, including manifest and ZIP framing. |

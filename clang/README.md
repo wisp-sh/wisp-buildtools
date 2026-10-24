@@ -38,15 +38,17 @@ The native SDK compiler and table generators run only during bootstrap.
 [`../llvm/scripts/shared.py`](../llvm/scripts/shared.py) links the shared
 provider and both compiler consumers. Static archives stay in bootstrap
 artifacts and are excluded from runtime packages.
+The Wasm compiler build remaps source paths to `/wisp-buildtools` and home paths
+to `/build-user`. Rebuild cached LLVM archives before producing public bundles
+if they predate those flags.
 
 [`verify-clang-wasm.sh`](verify-clang-wasm.sh) checks scalar addition, templates,
 structs, `constexpr`, C input, includes, invalid syntax, disabled exceptions,
 rejection of target overrides and generated module imports. Where `strace` is
 available it verifies that only the supplied Wasmtime host starts.
 
-[DRIVERLESS.md](DRIVERLESS.md) contains the compiler API choices and historical
-size measurements. Those historical monolithic component sizes describe the
-previous build; current runtime sizes come from the package inventory.
+[DRIVERLESS.md](DRIVERLESS.md) describes the compiler entry point and verification
+commands. Runtime sizes come from the package inventory.
 
 For libc-backed library reactors, `--wasi-sysroot DIR` opts into the fixed
 `wasm32-wasip1` application target. It uses the sysroot's target headers,

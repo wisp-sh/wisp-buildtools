@@ -1,20 +1,17 @@
-# Cross-language acceptance sources
+# Cross-language source examples
 
-These original source-only sketches are retained for reference. The implemented
-Wisp examples and their passing disposable-registry verifier are now in the
-sibling Wisp repository:
+These small sources illustrate Go and C++ importing Rust, and Rust importing
+Go and C++. Wisp generates the guest bindings and composes the dependency Wasm.
+The sources alone do not perform a registry integration test.
 
-- [Go importing Rust](../../../../wisp/examples/go-import-rust/README.md).
-- [C++ importing Rust](../../../../wisp/examples/cpp-import-rust/README.md).
-- [Rust importing Go and C++](../../../../wisp/examples/rust-import-wasm/README.md).
+For complete projects and the disposable-registry verifier, use these paths
+in a Wisp checkout:
 
-The [verifier](../../../../wisp/examples/rust-import-wasm/verify.py) publishes real
-provider artifacts, fetches them into fresh consumers, stops the registries,
-compiles the consumers using the Wasm-hosted compilers, and invokes the composed
-results. Native Go, ordinary Cargo check and relocated clangd checks verify the
-editor-facing packages too. Generated source tampering is rejected.
+- `examples/go-import-rust`
+- `examples/cpp-import-rust`
+- `examples/rust-import-wasm/verify.py`
 
-Applications use normal Go imports, C++ includes and Cargo dependencies. Wisp
-creates the guest bindings and composes the dependency Wasm. This proves the
-scalar compiler integration checkpoint. Serde derives still require the macro
-compiler port before the first usable Rust release.
+The verifier publishes and fetches provider releases, stops the registries
+before consumer builds, then checks execution and editor packages. See the
+[compiler acceptance suite](../../tests/README.md) for standalone Rust,
+build-script and procedural-macro checks.

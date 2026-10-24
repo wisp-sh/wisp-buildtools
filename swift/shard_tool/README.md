@@ -7,16 +7,16 @@ The transformer scans instruction bytes and only replaces direct calls whose
 defined-function index changes. It holds the input bytes, compact module
 metadata, and one output shard, without a whole-module instruction IR.
 
-Prepare images explicitly before entering application compiler guards:
+From the repository root, prepare images before application compilation:
 
 ```sh
-python3 /home/luap/wisp-buildtools/swift/shard.py \
-  --input /home/luap/wisp-buildtools/llvm/dist/swift-shared/swift-frontend-llvm.so.wasm \
-  --out /home/luap/.t3/projects/wisp-pkgs/.cache/swift-small/frontend \
+python3 swift/shard.py \
+  --input llvm/dist/swift-shared/swift-frontend-llvm.so.wasm \
+  --out .cache/swift-small/frontend \
   --shards 8 --name swift-frontend
 ```
 
-The CLI takes `/home/luap/.t3/projects/wisp-pkgs/.cache/compiler-memory.lock`.
+The CLI takes `.cache/compiler-memory.lock` in the buildtools repository.
 Override the path with `WISP_COMPILER_MEMORY_LOCK` if needed. If a parent already
 holds that flock, pass `--lock-held` or `ensure(..., lock_held=True)`. Taking a
 second flock through another descriptor can deadlock. Direct invocations of the
@@ -125,8 +125,11 @@ manifest; the pinned input is already stripped.
 
 ## Verification
 
-Run `python3 shard_tool/test_shard.py` for small Wasmtime 49 differential fixtures.
-It holds the common lock and compares source/shards with 1, 2, 3 and 7 shards for
+From `swift/`, run `python3 shard_tool/test_shard.py` for small Wasmtime 49
+differential fixtures.
+Set `WISP_WASMTIME_PYTHON` to the external binding directory, or install the binding
+in the host Python environment. The verifier holds the common lock and compares
+source/shards with 1, 2, 3 and 7 shards for
 mutual recursion, cross-call and multivalue results, mutable shared globals,
 imported-global initializers, memory writes, original function-pointer callback
 slots and external function imports. Explicit table-zero element encoding and
@@ -142,40 +145,3 @@ element-index instructions and require that no completed/pending output survives
 Results are recorded under `fixture-cache/results.json`. Real compiler-image
 transformation validates modules sequentially without compiling them. Compiler
 warmup and actual Swift application compilation belong to the parent runtime.
-
-## Measured frontend result
-
-The pinned frontend backend hash
-`d0c372c91cf1fb4affa9c5af136af4a91c18fdf9785e5036bc723c408efbad5d`
-transformed successfully into eight shards in
-`/home/luap/.t3/projects/wisp-pkgs/.cache/swift-small/frontend`. Source size was
-84,550,193 bytes. State plus shards total 95,132,364 bytes, 12.52% larger. Each
-shard contains 18,278 or 18,279 defined functions. The largest is 16,807,404 bytes;
-state is 992,370 bytes. The tool rewrote 776,290 cross-shard calls.
-
-The explicit preparation process reached 132,284 KiB peak RSS and used 104.79 CPU
-seconds. Wall time was 141.29 seconds including the shared-lock wait. The initial
-offline Cargo build reached 435,948 KiB peak RSS. These numbers measure artifact
-transformation and validation, not real compiler JIT/execution. Raw timing and
-manifest records are in `evidence/frontend-transform.*`.
-
-An optional attempt on `wasm-ld-llvm.so.wasm` rejected its defined table section
-before writing outputs. That image has one defined `funcref` table of exactly
-22,285 elements; supporting it requires coordinator-owned table definitions and
-shard imports of those tables while retaining original indices. The current tool
-does not claim to transform that linker image. The original frontend/linker
-distributions remain unchanged.
-
-The reviewed tool additionally rejects imported-table alias overlaps and the
-pure verifier checks manifest structure before artifact hashes. Its 29 fixture
-records are in `evidence/reviewed-fixtures.json`. An explicit preparation with
-that tool is published separately at
-`/home/luap/.t3/projects/wisp-pkgs/.cache/swift-small/frontend-reviewed`, with
-tool SHA256 `b06d73440c6c74276feaa7f71e1eaea69feb96e13dc2e6e05b48233ae2432405`.
-It reached 132,348 KiB peak RSS, used 106.74 CPU seconds and took 185.53 seconds
-including the shared-lock wait. The coordinator and all eight shards are byte
-for byte identical to the earlier cache, with equal per-file sizes and SHA256
-hashes. `evidence/frontend-reviewed-comparison.json` records that comparison and
-the unchanged original manifest hash. The old cache retains its prior tool hash
-receipt and remains valid when explicitly verified against that prior hash.
-The reviewed preparation did not JIT any real compiler module.

@@ -26,6 +26,6 @@ The compiler accepts ordinary upstream AssemblyScript, its standard library, and
 
 `--runtime incremental` is the default. `minimal` and `stub` are available. Builds keep assertions and default to `-O0`. `-O1` through `-O3` request upstream optimization and can take longer on larger programs.
 
-`bootstrap.py --scan-source` runs the optional `is-malicious` scanner before running the downloaded sources. The initial development scan could not complete because `TYPESAFE_API_KEY` was unavailable. No clean scan result is claimed.
+`bootstrap.py --scan-source` runs the optional `is-malicious` scanner before running the downloaded sources. Configure the scanner credentials in your environment if you use that option.
 
 AssemblyScript and Binaryen use Apache-2.0. Bootstrap copies their license notices into `dist/licenses/`. The Emscripten callback code in `src/runtime.py` follows the glue shipped in the pinned Binaryen npm package.

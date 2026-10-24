@@ -181,25 +181,14 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: ${{ inputs.toolchain }}-wasm32-wasi
-          path: ${{ env.PACKAGE_DIRECTORY }}
+          path: |
+            ${{ env.PACKAGE_DIRECTORY }}/*.wisp.zip
+            ${{ env.PACKAGE_DIRECTORY }}/*.wisp.json
+            ${{ env.PACKAGE_DIRECTORY }}/*.wisp.zip.sha256
+            ${{ env.PACKAGE_DIRECTORY }}/sizes.html
+            ${{ env.PACKAGE_DIRECTORY }}/sizes.md
+            ${{ env.PACKAGE_DIRECTORY }}/sizes.json
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
-      - name: Upload build plan and logs
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: ${{ inputs.toolchain }}-build-logs
-          path: |
-            .ci/*.json
-            .ci/*.log
-            rust/build/compiler-source-build-1.99.1/*.log
-            rust/build/compiler-source-build-1.99.1/*report.json
-            rust/build/compiler-source-build-1.99.1/config.toml
-            rust/build/compiler-source-build-1.99.1/sdk-probe.cpp
-            rust/build/source-rust-*/wisp-source-receipt.json
-            rust/build/source-rust-*/wisp-source-lock.json
-          include-hidden-files: true
-          if-no-files-found: warn
-          retention-days: 7

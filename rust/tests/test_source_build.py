@@ -386,6 +386,7 @@ class Wasip3BuildTests(unittest.TestCase):
         self.assertEqual(version, "1.99.1 (58cf8f9c3 2026-10-13)")
         self.assertTrue(config["build"]["local-rebuild"])
         self.assertFalse(config["rust"]["debug-assertions"])
+        self.assertTrue(config["rust"]["remap-debuginfo"])
         self.assertEqual(config["target"]["wasm32-wasip3"]["llvm-config"], "native/llvm-config")
 
     def test_component_install_and_stage0_sysroots(self):

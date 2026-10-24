@@ -40,7 +40,7 @@ class RustAcceptanceEvidenceTests(unittest.TestCase):
                 builds.record_rust_acceptance(candidate, root)
             self.assertFalse((candidate / "runtime-adapter.json").exists())
 
-    def test_completed_acceptance_preserves_receipts_and_actual_compiler_identity(self):
+    def test_completed_acceptance_records_identity_without_copying_private_logs(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             candidate, results = root / "candidate", root / "results"
@@ -48,6 +48,8 @@ class RustAcceptanceEvidenceTests(unittest.TestCase):
             names = ["scalar", "std", "base64", "build-script", "derive", "serde"]
             (results / "results.json").write_text(json.dumps({"status": "passed", "cases": [
                 {"name": name, "status": "passed"} for name in names]}))
+            (results / "runner.log").write_text("private execution log")
+            (results / "metadata.json").write_text('{"path":"/home/developer/private"}')
             for relative in ("scripts/runner.py", "build/bootstrap/rustc.wasm"):
                 path = candidate / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
@@ -58,8 +60,10 @@ class RustAcceptanceEvidenceTests(unittest.TestCase):
             adapter = json.loads((candidate / "runtime-adapter.json").read_text())
             self.assertEqual(adapter["status"], "passed")
             self.assertEqual(adapter["compilerSha256"], builds.digest(candidate / "build/bootstrap/rustc.wasm"))
-            receipt = "verification/acceptance/results.json"
-            self.assertEqual(adapter["receiptFiles"][receipt], builds.digest(results / "results.json"))
+            self.assertEqual(adapter["receiptFiles"], {})
+            self.assertEqual(adapter["acceptanceResultSha256"], builds.digest(results / "results.json"))
+            self.assertFalse((candidate / "verification").exists())
+            self.assertEqual((results / "runner.log").read_text(), "private execution log")
             manifest = json.loads((candidate / "toolchain.json").read_text())
             self.assertEqual(manifest["status"], "standalone-verified")
             self.assertTrue(manifest["verification"]["serdeAcceptancePassed"])

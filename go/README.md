@@ -2,7 +2,7 @@
 
 This toolchain packages Go 1.27.2's `cmd/compile`, `cmd/asm`, and `cmd/link` as WASIp1 modules, together with the complete exportable standard library for `GOOS=wasip1` and `GOARCH=wasm`. A Python adapter builds ordinary local Go packages without `cmd/go`. The build runner invokes no native Go tool and gives each Wasm tool only declared files, directories, and environment variables.
 
-The current package builder produces `dist/go-toolchain-full-1.27.2/`. The older `artifacts/go-toolchain-1.27.1.tar.gz` remains as the proof-of-concept artifact with only `fmt` dependencies.
+The package builder produces `dist/go-toolchain-full-1.27.2/`.
 
 `examples/multipkg` has two main files and three local packages. It imports `fmt`, `encoding/json`, `crypto/sha256`, `strings`, and `bytes`, among other standard packages. Its executable prints normalized JSON and a SHA-256 digest.
 
@@ -68,7 +68,7 @@ python3 scripts/check-cache.py \
 python3 -m unittest discover -s tests -v
 ```
 
-The cache check produced these misses among `shared`, `format`, `hash`, `main`, and `link`:
+The cache check verifies these invalidations among `shared`, `format`, `hash`, `main`, and `link`:
 
 | Change | Nodes that ran |
 | --- | --- |
@@ -81,38 +81,12 @@ The cache check produced these misses among `shared`, `format`, `hash`, `main`, 
 
 In the shared-dependency case, `format` and `hash` recompiled but produced byte-identical archives. The main node reused its cached output, while the linker consumed the changed `shared` archive.
 
-## Measurements
+## Compare reproducibility across hosts
 
-Measured on this Linux host with Wasmtime 49.0.1. A cold run used a new Wasmtime compiled-code cache and a new build-output cache. A warm Wasmtime run kept the compiled-code cache but used a new build-output cache. A fully cached run reused both. Times are end-to-end Python command times reported by `build.py`; `graph_seconds` in each JSON report excludes toolchain verification and graph construction. Cold timings varied between runs as host state changed. Peak RSS is per Wasmtime process, not a whole-build sum.
-
-| Toolchain item | Bytes |
-| --- | ---: |
-| `compile.wasm` | 53,415,551 |
-| `asm.wasm` | 8,983,212 |
-| `link.wasm` | 12,450,633 |
-| 370 standard-library archives | 144,129,090 |
-| Complete uncompressed toolchain | 219,028,726 |
-| Deterministic gzip tarball | 49,760,419 |
-
-| Build | Cold Wasmtime | Warm Wasmtime | Fully cached | Output size |
-| --- | ---: | ---: | ---: | ---: |
-| Trivial, one package | 24.889 s | 2.307 s | 0.440 s | 2,473,305 bytes |
-| Multi-package, four packages | 27.829 s | 4.178 s | 0.607 s | 4,762,017 bytes |
-
-The cold trivial run spent 19.600 s in compile and 4.872 s in link, with peak RSS of 1,404,364 and 444,012 KiB. Its warm run spent 0.552 and 0.489 s, with peaks of 281,784 and 104,364 KiB.
-
-For the four-package cold run, compile times in dependency order were 20.292, 0.490, 0.471, and 0.506 s. Link took 5.318 s. Peak RSS was 1,420,748 KiB for the first compiler process and 493,232 KiB for link. With Wasmtime's cache warm, compile times were 1.318, 0.490, 0.499, and 0.500 s; link took 0.629 s. Warm peaks were about 282,020 KiB for compile and 142,920 KiB for link. The first cold compiler invocation pays for Wasmtime compilation; later package invocations reuse its compiled module.
-
-The packaged tarball SHA-256 is `f0c7b0991c0840c672c85b5a05948b96a42d2f503dafda0137b7e279270514da`. The trivial output SHA-256 is `963245b341045b2d8f3bb0759e706d4d121f22f82b20d8bc50e3a1f37ff2e77d`. The multi-package output SHA-256 is `3b67cf63325cc2756cec1766673e69520105db00cb17bc7c16bd7c3bb1b824fe`.
-
-## Reproducibility across hosts
-
-On Linux, cold and warm executions produced identical output bytes. A second checkout directory with a fresh build-output cache produced the same multi-package output hash **and the same five DAG keys**. This checks that the host source path does not enter the build key or guest paths.
-
-An extracted copy of `artifacts/go-toolchain-full-1.27.1.tar.gz` also rebuilt all five nodes with a fresh build-output cache and produced the same output hash.
-The trivial project rebuilt with a fresh output cache under `env -i`, so the runner did not need the host environment or `PATH`.
-
-macOS and Windows hosts were unavailable in this workspace, so cross-host equality is unverified. `scripts/repro-report.py` records the archive hash, source-tree hash, build configuration, and output hash on each host. Run it with the same extracted package and source tree on each machine, then compare report files:
+`scripts/repro-report.py` records the archive hash, source-tree hash, build
+configuration and output hash. Run it with the same package and source tree on
+each machine, then compare the reports. Linux x86_64 is the tested host;
+macOS and Windows need separate acceptance checks.
 
 ```sh
 python3 scripts/repro-report.py \
@@ -123,6 +97,7 @@ python3 scripts/repro-report.py \
 python3 scripts/repro-report.py --compare repro-linux.json repro-macos.json repro-windows.json
 ```
 
-The Linux report is in `out/repro-linux.json` after running the command here. The comparison fails and prints the differing field if package, source, configuration, or output hashes differ. Windows execution has not yet been tested; the runtime omits RSS there because Python lacks `wait4`.
-
-The earlier `cmd/go` experiment remains out of scope. Its WASIp1 subprocess and pipe requirements do not fit this direct compiler, assembler, and linker model.
+The comparison fails if package, source, configuration or output hashes differ.
+Windows execution omits RSS because Python lacks `wait4`. Keep generated reports
+outside the source tree and use `python3 ../build.py sizes go` to measure an
+installed package.

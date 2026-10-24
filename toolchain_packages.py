@@ -237,6 +237,8 @@ def pack(document: dict, name: str, files: dict[str, Path], *, root: Path, outpu
     item = document["tools"][name]
     config = profiles.get("tools", {}).get(name, {})
     inventory = {}
+    private_prefixes = tuple({str(Path.home()).encode() + b"/", str(root.resolve()).encode() + b"/"})
+    overlap = max(map(len, private_prefixes)) - 1
     for relative, path in files.items():
         safe_path(relative)
         with path.open("rb") as source:
@@ -244,7 +246,12 @@ def pack(document: dict, name: str, files: dict[str, Path], *, root: Path, outpu
             header = source.read(8)
             checksum = hashlib.sha256(header)
             count = len(header)
+            previous = header
             while chunk := source.read(1024 * 1024):
+                scanned = previous + chunk
+                if any(prefix in scanned for prefix in private_prefixes) or b".t3/projects/" in scanned:
+                    raise ValueError(f"package input contains a build-machine path: {relative}; rebuild with path remapping")
+                previous = scanned[-max(overlap, 12):]
                 checksum.update(chunk)
                 count += len(chunk)
             if count != attributes.st_size:
@@ -585,7 +592,7 @@ def report(bundle_paths: list[Path]) -> dict:
             item["packages"].add(doc["tool"])
             item["paths"].add(relative)
         packages.append({"tool": doc["tool"], "identity": doc["identity"], "version": doc["version"],
-                         "upstreamVersion": doc["upstreamVersion"], "archive": str(bundle), "sha256": digest(bundle),
+                         "upstreamVersion": doc["upstreamVersion"], "archive": bundle.name, "sha256": digest(bundle),
                          "downloadBytes": bundle.stat().st_size, **doc["sizes"],
                          "dependencies": [item["name"][len("wisp:"):] for item in package_dependencies(doc)],
                          "dependencyVersions": {item["name"][len("wisp:"):]: item["version"] for item in package_dependencies(doc)},
@@ -625,7 +632,8 @@ def report(bundle_paths: list[Path]) -> dict:
             continue
         path = Path(configured)
         candidates = sorted(path.rglob("*")) if variable.endswith("PYTHON") and path.is_dir() else [path]
-        measured = [{"path": str(file), "sizeBytes": file.stat().st_size, "sha256": digest(file)}
+        measured = [{"path": file.relative_to(path).as_posix() if path.is_dir() else file.name,
+                     "sizeBytes": file.stat().st_size, "sha256": digest(file)}
                     for file in candidates if file.is_file() and not file.is_symlink()
                     and "__pycache__" not in file.parts and file.suffix not in {".pyc", ".pyo"}]
         if measured:

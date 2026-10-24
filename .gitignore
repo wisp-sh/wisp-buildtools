@@ -12,5 +12,17 @@
 .DS_Store
 # CI downloads, extracted bootstrap tools, logs and temporary packages.
 /.ci/
-# Extracted upstream Rust trees are build inputs, not verification fixtures.
-/rust/verification/legacy-build-*/source-rust-*/
+# Local verification output and development evidence are not source inputs.
+/assemblyscript/verification.json
+/grain/verification.json
+/java/verification.json
+/jvm/verification.json
+/kotlin/verification.json
+/python/verification.json
+/swift/verification.json
+/teavm/verification.json
+/zig/receipts/verification.json
+/rust/verification/
+/clang/benchmarks/
+/swift/shard_tool/evidence/
+/.cache/

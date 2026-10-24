@@ -8,12 +8,8 @@ The compiler host target and application target are separate settings.
 [toolchain.json](toolchain.json) records the selected release.
 [source-lock.json](source-lock.json) pins official Rust sources, the matching
 native bootstrap release, WASI SDK 34 and the external LLVM SDK inventory.
-The local Rust 1.99.1 component passed all six standalone application acceptance
-cases on 2026-10-20, including unmodified Serde derives, and is installed at
-`dist/compiler`. [Verification](verification/rust-1.99.1-wasip3.json) records its
-compiler hash, SDK inventory and execution evidence. The source recipe still
-requires a build on a fresh checkout. Retained Rust 1.83 receipts describe the
-earlier compiler only.
+Run the standalone acceptance suite after building the compiler, including the
+Serde derive and build-script cases. Compiler packages install to `dist/compiler`.
 
 Build from the repository root:
 
@@ -77,11 +73,7 @@ threads. Native compiler code paths retain their threaded implementation.
 The [acceptance harness](tests/README.md) covers scalar, `std`, base64, generated
 build-script sources, local macros and unmodified Serde derives. Each resulting
 application must print `42`. Compiler invocations, hashes, output and macro
-traces stay in the requested result directory. The packaged compiler includes
-the successful acceptance receipts. Wisp registry interop has its own verifier.
-The [macro port history](docs/macro-port.md) describes Rust 1.83.
-
-The old downloaded Rust bootstrap is no longer the active recipe.
-`scripts/bootstrap.py` refuses to install it under the new source manifest.
-The previous local Rust 1.83 package and bootstrap outputs have been removed;
-their small historical receipts remain under `verification/`.
+traces stay in the requested result directory. `runtime-adapter.json` records the tested compiler and runner hashes plus the
+acceptance result hash. Raw logs and traces stay in the results directory. Wisp
+registry interop has its own verifier. See [procedural macros](docs/proc-macros.md)
+for the execution model and restrictions.

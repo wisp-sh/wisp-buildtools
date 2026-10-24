@@ -1,4 +1,4 @@
-# Pre-alpha language support
+# Language support
 
 Wisp's compiler packages compile application source inside WebAssembly. Language
 features available inside a program and values that can cross its public
@@ -6,14 +6,13 @@ Component interface are separate limits. A working compiler does not imply that
 every library from that language can be packaged, or that every consumer target
 can execute the result.
 
-This is the pre-alpha support assessment as of 24 October 2026. Compiler
+This support assessment covers the checked-in compiler recipes. Compiler
 execution is exercised on Linux x86_64. Python orchestrates the build and
 Wasmtime runs the compiler guests. Rust also requires native Cargo for locked,
 offline metadata resolution. Native compilers and other tools listed in each
 package's bootstrap instructions are needed to build the compiler packages.
 
-No language or consumer target is designated stable. The levels below describe
-verified scope within the pre-alpha.
+The levels below describe verified scope. See the root README for project maturity.
 
 ## Support levels
 
@@ -26,9 +25,8 @@ verified scope within the pre-alpha.
 - **Command package** means a WASI executable and its data can be distributed.
   This does not provide automatic Rust, npm, Go or Python library bindings.
 
-These levels describe recorded coverage. A release candidate still needs its own
-clean-install acceptance run. The previous successful hosted compiler run
-predates the latest WASIp3 Rust changes and the OCaml and Goose additions.
+These levels describe recorded coverage. Each release candidate needs its own
+clean-install acceptance run against the current compiler recipes.
 
 ## Source languages
 
@@ -37,7 +35,7 @@ predates the latest WASIp3 Rust changes and the OCaml and Goose additions.
 | C, `clang` | Integrated, scalar API | Ordinary C compilation and linking inside the LLVM Component, multi-file projects and configured headers. | Inferred public functions use scalars. Pointers, structs, varargs and ownership need authored bindings. System libraries must have compatible Wasm builds. | `clang/verify-clang-wasm.sh`; Wisp `examples/build-cpp` and source acceptance |
 | C++, `clang` | Integrated | Ordinary functions, namespaces, supported plain records, strings, byte buffers and typed results. Installed Go and Rust Components can be imported through generated headers. | No arbitrary pointer APIs, recursive public records, overloaded or generic public functions. Inference reads configured sources, not arbitrary included record definitions. Native OS libraries and build systems are not automatically ported. | Wisp `examples/build-values/cpp`, `examples/cpp-import-go`, `examples/cpp-import-rust` |
 | Go, `go` | Integrated | Go 1.27.2 compiler, assembler, linker and packaged standard library. Scalar, string, byte-buffer, record and error exports. Cross-language Component composition. | Portable Go guest imports are scalar-only. Rich exported values share a bounded 4 MiB transient arena. Dependencies must be available locally; the direct compiler adapter does not fetch modules. Native Go package use has separate runtime/platform requirements. | `go/tests`; Wisp `examples/build-go`, `examples/build-values/go`, import examples |
-| Rust, `rust` | Integrated | Source-built Rust 1.99.1/WASIp3 compiler with linked LLVM 24. `std`, vendored crates, basic build scripts, procedural macros and Serde derives execute through Wasm stages. Rich exports and installed Go/C++ imports. | Cargo metadata runs natively and offline. Vendor dependencies first. Public generics, borrowed public values, arbitrary lists, recursive records and async source APIs are outside inference. A Rust crate that needs unsupported native facilities still needs porting. | `rust/tests/acceptance.py`; `rust/verification/rust-1.99.1-wasip3.json`; Wisp Serde and import acceptance |
+| Rust, `rust` | Integrated | Source-built Rust 1.99.1/WASIp3 compiler with linked LLVM 24. `std`, vendored crates, basic build scripts, procedural macros and Serde derives execute through Wasm stages. Rich exports and installed Go/C++ imports. | Cargo metadata runs natively and offline. Vendor dependencies first. Public generics, borrowed public values, arbitrary lists, recursive records and async source APIs are outside inference. A Rust crate that needs unsupported native facilities still needs porting. | `rust/tests/acceptance.py`; Wisp Serde and import acceptance |
 | Zig, `zig` | Verified adapter | Zig 0.17.0 bootstrap frontend, comptime, generics, local imports and the freestanding parts of the standard library. Emits C, then compiles it through the separate Wasm Clang backend. | Scalar Component interface. `ReleaseSmall` disables Zig runtime safety checks. No Zig build runner, package fetching, native targets or Zig LLVM backend. General libc, OS APIs and C interop need separate integration; optional memory helpers do not establish full allocator support. | `zig/verify.py` |
 | AssemblyScript, `assemblyscript` | Verified adapter | Upstream AssemblyScript 0.28.20 plus Binaryen inside Wasm, local modules, arrays, loops, indirect calls and runtime selection. | Core Wasm exports can be wrapped with scalar WIT. Managed strings/objects use AssemblyScript's ABI and are not automatically public WIT values. No JS transforms, npm resolution or `asconfig.json` frontend. Requires the Wasmtime Python callback host, not just a CLI executable. | `assemblyscript/verify.py` |
 | Nim, `nim` | Verified adapter | Nim modules, generics, templates, compile-time macros, sequences and global initialization. C generation and compilation run in Wasm with shared LLVM. | Scalar Component exports. No network, threads, subprocesses, NimScript shell execution or native library loading. OS-specific standard-library modules and C libraries need individual verification. | `nim/verify.py` |
