@@ -18,6 +18,32 @@ def ar_member(name, payload):
     return header + payload + (b"\n" if len(payload) % 2 else b"")
 
 
+class ReleaseFlagsTests(unittest.TestCase):
+    def test_accepts_ci_cache_flags_and_quoted_paths(self):
+        for flags in [
+            '-O1 -DNDEBUG',
+            '-O1 -DNDEBUG -ffile-prefix-map="/home/runner"=/build-user '
+            '-ffile-prefix-map="/home/runner/work/wisp-buildtools/wisp-buildtools"=/wisp-buildtools',
+            '-O1 -DNDEBUG -ffile-prefix-map="/home/build user"=/build-user '
+            '-ffile-prefix-map="/home/build user/work tree"=/wisp-buildtools',
+        ]:
+            with self.subTest(flags=flags), tempfile.TemporaryDirectory() as temporary:
+                cache = Path(temporary) / 'CMakeCache.txt'
+                cache.write_text('CMAKE_CXX_FLAGS_RELEASE:STRING=' + flags + '\n')
+                self.assertTrue(sdk.release_flags_match(
+                    sdk.read_cache(cache)['CMAKE_CXX_FLAGS_RELEASE'], '-O1 -DNDEBUG'))
+
+    def test_rejects_changed_codegen_missing_or_malformed_flags(self):
+        for flags in [None, '', '-O2 -DNDEBUG', '-O1', '-O1 -DNDEBUG -O2',
+                      '-O1 -DNDEBUG -UNDEBUG', '-O1 -DNDEBUG -fexceptions',
+                      '-O1 -DNDEBUG -ffile-prefix-map=/home/runner',
+                      '-O1 -DNDEBUG -ffile-prefix-map==/build-user',
+                      '-O1 -DNDEBUG -ffile-prefix-map=/home/runner=',
+                      '-O1 -DNDEBUG -ffile-prefix-map="unterminated']:
+            with self.subTest(flags=flags):
+                self.assertFalse(sdk.release_flags_match(flags, '-O1 -DNDEBUG'))
+
+
 class ArchiveTests(unittest.TestCase):
     def test_checks_every_object_and_ignores_symbol_table(self):
         with tempfile.TemporaryDirectory() as temporary:

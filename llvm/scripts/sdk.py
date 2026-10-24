@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import shutil
 import sys
 import tarfile
@@ -38,6 +39,18 @@ def read_cache(path: Path) -> dict[str, str]:
         if match:
             result[match[1]] = match[2]
     return result
+
+
+def release_flags_match(actual: str | None, expected: str) -> bool:
+    """Allow source path remapping without relaxing the pinned codegen flags."""
+    if actual is None:
+        return False
+    try:
+        flags = shlex.split(actual)
+    except ValueError:
+        return False
+    flags = [flag for flag in flags if not re.fullmatch(r"-ffile-prefix-map=.+=.+", flag)]
+    return flags == shlex.split(expected)
 
 
 def macros(path: Path) -> dict[str, str]:
@@ -255,7 +268,9 @@ def package(args: argparse.Namespace) -> dict:
                 "LLVM_ENABLE_THREADS": "OFF", "LLVM_ENABLE_ASSERTIONS": "OFF",
                 "BUILD_SHARED_LIBS": "OFF", "LLVM_ENABLE_RTTI": "OFF", "LLVM_ENABLE_EH": "OFF"}
     for key, value in expected.items():
-        if cache.get(key) != value:
+        actual = cache.get(key)
+        matches = release_flags_match(actual, value) if key == "CMAKE_CXX_FLAGS_RELEASE" else actual == value
+        if not matches:
             fail(f"build setting {key} must be {value}, got {cache.get(key)!r}")
     rules_path = build / "CMakeFiles/rules.ninja"
     compiler_targets = set(re.findall(r" --target=([^ \n]+)", rules_path.read_text()))
