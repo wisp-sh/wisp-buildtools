@@ -16,6 +16,38 @@ spec.loader.exec_module(ci)
 
 
 class PackageCompilerCI(unittest.TestCase):
+    def test_go_application_host_is_provisioned_after_bootstrap_dependencies(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'buildtools.json').write_text('{}')
+            host = root / '.ci/hosts/wisp-wasmtime-49.0.1/wasmtime'
+            events, exports = [], []
+            def install(tool):
+                events.append(tool)
+                return {'environment': {'WISP_WASMTIME': '/stock/wasmtime-49.0.4'}, 'paths': []}
+            def execution_host(recipe, prefix, cache):
+                events.append('wisp-host')
+                self.assertEqual(recipe, 'build.py')
+                self.assertEqual(prefix, host.parent)
+                self.assertEqual(cache, root / '.ci/host-build')
+                prefix.mkdir(parents=True)
+                host.touch()
+            prerequisites = {
+                'check_lock': lambda: None, 'install_for': install,
+                'execution_host': execution_host,
+                'LOCK': {'downloads': {'wasmtime': {'executable': 'bin/wasmtime'}}},
+                'github_environment': lambda env, paths: exports.append(env),
+            }
+            with patch.object(ci, 'ROOT', root), patch.object(ci, 'load_driver', return_value={
+                    'dependency_order': lambda manifest, names: ['go', 'wasm-tools']}), \
+                 patch.object(ci.runpy, 'run_path', return_value=prerequisites), \
+                 patch.object(ci.subprocess, 'run'), patch.dict(os.environ):
+                ci.provision('go', root / 'recipes')
+            self.assertEqual(events, ['go', 'wasm-tools', 'wisp-host'])
+            self.assertEqual(exports[-1]['WISP_WASMTIME'], str(host))
+            self.assertEqual(exports[-1]['WISP_RUST_WASMTIME'], str(host))
+            self.assertNotEqual(exports[-1]['WISP_BOOTSTRAP_WASMTIME'], str(host))
+
     def test_driver_import_from_an_unrelated_checkout(self):
         script = (
             'import runpy; '

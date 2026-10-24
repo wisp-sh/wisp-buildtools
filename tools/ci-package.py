@@ -66,6 +66,10 @@ def provision(toolchain, recipe_root):
     # Later prerequisite installers may select the upstream host. Compiler
     # families needing Wisp's host must keep the derived host after provisioning.
     host = ROOT / '.ci/hosts/wisp-wasmtime-49.0.1/wasmtime'
+    if toolchain == 'go':
+        # Go's compiler bootstrap uses stock Wasmtime, but `wisp build` checks
+        # and uses the separately pinned Wisp host for application compilation.
+        prerequisites['execution_host']('build.py', host.parent, ROOT / '.ci/host-build')
     if host.is_file():
         exported.update(WISP_WASMTIME=host, WISP_RUST_WASMTIME=host)
     if toolchain == 'swift':
