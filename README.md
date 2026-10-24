@@ -290,3 +290,10 @@ original locations.
 
 Wisp-authored code in this repository uses Apache-2.0. Upstream sources, compiler
 payloads and packaged applications retain their own licenses and notices.
+
+The private [package-build Action](.github/actions/package-build/action.yml)
+provisions compiler dependencies for `wisp-sh/wisp-pkgs`. It installs pinned
+bootstrap prerequisites in dependency order, builds each compiler, and exports
+its paths for application recipes. Swift also prepares the streamed compiler
+shards. It carries no publication credentials. Run `python3 test-ci-package.py`
+to check dependency and environment propagation.

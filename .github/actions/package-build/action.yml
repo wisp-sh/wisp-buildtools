@@ -1,0 +1,24 @@
+name: Provision package compilers
+description: Build compiler dependencies from pinned inputs and export paths for the package recipes
+inputs:
+  toolchain:
+    required: true
+    description: Application compiler selected by the package catalog
+  recipe-root:
+    required: true
+    description: Absolute path to the package source checkout
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install --no-install-recommends --yes build-essential cmake curl libbrotli1 ninja-build openjdk-21-jdk-headless patch pkg-config unzip xz-utils zstd
+    - shell: bash
+      env:
+        WISP_ACTION_ROOT: ${{ github.action_path }}/../../..
+        WISP_PACKAGE_TOOLCHAIN: ${{ inputs.toolchain }}
+        WISP_RECIPE_ROOT: ${{ inputs.recipe-root }}
+        WISP_BOOTSTRAP_JAVA: /usr/lib/jvm/java-21-openjdk-amd64/bin/java
+      run: |
+        python3 "$WISP_ACTION_ROOT/tools/ci-package.py" --toolchain "$WISP_PACKAGE_TOOLCHAIN" --recipe-root "$WISP_RECIPE_ROOT" 2>&1 | tee "$RUNNER_TEMP/wisp-package-toolchains.log"

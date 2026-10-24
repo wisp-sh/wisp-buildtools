@@ -1,0 +1,58 @@
+"""Package compiler provisioning must carry each dependency's environment forward."""
+import importlib.util
+import json
+import os
+from pathlib import Path
+import tempfile
+import unittest
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parent
+spec = importlib.util.spec_from_file_location('package_ci', ROOT / 'tools/ci-package.py')
+ci = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(ci)
+
+
+class PackageCompilerCI(unittest.TestCase):
+    def test_dependency_plans_cover_runtime_backends(self):
+        import runpy
+        driver = runpy.run_path(str(ROOT / 'build.py'))
+        manifest = driver['load_manifest']()
+        order = driver['dependency_order'](manifest, ci.targets('rust'))
+        self.assertLess(order.index('clang'), order.index('llvm'))
+        self.assertLess(order.index('llvm'), order.index('rust'))
+        self.assertIn('clang', driver['dependency_order'](manifest, ci.targets('python')))
+        self.assertIn('llvm-swift', driver['dependency_order'](manifest, ci.targets('swift')))
+        with self.assertRaises(ValueError): ci.targets('../unknown')
+
+    def test_prerequisite_environment_reaches_the_build_and_custom_host_survives(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'buildtools.json').write_text('{}')
+            host = root / '.ci/hosts/wisp-wasmtime-49.0.1/wasmtime'
+            host.parent.mkdir(parents=True)
+            host.touch()
+            builds, exports = [], []
+            def install(tool):
+                return {'environment': {'WISP_TEST_TOOL': tool, 'WISP_WASMTIME': '/stock/wasmtime'},
+                        'paths': ['/bootstrap/' + tool]}
+            def execute(argv, **kwargs):
+                builds.append((argv, os.environ['WISP_TEST_TOOL'], os.environ['PATH'].split(os.pathsep)[0]))
+            prerequisites = {'check_lock': lambda: None, 'install_for': install,
+                             'LOCK': {'downloads': {'wasmtime': {'executable': 'bin/wasmtime'}}},
+                             'github_environment': lambda env, paths: exports.append(env)}
+            def recipe(path):
+                return prerequisites if Path(path).name == 'ci-prerequisites.py' else {
+                    'dependency_order': lambda manifest, names: ['clang', 'wasm-tools']}
+            with patch.object(ci, 'ROOT', root), patch.object(ci.runpy, 'run_path', side_effect=recipe), \
+                 patch.object(ci.subprocess, 'run', side_effect=execute), patch.dict(os.environ):
+                ci.provision('clang', root / 'recipes')
+            self.assertEqual([value[1] for value in builds], ['clang', 'wasm-tools'])
+            self.assertEqual([value[2] for value in builds], ['/bootstrap/clang', '/bootstrap/wasm-tools'])
+            self.assertEqual(exports[-1]['WISP_WASMTIME'], str(host))
+            self.assertEqual(exports[-1]['WISP_PREVIEW1_ADAPTER'], str(root / 'wasm-tools/dist/wasi_snapshot_preview1.reactor.wasm'))
+            self.assertNotEqual(exports[-1]['WISP_BOOTSTRAP_WASMTIME'], str(host))
+
+
+if __name__ == '__main__':
+    unittest.main()
