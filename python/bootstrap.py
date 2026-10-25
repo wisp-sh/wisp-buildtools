@@ -173,6 +173,12 @@ def main():
             raise ValueError(f"Python Component exceeds Wisp's 64 MiB limit: {template.stat().st_size} bytes")
         if invoke(template, "validate()") != "ok" or invoke(template, "add(20, 22)") != "42":
             raise ValueError("bootstrapped Python Component failed its guest smoke check")
+        inference = staging / "inference.component.wasm"
+        if inference.stat().st_size > MAX_COMPONENT_BYTES:
+            raise ValueError("Python inference Component exceeds the 64 MiB limit")
+        inferred = json.loads(json.loads(invoke(inference, "infer()")))
+        if 'error' in inferred or '%add: func(' not in inferred.get('declarations', ''):
+            raise ValueError(f"bootstrapped guest Python inference failed: {inferred}")
         runtime_info = invoke(template, "runtime-info()")
         shutil.copy2(ROOT / "wit/runtime.wit", staging / "runtime.wit")
         shutil.copytree(ROOT / "runtime", staging / "runtime", ignore=shutil.ignore_patterns("__pycache__"))

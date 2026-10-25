@@ -514,6 +514,12 @@
         {
           "argv": [
             "{python}",
+            "{root}/python/verify_inferred.py"
+          ]
+        },
+        {
+          "argv": [
+            "{python}",
             "{root}/python/bootstrap_contract.py",
             "--wit", "{root}/python/examples/library/library.wit",
             "--world", "library",
