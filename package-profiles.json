@@ -1769,6 +1769,11 @@
       "exclude": [],
       "entrypoints": [
         {
+          "name": "build",
+          "path": "csharp/compile.py",
+          "format": "host-script"
+        },
+        {
           "name": "csharp",
           "path": "csharp/dist/compiler/dotnet.wasm",
           "format": "wasm-core"

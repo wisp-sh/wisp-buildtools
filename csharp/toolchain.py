@@ -10,6 +10,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT.parent))
+if os.environ.get('WISP_WASM_TOOLS_TOOLCHAIN'):
+    sys.path.insert(0, str(Path(os.environ['WISP_WASM_TOOLS_TOOLCHAIN']).resolve().parent))
 import wasm_tools
 
 SOURCES = ('bootstrap.py', 'src/Compiler.cs', 'src/Generate.cs', 'src/runtime.c', 'toolchain.lock.json')
