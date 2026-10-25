@@ -25,8 +25,8 @@ def compile_contract(args, source, output):
     key, exports = contract(document, args.world)
     package = ROOT / 'dist/contracts' / key
     if not package.is_dir():
-        raise ValueError('Python WIT template is not provisioned. Run bootstrap_contract.py '
-                         f'--wit <contract.wit> --world {args.world} before building; contract SHA-256: {key}')
+        from scripts.provision import template
+        package = template(key, exports, wit, args.world, args.cache_dir)
     manifest = json.loads((package / 'manifest.json').read_text())
     if (manifest.get('schema') != 1 or manifest.get('contractSha256') != key
             or manifest.get('exports') != exports or manifest.get('componentizePy') != LOCK['componentize_py']):
@@ -52,7 +52,12 @@ def compile_contract(args, source, output):
         source_details = {}
         packaged_source = source
         if use_bundle:
-            payload, source_details = bundle(source, args.package_root, args.python_path)
+            from scripts.dependencies import prepare
+            dependency_root = args.package_root or source.parent
+            dependency_roots, dependency_details = prepare(dependency_root, work / 'dependencies')
+            payload, source_details = bundle(source, args.package_root, [*args.python_path, *dependency_roots],
+                                              excluded_paths=[*dependency_roots, *(dependency_root / p for p in dependency_details['excludedPaths'])])
+            source_details['dependencies'] = dependency_details
             packaged_source = work / 'program.py'
             packaged_source.write_bytes(payload)
         candidate = work / 'candidate.wasm'
@@ -88,6 +93,8 @@ def compile_contract(args, source, output):
         details = {'schema': 1, 'contractSha256': key, 'templateManifestSha256': digest(package / 'manifest.json'),
                    'sourceSha256': digest(source), 'sourceBundle': source_details, 'componentSha256': digest(public),
                    'fullyWasmHostedBuild': True,
+                   'templateBootstrap': {'implementation': 'native componentize-py, WIT only',
+                                         'applicationSourceRead': False},
                    'stages': ['WASI source-provider packaging', 'guest CPython compile/exec and export validation',
                               'WASI public export projection', 'WASI wasm-tools validation']}
         os.replace(public, output)

@@ -97,6 +97,12 @@ def total(values):
         self.assertEqual('Hello, x! 2', runtime['_call']('Api', 'greet', 'x'))
         self.assertEqual(42, runtime['_call']('Api', 'total', [20, 22]))
 
+    def test_normalized_inferred_names_keep_the_original_python_function(self):
+        runtime, _ = self.runtime('def greetPerson(name): return name + "!"\ndef answer_(): return 42')
+        runtime['EXPORTS'] = [('Api', 'greet_person', 1), ('Api', 'answer', 0)]
+        self.assertEqual(runtime['_call']('Api', 'greet_person', 'x'), 'x!')
+        self.assertEqual(runtime['_call']('Api', 'answer'), 42)
+
     def test_interface_classes_preserve_instance_state(self):
         runtime, _ = self.runtime('''class Api:
     def __init__(self): self.calls = 0
@@ -265,3 +271,73 @@ class TemplateInventoryTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class RuntimeConversionTests(unittest.TestCase):
+    def test_nested_dataclasses_lists_options_and_enum_values(self):
+        import dataclasses
+        import enum
+        import typing
+        @dataclasses.dataclass
+        class User:
+            firstName: str
+        @dataclasses.dataclass
+        class Wire:
+            first_name: str
+        class UserColor(enum.Enum):
+            DARK_BLUE = 'blue'
+        class WireColor(enum.Enum):
+            DARK_BLUE = 0
+        runtime, _ = ContractTests().runtime('def greet(name): return name\ndef total(values): return sum(values)')
+        convert = runtime['_convert']
+        converted = convert([Wire('世界')], list[User])
+        self.assertEqual(converted, [User('世界')])
+        self.assertEqual(convert(User('x'), Wire), Wire('x'))
+        self.assertIs(convert(WireColor.DARK_BLUE, UserColor), UserColor.DARK_BLUE)
+        self.assertIs(convert(UserColor.DARK_BLUE, WireColor), WireColor.DARK_BLUE)
+        self.assertIsNone(convert(None, typing.Optional[User]))
+        self.assertEqual(convert([1, 2], bytes), b'\x01\x02')
+
+    def test_dispatch_converts_plain_records_and_typed_enum_errors(self):
+        import dataclasses
+        import enum
+        @dataclasses.dataclass
+        class User:
+            value: int
+        @dataclasses.dataclass
+        class Wire:
+            value: int
+        def implementation(value: User) -> User:
+            self.assertIsInstance(value, User)
+            return User(value.value + 1)
+        def binding(value: Wire) -> Wire:
+            pass
+        runtime, _ = ContractTests().runtime('')
+        runtime['_functions'] = {('Api', 'call'): implementation}
+        runtime['BINDINGS'] = {('Api', 'call'): binding}
+        self.assertEqual(runtime['_call']('Api', 'call', Wire(41)), Wire(42))
+        UserStatus = enum.Enum('Status', {'FAILED': 'failed'})
+        WireStatus = enum.Enum('Status', {'FAILED': 0})
+        generated = types.ModuleType('wit_world.exports.api')
+        generated.Status = WireStatus
+        class Err(Exception):
+            def __init__(self, value):
+                self.value = value
+        def failure(value: int) -> int:
+            raise Err(UserStatus.FAILED)
+        runtime['Err'] = Err
+        runtime['_functions'][('Api', 'call')] = failure
+        with patch.dict(binding.__globals__, {'_generated_test_types': generated}):
+            with self.assertRaises(Err) as caught:
+                runtime['_call']('Api', 'call', 1)
+        self.assertIs(caught.exception.value, WireStatus.FAILED)
+
+        runtime['ERROR_TYPES'][('Api', 'call')] = {'kind': {'list': {
+            'name': 'status', 'kind': {'enum': {'cases': []}}}}}
+        def failures(value: int) -> int:
+            raise Err([UserStatus.FAILED])
+        runtime['_functions'][('Api', 'call')] = failures
+        with patch.dict(binding.__globals__, {'_generated_test_types': generated}):
+            with self.assertRaises(Err) as caught:
+                runtime['_call']('Api', 'call', 1)
+        self.assertEqual(caught.exception.value, [WireStatus.FAILED])

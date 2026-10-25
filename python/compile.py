@@ -16,6 +16,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
     parser.add_argument("-o", "--output", required=True, type=Path)
+    parser.add_argument("--cache-dir", type=Path, default=Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "wisp/python")
     parser.add_argument("--entry", default="add", help="Python callable to expose through the fixed add export")
     parser.add_argument("--wit", type=Path, help="authored WIT contract with a provisioned runtime template")
     parser.add_argument("--world", help="world selected from --wit")

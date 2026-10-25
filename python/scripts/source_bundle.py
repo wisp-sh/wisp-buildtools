@@ -21,7 +21,7 @@ def default_root(source):
     return root
 
 
-def bundle(source: Path, package_root: Path | None = None, python_paths=()):
+def bundle(source: Path, package_root: Path | None = None, python_paths=(), *, excluded_paths=()):
     source = source.resolve(strict=True)
     root = (package_root or default_root(source)).resolve(strict=True)
     if not root.is_dir() or not source.is_relative_to(root):
@@ -29,8 +29,11 @@ def bundle(source: Path, package_root: Path | None = None, python_paths=()):
     roots = [root, *(path.resolve(strict=True) for path in python_paths)]
     if any(not path.is_dir() for path in roots):
         raise ValueError('Python search paths must be directories')
+    excluded_paths = {path.resolve() for path in excluded_paths}
     for index, path in enumerate(roots):
-        if any(path.is_relative_to(other) or other.is_relative_to(path) for other in roots[:index]):
+        overlap = any(path.is_relative_to(other) or other.is_relative_to(path) for other in roots[:index])
+        isolated_scratch = path in excluded_paths and path != root and path.is_relative_to(root)
+        if overlap and not isolated_scratch:
             raise ValueError('Python source roots must not overlap')
     modules = {}
     origins = {}
@@ -58,6 +61,8 @@ def bundle(source: Path, package_root: Path | None = None, python_paths=()):
     def visit(directory, owner, label):
         nonlocal total, entry
         for path in sorted(directory.iterdir()):
+            if path.absolute() in excluded_paths:
+                continue
             if path.name.startswith('.') or path.name in EXCLUDED or path.name.endswith(('.dist-info', '.egg-info')):
                 continue
             if path.is_symlink():

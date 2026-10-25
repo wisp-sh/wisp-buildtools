@@ -26,7 +26,7 @@ def digest(path: Path) -> str:
 def tool(name: str) -> Path:
     variable = "WISP_BOOTSTRAP_WASM_TOOLS" if name == "wasm-tools" else "WISP_" + name.upper().replace("-", "_")
     sibling = ROOT.parent / "clang/.toolchains"
-    candidates = [os.environ.get(variable), shutil.which(name)]
+    candidates = [os.environ.get(variable), ROOT / "dist/provision" / name, shutil.which(name)]
     candidates += {
         "wasmtime": [],
         "wasm-tools": [sibling / "wasm-tools-1.262.0-x86_64-linux/wasm-tools"],
@@ -39,9 +39,9 @@ def tool(name: str) -> Path:
     raise ValueError(f"{name} is missing; set {variable} to the executable")
 
 
-def run(command, *, capture=False, timeout=300, env=None):
+def run(command, *, capture=False, timeout=300, env=None, cwd=None):
     return subprocess.run([str(value) for value in command], check=True,
-                          text=True, capture_output=capture, timeout=timeout, env=env)
+                          text=True, capture_output=capture, timeout=timeout, env=env, cwd=cwd)
 
 
 def invoke(component: Path, expression: str, *, timeout=30) -> str:
@@ -49,7 +49,7 @@ def invoke(component: Path, expression: str, *, timeout=30) -> str:
     try:
         capabilities = ("inherit-network=n,allow-ip-name-lookup=n,tcp=n,udp=n,inherit-env=n,"
                         "inherit-stdin=n,inherit-stdout=n,inherit-stderr=n")
-        result = run([tool("wasmtime"), "run", "-S", capabilities, "--invoke", expression, component],
+        result = run([tool("wasmtime"), "run", "-O", "opt-level=0", "-C", "parallel-compilation=n", "-S", capabilities, "--invoke", expression, component],
                      capture=True, timeout=timeout)
     except subprocess.CalledProcessError as error:
         raise ValueError(f"guest invocation failed: {error.stderr.strip() or error.stdout.strip()}") from error
@@ -65,7 +65,8 @@ def verified_package(dist: Path) -> bool:
             if digest(ROOT / name) != expected:
                 return False
         files = manifest["sha256"]
-        if not {"template.component.wasm", "runtime.wit", "runtime/app.py", "python-packager.wasm"}.issubset(files):
+        if not {"template.component.wasm", "inference.component.wasm", "public-exports.wasm",
+                "runtime.wit", "runtime/app.py", "runtime/inference.py", "python-packager.wasm"}.issubset(files):
             return False
         for name, expected in files.items():
             path = dist / name
