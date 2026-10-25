@@ -1751,6 +1751,79 @@
           "role": "adapter"
         }
       ]
+    },
+    "tsrs": {
+      "include": [
+        "tsrs/README.md",
+        "tsrs/host-contract.md",
+        "tsrs/source.json",
+        "tsrs/toolchain.lock.json",
+        "tsrs/bootstrap.py",
+        "tsrs/wasmtime_host.py",
+        "tsrs/typecheck.py",
+        "tsrs/dist"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "typecheck-host",
+          "path": "tsrs/wasmtime_host.py",
+          "format": "host-script"
+        },
+        {
+          "name": "tsrs",
+          "path": "tsrs/dist/tsrs.wasm",
+          "format": "wasm-core"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Python",
+          "kind": "orchestrator",
+          "version": "3.12+",
+          "included": false,
+          "note": "Native file I/O and orchestration host. This is the supported common workspace baseline; application source compilation executes in Wasm."
+        },
+        {
+          "name": "Wasmtime Python bindings",
+          "kind": "runtime-host",
+          "version": "50.0.1",
+          "included": false,
+          "note": "External Wasmtime Python 50.0.1, selected by WISP_WASMTIME_PYTHON, supplies tsrs_host callbacks. No native TypeScript compiler."
+        }
+      ],
+      "roles": [
+        {"pattern": "tsrs/dist/core.js", "role": "adapter"},
+        {
+          "pattern": "tsrs/dist/tsrs.wasm",
+          "role": "compiler"
+        },
+        {
+          "pattern": "tsrs/dist/LICENSE",
+          "role": "licenses"
+        },
+        {
+          "pattern": "tsrs/dist/NOTICE.txt",
+          "role": "licenses"
+        },
+        {
+          "pattern": "tsrs/*.py",
+          "role": "adapter"
+        },
+        {
+          "pattern": "tsrs/*.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "tsrs/*.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "tsrs/dist/*.json",
+          "role": "metadata"
+        }
+      ]
     }
   }
 }

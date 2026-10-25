@@ -41,7 +41,8 @@ def bundle(source: Path, module_root: Path, temp_dir: Path, *,
     # Native runtime configuration is intentionally small. Child guest variables
     # are passed explicitly above, including the Go WASI working directory.
     env = {key: value for key, value in os.environ.items()
-           if key in {"PATH", "SYSTEMROOT", "TMPDIR", "TEMP", "TMP"}}
+           if key in {"PATH", "SYSTEMROOT", "TMPDIR", "TEMP", "TMP",
+                      "WISP_CWASM_RUNTIME", "WISP_CWASM_CACHE", "WISP_CWASM_COMPILER", "WISP_CWASM_BACKEND"}}
     env["RAYON_NUM_THREADS"] = "1"
     completed = subprocess.run(command, text=True, capture_output=True, env=env, timeout=timeout)
     if completed.returncode:

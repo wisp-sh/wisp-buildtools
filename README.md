@@ -30,6 +30,7 @@ needed for the optional application integration checks.
 | [nim](nim/README.md) | Nim WASI frontend and hosted Clang/LLD backend |
 | [javascript](javascript/README.md) | JavaScript and TypeScript Components using QuickJS and esbuild Wasm |
 | [python](python/README.md) | CPython WASI source compilation and Component packaging |
+| [tsrs](tsrs/README.md) | Shared WASIp1 TypeScript checker with isolated filesystem callbacks |
 | [wasm-tools](wasm-tools/README.md) | Shared WASIp1 WIT and Component assembly tools |
 
 ## Getting started

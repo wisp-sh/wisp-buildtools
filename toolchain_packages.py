@@ -37,6 +37,8 @@ ROOT_FIELDS = {"schema", "kind", "identity", "version", "tool", "upstreamVersion
 # or a manifest supplied by the build. Repository and T3 paths remain forbidden.
 # Upstream upgrades must review these locations and update the matching hashes.
 PUBLIC_UPSTREAM_PAYLOADS = {
+    # Published tsrs uses redacted /home/.cargo paths and a TypeScript SDK URL.
+    "tsrs/dist/tsrs.wasm": "bb070f1416dccc5956d177f527b81534a86032efd4d94898dfc20aae1a5c4d18",
     # Unchanged Zig source tests contain the public example /home/absolute/path.rc.
     "zig/dist/lib/compiler/resinator/cli.zig": "009a7f9fa74436786c758bc232e94acda73d0a5cf160f03c36b4a0c76aea8f2a",
     # Unchanged upstream path tests include /home/andy and /home/foo examples.
@@ -59,8 +61,14 @@ PUBLIC_UPSTREAM_PAYLOADS = {
     "swift/dist/sysroot/wasi-sysroot/lib/wasm32-wasip1/libxml2.a": "29be63c1526c33a3bc511e084ac0a9991782234c2b48a331716d44abc140be08",
 }
 # These upstream strings survive composition or splitting of pinned inputs.
-# Match complete NUL-terminated values, not arbitrary paths below those roots.
+# Match complete NUL-terminated paths or exact public documentation URL text,
+# never arbitrary paths below a directory.
 PUBLIC_UPSTREAM_STRINGS = {
+    # lib.es2020.intl documentation links to this exact public URL suffix.
+    # It survives source builds with different optimization profiles.
+    "tsrs/dist/tsrs.wasm": (
+        b"/home/tables/table-a1.html ISO 4217 currency codes list}",
+    ),
     "python/dist/template.component.wasm": (
         b"/home/runner/work/componentize-py/componentize-py/cpython/builddir/wasi/install\0",
     ),

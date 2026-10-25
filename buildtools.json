@@ -1175,6 +1175,69 @@
         ],
         "optional": []
       }
+    },
+    "tsrs": {
+      "directory": "tsrs",
+      "description": "Shared tsrs WASIp1 TypeScript checker with isolated filesystem callbacks",
+      "version": "0.18.0-ts7.1.0-dev.20260929",
+      "dependencies": [],
+      "runtimeDependencies": [],
+      "bootstrapRequirements": [
+        "Python 3.12+",
+        "Wasmtime Python 50.0.1",
+        "Pinned upstream Wasm release; Rust 1.99.0 plus wasm32-wasip1 only for source rebuilds"
+      ],
+      "build": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/tsrs/bootstrap.py"
+          ]
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/tsrs/bootstrap.py",
+            "--check"
+          ]
+        },
+        {
+          "argv": [
+            "{python}",
+            "{root}/tsrs/test_wasmtime_host.py"
+          ]
+        },
+        {
+          "argv": [
+            "{python}",
+            "{root}/tsrs/verify.py"
+          ]
+        }
+      ],
+      "sourceInputs": [
+        "tsrs/source.json",
+        "tsrs/toolchain.lock.json",
+        "tsrs/bootstrap.py"
+      ],
+      "artifacts": [
+        "tsrs/dist/tsrs.wasm",
+        "tsrs/dist/manifest.json"
+      ],
+      "package": {
+        "include": [
+          "tsrs/README.md",
+          "tsrs/host-contract.md",
+          "tsrs/source.json",
+          "tsrs/toolchain.lock.json",
+          "tsrs/bootstrap.py",
+          "tsrs/wasmtime_host.py",
+          "tsrs/typecheck.py",
+          "tsrs/dist"
+        ],
+        "optional": []
+      }
     }
   }
 }

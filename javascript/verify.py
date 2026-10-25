@@ -44,7 +44,7 @@ def main() -> int:
                            " >> " + shlex.quote(str(log)) + "\nexit 97\n")
         blocked.chmod(0o755)
     env = {**os.environ, "PATH": str(guard) + os.pathsep + os.environ.get("PATH", ""),
-           "RAYON_NUM_THREADS": "2", "TOKIO_WORKER_THREADS": "2"}
+           "RAYON_NUM_THREADS": "1", "TOKIO_WORKER_THREADS": "1"}
     os.environ["PATH"] = env["PATH"]
     checks, artifacts = [], []
     report = {"schemaVersion": 2, "passed": False, "checks": checks, "artifacts": artifacts,
@@ -134,6 +134,23 @@ def main() -> int:
             assert invoke(component["path"], "add(1.25,2.5)") == "3.75"
             return component["artifact"]
         check("TypeScript and local imports compile inside esbuild WASI", typescript)
+
+        if (ROOT.parent / "tsrs/dist/manifest.json").is_file():
+            def typechecked():
+                component = compile_component(ROOT / "examples/typecheck/pass/add.ts", ROOT / "examples/add.wit",
+                                              "arithmetic", "typecheck-pass", ["--typecheck", "--stub-wasi"])
+                assert component["receipt"]["typecheck"]["passed"] is True
+                assert component["receipt"]["options"]["typecheck"] is True
+                assert invoke(component["path"], "add(20,22)") == "42"
+                return component["artifact"]
+            check("optional tsrs typecheck accepts a valid project", typechecked)
+            check("optional tsrs typecheck rejects errors before bundling", lambda: rejects(
+                ROOT / "examples/typecheck/fail/add.ts", ROOT / "examples/add.wit", "arithmetic",
+                "typecheck-fail", r"tsrs typecheck failed.*2322", ["--typecheck", "--stub-wasi"]))
+
+        else:
+            report["skippedOptionalChecks"] = ["tsrs typecheck: optional package not installed"]
+            print("SKIP tsrs typecheck: optional package not installed", flush=True)
 
         def input_digests():
             project = directory / "input-digests"

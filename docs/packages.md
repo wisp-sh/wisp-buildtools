@@ -28,7 +28,7 @@ requirements with an exact package version:
 | Zig | Clang, which requires LLVM |
 | Rust | LLVM 24 linked into its WASIp3 compiler Component |
 | Swift | llvm-swift, the backend profile bound to its compiler and linker images; wasm-tools for Components |
-| JavaScript / TypeScript | wasm-tools |
+| JavaScript / TypeScript | wasm-tools; optional tsrs for `--typecheck` |
 | Python | wasm-tools |
 | Grain | wasm-tools |
 | Java, Kotlin | jvm and teavm |
@@ -126,6 +126,7 @@ The tested execution hosts currently run on Linux x86_64.
 | Clang, LLVM, Nim, Zig | Wisp Wasmtime 50.0.0 with WASI Preview 3 and external core-module imports. |
 | Rust | Wasmtime 50 with WASIp3 component support. |
 | AssemblyScript | External Wasmtime Python bindings 50.0.1 for compiler callbacks. |
+| tsrs | External Wasmtime Python bindings 50.0.1 for isolated `tsrs_host` filesystem callbacks. |
 | Go, JavaScript, Python, wasm-tools | External Wasmtime 50.0.0. |
 | Grain | External Wasmtime 50.0.0; QuickJS, the Grain compiler and its backend execute inside Wasm. |
 | Swift | External Wasmtime Python bindings 50.0.1 for compiler/backend linking; the shared wasm-tools package uses the CLI host for Components. |

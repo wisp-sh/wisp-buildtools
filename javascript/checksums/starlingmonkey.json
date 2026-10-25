@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "status": "spike-only; QuickJS remains default",
+  "componentizeJsVersion": "0.23.0",
+  "release": {
+    "url": "https://github.com/bytecodealliance/ComponentizeJS/releases/download/0.23.0/bytecodealliance-componentize-js-0.23.0.tgz",
+    "sha256": "b2e4b6fdee055805370950f127c21d7c549dcc7a1e907f20c5ee769ebba7ad10",
+    "bytes": 12318973
+  },
+  "runtime": {
+    "archivePath": "package/lib/starlingmonkey_embedding.wasm",
+    "sha256": "6094cd93d966f9bec9b01332db6e0eedbaf22f60b745c9f823f21e33cbd4d365",
+    "bytes": 10520737
+  },
+  "source": {
+    "url": "https://codeload.github.com/bytecodealliance/ComponentizeJS/tar.gz/4d812f5a7b524cea5bcfd565cac55f3fab876a57",
+    "commit": "4d812f5a7b524cea5bcfd565cac55f3fab876a57",
+    "sha256": "8178fb678ec1b8a33bbf3fa8db066bffe4dbf6a92c235150f56622b44ea27e10",
+    "bytes": 162093,
+    "cargoLockSha256": "c8b5312c03dc69cb3b5747149ea2bf4820b0e8763fc73f6bd60e771a873c09f0"
+  },
+  "splicer": {
+    "crate": "spidermonkey-embedding-splicer",
+    "bin": "splicer",
+    "target": "wasm32-wasip1",
+    "buildStatus": "built and executed as WASIp1; native Rust used only for tool bootstrap",
+    "lockPatchSha256": "807e6e64244a0edaf111229742bc96a4e131f067e6b62a0ac49aeb816fe4ade9",
+    "cargoLockSha256": "6472e3cd45eeaacdd5f7133e8eaab8e4411ef77272812d97dd6ac729462f6ffd",
+    "moduleSha256": "1f2024bb837e5f67a68abbcf7378dd2c0e3cc3fe32a336be5ba613f7513a39a8",
+    "moduleBytes": 16512750,
+    "nativeBootstrap": {
+      "rustc": {
+        "sha256": "f3834d26669b03f6855fa54bd2381443123e860167bc0c7a8dd137e5cf6e5e4f",
+        "version": "rustc 1.99.0 (b940084d7 2026-09-28)"
+      },
+      "cargo": {
+        "sha256": "e951141cc55a6cd7b9876d187bd30a3720e6086b99413af95e3b8de1cdd72f14",
+        "version": "cargo 1.99.0 (5f94df478 2026-08-27)"
+      },
+      "target": "wasm32-wasip1",
+      "targetInstalled": true
+    }
+  },
+  "benchmarkHost": {
+    "version": "50.0.0",
+    "platform": "linux-x86_64",
+    "sha256": "f95e5beba6d176b447c2939607bae968ea47f87b156ddf559762f1bb3c00e9b7",
+    "httpEnabled": true
+  }
+}

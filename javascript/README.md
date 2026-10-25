@@ -13,6 +13,8 @@ python3 bootstrap.py
 python3 bootstrap.py --check
 python3 compile.py examples/add.js -o build/add-js.wasm --stub-wasi
 python3 compile.py examples/add.ts -o build/add-ts.wasm --stub-wasi
+python3 compile.py examples/typecheck/pass/add.ts --wit examples/add.wit \
+  -o build/checked-ts.wasm --stub-wasi --typecheck
 python3 compile.py examples/imports.ts --wit examples/imports.wit \
   --world imported-arithmetic -o build/imports.wasm --stub-wasi
 python3 verify.py
@@ -41,7 +43,18 @@ The synchronous QuickJS runtime and custom-section stripping are enabled by defa
 
 ## How compilation works
 
-Every JS and TS module graph bundles through `esbuild@0.28.2`, cross-compiled to WASIp1. It resolves local modules and compatible packages under `--module-root DIR`, which defaults to the source directory. TypeScript parsing, type erasure, and syntax lowering happen inside that guest. TypeScript type checking is absent; WIT defines the public types independently of TypeScript annotations. See [esbuild's TypeScript caveats](https://esbuild.github.io/content-types/#typescript-caveats).
+Every JS and TS module graph bundles through `esbuild@0.28.2`, cross-compiled to WASIp1. It resolves local modules and compatible packages under `--module-root DIR`, which defaults to the source directory. TypeScript parsing, type erasure, and syntax lowering happen inside that guest. Type checking is optional and defaults off. `--typecheck` runs the separate
+[tsrs package](../tsrs/README.md) over the module root before esbuild and
+rejects errors without publishing outputs. Provision that package alongside
+JavaScript and set `WISP_WASMTIME_PYTHON` to the external Wasmtime Python
+50.0.1 host. A root `tsconfig.json` controls the project when present; otherwise
+the checker checks all TypeScript files with strict ES2022/bundler defaults and
+allows `.ts` import extensions. Dependencies and declarations must be within
+`--module-root`; the checker gets a frozen file map with no filesystem preopens.
+It runs with `--noEmit`. Receipts record whether checking ran, its compiler hash,
+arguments and checked input hashes. A bundled input whose bytes differ from
+the checked snapshot rejects the build. WIT defines public Component types
+independently of TypeScript annotations. See [esbuild's TypeScript caveats](https://esbuild.github.io/content-types/#typescript-caveats).
 
 The componentizer guest uses `wit-dylib` and `wit-component` to generate bindings and link the upstream `componentize-qjs@0.4.5` runtime. It embeds the JavaScript source and generates initialization code. Wasm-tools then strips custom sections, validates the binary and extracts its WIT, also inside Wasm. Receipts report `sourceCompilerWasmHosted: true`, `fullyWasmHostedBuild: true`, and `nodeRequired: false`.
 
@@ -73,6 +86,17 @@ This toolchain targets synchronous ES module libraries. It provides neither Node
 
 Build validation supplies trapping authored-import stubs, so call those imports from exported functions rather than top-level initialization. At runtime, initialization happens once per instance and state persists between calls. Upstream maps 64-bit WIT integers to JavaScript numbers; the verifier covers `f64` and `u32`, not integers beyond JavaScript's exact range.
 
-`verify.py` compiles and executes JS, TS, local modules, typed imports, lists, records, Unicode strings and WIT results. It composes a Wasm harness that calls the same instance twice, checks initialization failures and atomic error handling, verifies caller-relative paths, and blocks Node/native compiler commands throughout. It writes `build/verify/verification.json` with exact results, output sizes and hashes.
+`verify.py` compiles and executes JS, TS, local modules, typed imports, lists, records, Unicode strings and WIT results. It composes a Wasm harness that calls the same instance twice, checks initialization failures and atomic error handling, verifies caller-relative paths, and blocks Node/native compiler commands throughout. When tsrs is installed, it also checks a valid TypeScript project and rejects
+a project with diagnostic 2322 before esbuild. It explicitly reports those
+optional checks as skipped when the package is absent. It writes `build/verify/verification.json` with exact results, output sizes and hashes.
 
 The workspace invokes `bootstrap.py`, `compile.py SOURCE -o OUTPUT --wit PATH --world NAME`, and `verify.py`. This directory emits Components directly; the parent workspace handles Wisp project integration.
+
+## StarlingMonkey investigation
+
+The [StarlingMonkey spike](docs/starlingmonkey.md) records a no-go migration
+decision. Its checksummed prebuilt runtime runs without snapshots as a CLI
+Component. The WASIp1 splicer builds, but authored-WIT exports trap when the
+stock pipeline skips Wizer. A cold library initializer or Wasm-hosted snapshotter
+is still needed. QuickJS remains the default engine and
+the runtime limits above still apply.

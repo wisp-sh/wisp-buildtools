@@ -120,7 +120,7 @@ class BuildPlanTests(unittest.TestCase):
     def test_all_packages_have_build_test_artifacts_and_safe_paths(self):
         manifest = builds.load_manifest()
         self.assertEqual(set(manifest["tools"]),
-                         {"clang", "go", "llvm", "rust", "zig", "assemblyscript", "nim", "javascript", "python", "wasm-tools", "grain", "ocaml", "goose", "swift", "llvm-swift", "jvm", "teavm", "java", "kotlin"})
+                         {"clang", "go", "llvm", "rust", "zig", "assemblyscript", "nim", "javascript", "python", "wasm-tools", "grain", "ocaml", "goose", "swift", "llvm-swift", "jvm", "teavm", "java", "kotlin", "tsrs"})
         for name, item in manifest["tools"].items():
             self.assertEqual(item["directory"], "llvm" if name.startswith("llvm-") else name)
             for key in ("build", "test", "artifacts", "bootstrapRequirements"):

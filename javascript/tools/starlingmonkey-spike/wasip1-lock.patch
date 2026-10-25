@@ -1,0 +1,17 @@
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -36 +36 @@
+-js-component-bindgen = { version = "2.11.0" }
++js-component-bindgen = { version = "=2.11.0" }
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -403,6 +403,8 @@
+ [[package]]
+ name = "js-component-bindgen"
+-version = "2.10.1"
++version = "2.11.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "d73b9c04f15dd549239f5302dd6a80be973d055b93c6ad60b7d8d0c9ab07f9b9"
+ dependencies = [
+  "anyhow",
+  "base64",

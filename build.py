@@ -403,6 +403,9 @@ def verify_package_inputs(name: str, root: Path) -> None:
              root / "rust/dist/compiler/build/bootstrap/rustc.wasm",
              "--output", root / "llvm/dist/rust-shared"], root=root)
         return
+    if name == "tsrs":
+        run([sys.executable, root / "tsrs/bootstrap.py", "--check"], root=root)
+        return
     if name == "javascript":
         base = root / "javascript"
         entries = json.loads((base / "checksums/wasm-tools.json").read_text())["files"]
@@ -456,7 +459,7 @@ def execute(document: dict, selected: list[str], command: str, *, root: Path, se
                   "source": item.get("source"), "validation": validation}
         if recipe_sha is not None:
             record["recipeSha256"] = recipe_sha
-        if command == 'build':
+        if command == 'build' or (command == 'test' and name == 'tsrs'):
             import cwasm_profiles
             if name in cwasm_profiles.SUPPORTED:
                 import cwasm
