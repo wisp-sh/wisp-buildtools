@@ -1,0 +1,29 @@
+package example:csharp-library@1.0.0;
+interface api {
+    record person { name: string, age: u32 }
+    enum mode { low, high }
+    flags access { read, write }
+    greet: func(name: string) -> string;
+    advance: func(value: person) -> result<person, string>;
+    choose: func(value: option<mode>) -> list<u8>;
+    permissions: func(value: access) -> access;
+    echo-char: func(value: char) -> char;
+    pair: func(text: string, value: s32) -> tuple<string, s32>;
+    people: func(values: list<person>) -> list<person>;
+    maybe: func(value: option<string>) -> option<string>;
+    scale: func(value: option<f64>) -> option<f64>;
+    number: func(value: result<f32, s64>) -> result<f32, s64>;
+    flip: func(value: bool) -> bool;
+    nothing: func();
+    echo-u8: func(value: u8) -> u8;
+    echo-s8: func(value: s8) -> s8;
+    echo-u16: func(value: u16) -> u16;
+    echo-s16: func(value: s16) -> s16;
+    echo-u32: func(value: u32) -> u32;
+    echo-s32: func(value: s32) -> s32;
+    echo-u64: func(value: u64) -> u64;
+    echo-f32: func(value: f32) -> f32;
+    echo-f64: func(value: f64) -> f64;
+    many: func(a:s32,b:s32,c:s32,d:s32,e:s32,f:s32,g:s32,h:s32,i:s32,j:s32,k:s32,l:s32,m:s32,n:s32,o:s32,p:s32,q:s32) -> s32;
+}
+world library { export api; export add: func(left: s64, right: s64) -> s64; }

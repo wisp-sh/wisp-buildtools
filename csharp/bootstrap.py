@@ -70,10 +70,10 @@ def native(command, environment):
         raise ValueError((result.stdout + result.stderr).strip())
 
 
-def csc(sdk, source, output, refs, environment):
+def csc(sdk, source, output, refs, environment, *, library=False, unsafe=False):
     native([sdk / 'dotnet', sdk / 'sdk/8.0.100/Roslyn/bincore/csc.dll', '-nologo',
-            '-target:exe', '-deterministic+', '-parallel-', '-nostdlib+', f'-out:{output}',
-            *[f'-r:{p}' for p in refs], ROOT / source], environment)
+            '-target:library' if library else '-target:exe', '-unsafe+' if unsafe else '-unsafe-', '-deterministic+', '-parallel-', '-nostdlib+', f'-out:{output}',
+            *[f'-r:{p}' for p in refs], *[ROOT / p for p in ([source] if isinstance(source, str) else source)]], environment)
 
 
 def build(args):
@@ -109,17 +109,20 @@ def build(args):
         dist = work / 'dist'
         managed = dist / 'compiler/managed'
         managed.mkdir(parents=True)
-        bcl = sorted((runtime / 'runtimes/wasi-wasm/lib/net8.0').glob('*.dll')) + [n / 'System.Private.CoreLib.dll']
+        support = work / 'Wisp.RuntimeSupport.dll'
+        csc(sdk, 'src/Canonical.cs', support, refs, environment, library=True, unsafe=True)
+        bcl = sorted((runtime / 'runtimes/wasi-wasm/lib/net8.0').glob('*.dll')) + [n / 'System.Private.CoreLib.dll', support]
         for p in bcl:
             shutil.copyfile(p, managed / p.name)
         shutil.copyfile(browser / 'runtimes/browser-wasm/lib/net8.0/System.Security.Cryptography.dll', managed / 'System.Security.Cryptography.dll')
         for name in ['Microsoft.CodeAnalysis.dll', 'Microsoft.CodeAnalysis.CSharp.dll']:
             shutil.copyfile(sdk / 'sdk/8.0.100/Roslyn/bincore' / name, managed / name)
-        csc(sdk, 'src/Compiler.cs', managed / 'Compiler.dll', refs + [managed / name for name in
+        csc(sdk, ['src/Compiler.cs', 'src/Bindings.cs', 'src/WasmModule.cs'], managed / 'Compiler.dll', refs + [support] + [managed / name for name in
             ['Microsoft.CodeAnalysis.dll', 'Microsoft.CodeAnalysis.CSharp.dll']], environment)
         shutil.copyfile(n / 'dotnet.wasm', dist / 'compiler/dotnet.wasm')
         shutil.copyfile(n / 'icudt.dat', dist / 'compiler/icudt.dat')
         shutil.copytree(refdir, dist / 'references')
+        shutil.copyfile(support, dist / 'references/Wisp.RuntimeSupport.dll')
         helper = work / 'helper'
         helper.mkdir()
         for p in (tasks / 'tasks/net8.0').glob('*.dll'):
@@ -184,11 +187,12 @@ def build(args):
                                      compress_type=zipfile.ZIP_DEFLATED, compresslevel=6)
                     assemblies[name] = {'bytes': p.stat().st_size, 'sha256': digest(p)}
                 shutil.rmtree(directory)
-        manifest = {'schemaVersion': 1, 'toolchain': 'csharp', 'version': 'roslyn-4.8.0-mono-8.0.0',
+        manifest = {'schemaVersion': 1, 'toolchain': 'csharp', 'version': 'roslyn-4.8.0-mono-8.0.0-bindings-v2',
                     'upstream': lock, 'sourceCompilationWasmHosted': True, 'fullyWasmHostedBuild': True,
                     'bootstrapInputs': {p: digest(ROOT / p) for p in SOURCES},
                     'bootstrapClangSha256': digest(clang),
-                    'assemblies': assemblies,
+                    'assemblies': assemblies, 'runtimeAssemblies': [p.stem for p in bcl],
+                    'payloadFormat': 2,
                     'sha256': {p.relative_to(dist).as_posix(): digest(p) for p in sorted(dist.rglob('*')) if p.is_file()}}
         (dist / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
         previous = ROOT / '.toolchains/previous-dist'

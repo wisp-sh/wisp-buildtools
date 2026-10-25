@@ -14,7 +14,7 @@ if os.environ.get('WISP_WASM_TOOLS_TOOLCHAIN'):
     sys.path.insert(0, str(Path(os.environ['WISP_WASM_TOOLS_TOOLCHAIN']).resolve().parent))
 import wasm_tools
 
-SOURCES = ('bootstrap.py', 'src/Compiler.cs', 'src/Generate.cs', 'src/runtime.c', 'toolchain.lock.json')
+SOURCES = ('bootstrap.py', 'src/Compiler.cs', 'src/Generate.cs', 'src/Canonical.cs', 'src/Bindings.cs', 'src/WasmModule.cs', 'src/runtime.c', 'toolchain.lock.json')
 CORE = b'\0asm\x01\0\0\0'
 COMPONENT = b'\0asm\x0d\0\x01\0'
 
@@ -64,11 +64,13 @@ def command(guest, *arguments, mounts=()):
     return [*result, str(guest), *(str(a) for a in arguments)]
 
 
-def run(command, *, timeout=180, cwd=None, env=None):
+def run(command, *, timeout=180, cwd=None, env=None, diagnostics=False):
     result = subprocess.run([str(x) for x in command], capture_output=True, text=True,
                             timeout=timeout, cwd=cwd, env=env)
     if result.returncode:
         raise ValueError((result.stdout + result.stderr).strip() or f'guest exited {result.returncode}')
+    if diagnostics and result.stderr:
+        sys.stderr.write(result.stderr)
     return result.stdout
 
 

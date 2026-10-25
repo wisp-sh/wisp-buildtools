@@ -1,10 +1,10 @@
 # C#
 
-Experimental scalar adapter. Roslyn 4.8.0 compiles C# to IL inside the .NET 8.0.0
+Experimental C# library adapter. Roslyn 4.8.0 compiles C# to IL inside the .NET 8.0.0
 Mono WASI interpreter. The same Wasm guest embeds the emitted IL into a fixed
 Mono reactor; the shared Wasm `wasm-tools` guest assembles the authored WIT
 Component. Application builds require Python and Wasmtime, with no native .NET
-compiler, NativeAOT, SDK project build or native application relinking.
+compiler, NativeAOT, MSBuild execution or native application relinking.
 
 ## Why this approach
 
@@ -33,7 +33,7 @@ output runtime keeps the WASI BCL. This does not provide general browser service
 or cryptography to applications.
 
 Every Component includes Mono and its untrimmed managed BCL closure. The scalar
-example is about 22 MiB. Runtime initialization, assembly loading and interpreted
+example is about 21 MiB. Runtime initialization, assembly loading and interpreted
 execution cost more than a small native-to-Wasm scalar library. No startup or
 throughput target is claimed. Reflection metadata remains available; trimming
 against only a bootstrap launcher would remove APIs needed by future user IL.
@@ -64,9 +64,11 @@ bootstrap uses the pinned SDK directly, without MSBuild restore or NuGet restore
 
 The managed compiler and framework assemblies are interpreter data distributed
 in `assemblies.zip`. Python unpacks verified bytes into the build's disk-backed
-scratch directory. Roslyn emits a real managed PE assembly in Wasm and writes it
-to a reserved 1 MiB data slot in the fixed reactor. This packaging step runs in
-Wasm too. It does not parse C# or replace source expressions on the host.
+scratch directory. Roslyn emits managed PE assemblies and generates typed bindings in Wasm. The
+guest packages application and dependency IL into a 16 MiB slot in the fixed
+reactor, then appends canonical ABI wrappers for the authored exports. It omits
+unused slot bytes from the file. The fixed Mono runtime needs no application
+relinking. This packaging step runs in Wasm too. It does not parse C# or replace source expressions on the host.
 
 The adapter validates the entry signature before publication, initializes a
 validation Component without calling the application method, then publishes the
@@ -74,32 +76,103 @@ public Component, adjacent `.wit`, and `.build.json` receipt. The validation
 export does not appear in the public Component. Managed method failures trap.
 Existing outputs are preserved.
 
-## Supported subset
+## Projects and dependencies
 
-- One UTF-8 `.cs` file, with a public `Calculator` class and exactly one public,
-  static, non-generic `int Add(int, int)` method. Other classes and private generic
-  helpers may be in that file. Overloads, by-reference parameters and generic
-  entry methods are rejected.
-- Authored WIT with only root `export add: func(left: s32, right: s32) -> s32`.
-  Parameter names may vary. No WIT imports, interface exports or automatic
-  contract inference.
-- Arithmetic, negative values, unchecked signed 32-bit overflow, collections and
-  LINQ have executable checks. This is not general NuGet library certification.
-- Source and emitted IL each have a 1 MiB limit; Components have a 64 MiB limit.
-- Single-threaded Roslyn, no compiler server, MSBuild evaluation, package restore,
-  analyzers, source generators, external assembly references or native extensions.
-  Application runtime APIs remain limited by the WASI BCL and available host
-  capabilities. Threads, subprocesses, arbitrary P/Invoke, networking and general
-  cryptography are unsupported. Output globalization is invariant.
+```sh
+python3 csharp/compile.py csharp/examples/library/Api/Api.csproj \
+  --project-root csharp/examples/library \
+  --wit csharp/examples/library/library.wit --world library \
+  --entry Example.Api -o build/library.component.wasm
+"$WISP_WASMTIME" run --invoke 'greet("世界")' build/library.component.wasm
+# "Hello, 世界!"
+```
+
+Inputs may be multiple `.cs` files, a directory, or one SDK-style `.csproj`.
+Directory inputs select their single immediate project, or collect C# files
+recursively. `bin`, `obj`, `.git`, tool caches and output directories are excluded.
+`--project-root` bounds source and project-reference paths. Use a common parent
+for sibling projects. Symlinks, cyclic references and duplicate assembly names
+are rejected. Each `ProjectReference` compiles to IL inside Wasm before its parent.
+
+The project reader supports `net8.0` libraries, assembly names, static
+`Compile Include/Remove/Exclude` globs, `ProjectReference`, and local
+`Reference/HintPath`. It honors nullable settings, implicit usings, define
+constants, C# language versions 8 through 12, unsafe code, optimization, checked arithmetic and
+warnings as errors. Standard `NET`, `NET8_0`, `WISP` and `WASI` symbols are defined.
+It reads metadata directly; it does not evaluate arbitrary MSBuild. Conditions,
+property expansion, imports, targets, custom tasks and generated sources require
+porting. No analyzers or source generators run.
+
+`--reference implementation.dll` adds a portable managed assembly. Use
+`--library` without WIT to emit an IL dependency with the same Wasm compiler.
+Loose library builds use the output stem as their assembly name;
+`--assembly-name` overrides it.
+`--package file.nupkg` or `--package-dir directory` supplies offline NuGet files.
+Exact `PackageReference` versions select supplied packages; transitive dependency
+ranges are checked against the one supplied version of each package. No restore,
+network access or version discovery occurs. Packages need compatible `lib`
+implementation DLLs targeting `net8.0`, `net7.0`, `net6.0`, `netstandard2.1` or
+`netstandard2.0`. Native/RID assets, build tasks, tools and analyzers are rejected.
+Reference-only packages and framework assemblies cannot replace runtime DLLs.
+The guest validates managed IL and transitive assembly names. This does not
+certify arbitrary NuGet packages against the WASI BCL. Dependency licensing
+remains the application's responsibility. Receipts record source, reference and
+package hashes, compiled projects, selected methods and runtime inventory.
+
+## WIT bindings
+
+Authored WIT may export multiple root functions and interfaces. Each export
+matches a public static, non-generic C# method by name and signature. Matching
+ignores case and separators, so `echo-char` matches `EchoChar`. Overloads must
+resolve to one compatible method. `--entry Namespace.Type` restricts automatic
+matching. `--export api.greet=Namespace.Type.Method` maps an interface function
+explicitly; root names and full canonical interface names work too. By-reference
+parameters, generic entry methods and instance methods are rejected. There is
+no automatic C# contract inference.
+
+| WIT | C# |
+| --- | --- |
+| `bool`, integer widths, `f32`, `f64` | `bool`, matching signed/unsigned CLR integer, `float`, `double` |
+| `char`, `string` | `System.Text.Rune`, UTF-8 `string` |
+| `list<T>` | `T[]`, `List<T>` or supported generic collection interfaces |
+| `record` | Public properties/fields; inputs need a matching public constructor or writable members and a default constructor |
+| `tuple` | C# value tuple with at most seven elements |
+| `enum`, `flags` | C# enums matched by member name; flags require distinct single bits, at most 64 names |
+| `option<T>` | `Wisp.Option<T>`, nullable value types, or nullable references |
+| `result<T,E>` | `Wisp.Result<T,E>`; absent payloads use `Wisp.Unit` |
+| No result | `void` |
+
+`Wisp.Option<T>.Some(value)` / `.None` and `Wisp.Result<T,E>.Ok(value)` /
+`.Err(error)` are supplied by the compiler's runtime-support reference. They
+preserve nested option distinctions that nullable references cannot express.
+Strings, nested lists, records and variants use canonical ABI memory layouts.
+The wrapper releases incoming allocations after lifting. Canonical post-return
+releases output buffers while preserving Mono and adapter state for later calls.
+Managed export exceptions trap with the exception type and message.
+
+WIT imports, resources, general variants, async functions and streams are not
+implemented. Applications remain single-threaded and interpreted. Available APIs
+depend on the WASI BCL and host capabilities. Subprocesses, arbitrary P/Invoke,
+networking, general cryptography and full desktop/server .NET compatibility are
+unsupported. Output globalization is invariant.
+
+Limits are 32 projects, 256 source files per project, 8 MiB total source, 128
+bundled assemblies including the application, 16 MiB combined IL, and a 64 MiB
+Component. Individual strings/list storage have a 32 MiB limit, lists at most
+262,144 elements, and output allocations at most 64 MiB per call. These are
+bounded experimental libraries, not general SDK workloads.
 
 ## Verification and resources
 
-`verify.py` clears PATH before source builds. It checks the real Component call
-`add(20,22) = 42`, negative values and overflow, collections/LINQ, managed exception
-traps, syntax and signature diagnostics, unsupported WIT, hidden validation
-exports and preservation of existing output files. `verification.json` records
-check results, hashes, sizes and elapsed time. Packaging verifies the installed
-distribution's full inventory and bootstrap input hashes.
+`verify.py` clears PATH before source builds. It checks scalar calls, collections,
+LINQ, compiler errors, managed exception traps, multiple files, project references,
+offline managed DLL/NuGet dependencies and typed interface calls. The optional
+`WISP_WASMTIME_PYTHON=/path/to/wasmtime-python-50.0.1` enables over 300 rich calls
+in one instance, including canonical post-return, nested allocations, Unicode,
+64-bit boundaries and indirect parameters. Without these bindings the report
+explicitly records that check as skipped. No Python Wasmtime package is needed
+for builds or CLI verification. `test_project.py` checks input boundaries,
+cycles, source selection and rejection of unsupported package/project actions.
 
 On the shared development host, the initial 5.7 GiB free disk left insufficient
 space above the required 5 GiB reserve. After capacity increased to 15 GiB,

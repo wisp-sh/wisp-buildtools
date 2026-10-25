@@ -1178,8 +1178,8 @@
     },
     "csharp": {
       "directory": "csharp",
-      "description": "Roslyn C# compiler in Mono WASI and an IL-interpreting scalar Component runtime",
-      "version": "roslyn-4.8.0-mono-8.0.0",
+      "description": "Wasm-hosted Roslyn with offline C# projects and managed WIT Component bindings",
+      "version": "roslyn-4.8.0-mono-8.0.0-bindings-v2",
       "sourceInputs": [
         "csharp/bootstrap.py",
         "csharp/compile.py",
@@ -1188,7 +1188,13 @@
         "csharp/src/Compiler.cs",
         "csharp/src/Generate.cs",
         "csharp/src/runtime.c",
-        "csharp/toolchain.lock.json"
+        "csharp/toolchain.lock.json",
+        "csharp/project.py",
+        "csharp/src/Bindings.cs",
+        "csharp/src/Canonical.cs",
+        "csharp/src/WasmModule.cs",
+        "csharp/test_project.py",
+        "csharp/verify_component.py"
       ],
       "dependencies": [
         "wasm-tools"
@@ -1230,8 +1236,11 @@
           "csharp/README.md",
           "csharp/bootstrap.py",
           "csharp/compile.py",
+          "csharp/project.py",
           "csharp/toolchain.py",
           "csharp/verify.py",
+          "csharp/verify_component.py",
+          "csharp/test_project.py",
           "csharp/toolchain.lock.json",
           "csharp/src",
           "csharp/licenses",
