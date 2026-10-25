@@ -35,6 +35,9 @@ class WasmtimeRuntime:
         # guest receives exactly the environment declared above.
         host_env = {"HOME": str(self.compiled_cache),
                     "XDG_CACHE_HOME": str(self.compiled_cache)}
+        for key in ('WISP_CWASM_RUNTIME', 'WISP_CWASM_COMPILER', 'WISP_CWASM_CACHE', 'WISP_CWASM_BACKEND'):
+            if key in os.environ:
+                host_env[key] = os.environ[key]
         if os.name == "nt":
             # Windows process startup needs SystemRoot. These host-only values
             # are never inherited by the WASI guest.

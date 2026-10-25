@@ -45,9 +45,9 @@ python3 -I dist/compiler/scripts/runner.py build \
 # 42
 ```
 
-Use Wasmtime 49 with WASIp3 support. The runner enables `-Sp3=y` for the
+Use Wasmtime 50 with WASIp3 support. The runner enables `-Sp3=y` for the
 compiler; applications still use their own target's runtime interface.
-`env.sh` selects the shared Wasmtime 49 host for Rust too.
+`env.sh` selects the shared Wasmtime 50 host for Rust too.
 
 Use a fresh output directory for the first invocation. Add `--resume` to continue
 an interrupted build in the same directory. Resume verifies the source snapshot,

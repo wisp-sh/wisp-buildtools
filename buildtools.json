@@ -75,7 +75,7 @@
       "bootstrapRequirements": [
         "Python 3.12+",
         "official Go 1.27.2 distribution at WISP_GO_HOST_ROOT",
-        "Wasmtime 49 for tests"
+        "Wasmtime 50 for tests"
       ],
       "build": [
         {
@@ -413,7 +413,7 @@
         "Python 3.12+",
         "Rust 1.99.0 and wasm32-wasip1 target for compiler bootstrap",
         "Go 1.27.2 via WISP_JAVASCRIPT_BOOTSTRAP_GO for esbuild bootstrap",
-        "Wasmtime 49 for execution"
+        "Wasmtime 50 for execution"
       ],
       "build": [
         {
@@ -655,7 +655,7 @@
         "Python 3.12+",
         "Binaryen 133 wasm-opt and wasm-split via WISP_WASM_OPT",
         "network access to checksum-pinned Swift WASI compiler, linker and SDK artifacts",
-        "Wisp-provided Wasmtime 49 CLI and Python bindings 49.0.0 for verification"
+        "Wisp-provided Wasmtime 50 CLI and Python bindings 50.0.1 for verification"
       ],
       "build": [
         {
@@ -760,7 +760,7 @@
         "native JDK21 through WISP_BOOTSTRAP_JAVA for launcher and SDK bootstrap only",
         "WASI SDK34 through WISP_JVM_WASI_SDK to build the shared JVM guest",
         "network access to checksum-pinned sources and compiler dependencies",
-        "Wisp-provided external Wasmtime49 with Wasm tail calls and exceptions for verification"
+        "Wisp-provided external Wasmtime50 with Wasm tail calls and exceptions for verification"
       ],
       "build": [
         {
@@ -833,7 +833,7 @@
         "native JDK21 through WISP_BOOTSTRAP_JAVA for launcher and SDK bootstrap only",
         "WASI SDK34 through WISP_JVM_WASI_SDK, existing LLVM SDK headers and shared LLVM binaries, pinned native wasm-tools",
         "network access to checksum-pinned sources and compiler dependencies",
-        "Wisp-provided external Wasmtime49 with Wasm tail calls and exceptions for verification"
+        "Wisp-provided external Wasmtime50 with Wasm tail calls and exceptions for verification"
       ],
       "build": [
         {
@@ -891,7 +891,7 @@
         "native JDK21 through WISP_BOOTSTRAP_JAVA for launcher and SDK bootstrap only",
         "WASI SDK34 through WISP_JVM_WASI_SDK to build the shared JVM guest",
         "network access to checksum-pinned sources and compiler dependencies",
-        "Wisp-provided external Wasmtime49 with Wasm tail calls and exceptions for verification"
+        "Wisp-provided external Wasmtime50 with Wasm tail calls and exceptions for verification"
       ],
       "build": [
         {
@@ -947,7 +947,7 @@
         "native JDK21 through WISP_BOOTSTRAP_JAVA for launcher and SDK bootstrap only",
         "WASI SDK34 through WISP_JVM_WASI_SDK to build the shared JVM guest",
         "network access to checksum-pinned sources and compiler dependencies",
-        "Wisp-provided external Wasmtime49 with Wasm tail calls and exceptions for verification"
+        "Wisp-provided external Wasmtime50 with Wasm tail calls and exceptions for verification"
       ],
       "build": [
         {
@@ -1008,7 +1008,7 @@
         "Python 3.12+",
         "GCC and make for the native bootstrap",
         "WASI SDK 34",
-        "Wasmtime 49 with exception support for OCaml",
+        "Wasmtime 50 with exception support for OCaml",
         "Wisp Wasmtime host with shared LLVM imports for C compilation"
       ],
       "build": [
@@ -1074,7 +1074,7 @@
       "bootstrapRequirements": [
         "Python 3.12+",
         "WASI SDK 34",
-        "Wasmtime 49 with Wasm exceptions",
+        "Wasmtime 50 with Wasm exceptions",
         "Shared LLVM C backend from nim"
       ],
       "build": [

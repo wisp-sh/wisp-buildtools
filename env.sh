@@ -8,16 +8,19 @@ if [[ -d "$_wisp_buildtools_dir/../wisp/.tools/shared-hosts" ]]; then
     _wisp_project_dir="$_wisp_buildtools_dir/../wisp"
 fi
 _wisp_hosts_dir="${WISP_HOSTS_DIR:-$_wisp_project_dir/.tools/shared-hosts}"
-_wisp_host_runtime="$_wisp_hosts_dir/wisp-wasmtime-49.0.1/wasmtime"
+_wisp_host_runtime="$_wisp_hosts_dir/wisp-wasmtime-50.0.0/wasmtime"
 # Existing local caches retain the checkout's old directory name.
-if [[ ! -x "$_wisp_host_runtime" && -x "$_wisp_hosts_dir/${_wisp_project_dir##*/}-wasmtime-49.0.1/wasmtime" ]]; then
-    _wisp_host_runtime="$_wisp_hosts_dir/${_wisp_project_dir##*/}-wasmtime-49.0.1/wasmtime"
+if [[ ! -x "$_wisp_host_runtime" && -x "$_wisp_hosts_dir/${_wisp_project_dir##*/}-wasmtime-50.0.0/wasmtime" ]]; then
+    _wisp_host_runtime="$_wisp_hosts_dir/${_wisp_project_dir##*/}-wasmtime-50.0.0/wasmtime"
 fi
-export WISP_WASMTIME="${WISP_WASMTIME:-$_wisp_host_runtime}"
-export WISP_BOOTSTRAP_WASMTIME="$_wisp_hosts_dir/wasmtime-49.0.1/wasmtime"
+export WISP_CWASM_RUNTIME="${WISP_CWASM_RUNTIME:-${WISP_WASMTIME:-$_wisp_host_runtime}}"
+export WISP_WASMTIME="$_wisp_buildtools_dir/cwasm.py"
+export WISP_OCAML_WASMTIME="$WISP_WASMTIME"
+export WISP_GOOSE_FRONTEND_HOST="$WISP_WASMTIME"
+export WISP_BOOTSTRAP_WASMTIME="${WISP_BOOTSTRAP_WASMTIME:-$_wisp_host_runtime}"
 export WISP_LLVM="$_wisp_buildtools_dir/llvm/dist/shared"
 export WISP_CLANG_RESOURCE_DIR="$_wisp_buildtools_dir/clang/include"
-export WISP_WASMTIME_PYTHON="$_wisp_hosts_dir/wasmtime-python-49.0.0"
+export WISP_WASMTIME_PYTHON="$_wisp_hosts_dir/wasmtime-python-50.0.1"
 export WISP_CLANG="$_wisp_buildtools_dir/clang/.toolchains/build-p3/bin/clang-wasm.component"
 export WISP_GO_TOOLCHAIN="$_wisp_buildtools_dir/go/dist/go-toolchain-full-1.27.2"
 export WISP_GO="$_wisp_buildtools_dir/go/.bootstrap/go-host/go/bin/go"

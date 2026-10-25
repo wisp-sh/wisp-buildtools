@@ -46,10 +46,10 @@ python3 -I scripts/build-compiler.py --build --jobs 2 \
 The pinned Binaryen 133 release runs without a shared-library override. Older
 Debian Binaryen packages need `--wasm-opt-library-dir` pointing to their
 `usr/lib/x86_64-linux-gnu` directory. The root build command detects both layouts.
-Optimization uses an explicit Wasmtime 49 feature set. Do not use
+Optimization uses an explicit Wasmtime 50 feature set. Do not use
 `--all-features`: Binaryen 133 can emit compact imports that this host rejects.
 
-Set `WISP_RUST_WASMTIME` to Wasmtime 49 before building. WASI SDK 34 is expected
+Set `WISP_RUST_WASMTIME` to Wasmtime 50 before building. WASI SDK 34 is expected
 under `rust/downloads/wasi-sdk-34.0-x86_64-linux`. The build provisions
 checksum-verified native Rust archives automatically; `--bootstrap-prefix` can
 select an existing installation with the exact matching version and commit.
@@ -82,7 +82,7 @@ ABI remain intact. This removes redundant compiler code before Wasmtime's
 first compilation. The raw Component and optimizer hashes are retained.
 The compiler host uses Wasmtime's single-pass register allocator with inlining
 disabled; the default allocator is too slow for this compiler module.
-The compiler links LLVM into its Component and uses the shared Wasmtime 49 host.
+The compiler links LLVM into its Component and uses the shared Wasmtime 50 host.
 
 After a successful build, package a fresh candidate:
 

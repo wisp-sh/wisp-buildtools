@@ -34,6 +34,9 @@ class RustPrerequisiteStagingTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory(prefix="compiler-ci-prerequisites-")
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
+        host_recipe = self.root / 'tools/shared-hosts'
+        host_recipe.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / 'tools/shared-hosts/wasmtime.lock.json', host_recipe / 'wasmtime.lock.json')
         self.cache = self.root / ".ci/downloads"
         self.install = self.root / ".ci/toolchains"
         self.cache.mkdir(parents=True)
@@ -127,7 +130,7 @@ class RustPrerequisiteStagingTests(unittest.TestCase):
 
     def test_rust_stages_verified_archive_for_real_source_validation(self):
         self.assert_rust_staging("rust")
-        prerequisites.subprocess.run.assert_called_once_with(
+        prerequisites.subprocess.run.assert_any_call(
             ["rustup", "toolchain", "install", self.lock["rustBootstrap"]["version"],
              "--profile", "minimal", "--target", self.lock["rustBootstrap"]["target"]], check=True)
 
@@ -141,13 +144,13 @@ class RustPrerequisiteStagingTests(unittest.TestCase):
 
         prerequisites.install_for("javascript")
 
-        prerequisites.subprocess.run.assert_called_once_with(
+        prerequisites.subprocess.run.assert_any_call(
             ["rustup", "toolchain", "install", expected, "--profile", "minimal",
              "--target", "wasm32-wasip1"], check=True)
         prerequisites.subprocess.check_output.assert_called_once_with(
             ["rustup", "which", "--toolchain", expected, "rustc"], text=True)
         _, paths = prerequisites.github_environment.call_args.args
-        self.assertEqual(paths[0], str(self.root / "host-rust/bin"))
+        self.assertIn(str(self.root / "host-rust/bin"), paths)
 
     def test_reinstall_refreshes_stale_archive_and_sdk_symlinks(self):
         self.assert_rust_staging("rust")
@@ -187,6 +190,9 @@ class ExecutionHostCacheTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory(prefix="compiler-ci-host-cache-")
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
+        host_recipe = self.root / 'tools/shared-hosts'
+        host_recipe.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / 'tools/shared-hosts/wasmtime.lock.json', host_recipe / 'wasmtime.lock.json')
         (self.root / ".ci").mkdir()
         self.host_commands = []
         self.check_failure = None
@@ -227,7 +233,7 @@ class ExecutionHostCacheTests(unittest.TestCase):
         return subprocess.CompletedProcess(command, 0)
 
     def prefix(self, tool):
-        version = "49.0.1"
+        version = "50.0.0"
         return self.root / ".ci/hosts" / f"wisp-wasmtime-{version}"
 
     def write_host(self, prefix, receipt=None):
@@ -252,7 +258,8 @@ class ExecutionHostCacheTests(unittest.TestCase):
                 report = prerequisites.install_for(tool)
                 self.assert_host_commands(tool, [True])
                 variable = "WISP_RUST_WASMTIME" if tool in prerequisites.SHARED_RUST_CONSUMERS else "WISP_WASMTIME"
-                self.assertEqual(report["environment"][variable], str(self.prefix(tool) / "wasmtime"))
+                self.assertEqual(report["environment"][variable], str(self.root / 'cwasm.py'))
+                self.assertEqual(report['environment']['WISP_CWASM_RUNTIME'], str(self.prefix(tool) / 'wasmtime'))
                 self.assertEqual(report["executionHosts"][self.prefix(tool).name], {"cached": True})
 
     def test_missing_binary_or_receipt_builds_without_accepting_partial_cache(self):

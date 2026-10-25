@@ -77,9 +77,9 @@ class LLVMArchiveTests(unittest.TestCase):
         (self.producer / NATIVE_SDK / "bin/clang++").symlink_to("clang")
         self.write(f"{NATIVE_SDK}/lib/clang/23/include/stddef.h", "fixture native SDK header\n")
         self.write("clang/.toolchains/wasm-tools-1.262.0-x86_64-linux/wasm-tools", "fixture tool\n", executable=True)
-        self.write(".ci/hosts/wisp-wasmtime-49.0.1/wasmtime", "fixture host\n", executable=True)
-        self.write(".ci/hosts/wisp-wasmtime-49.0.1/LICENSE", "fixture host license\n")
-        self.write(".ci/hosts/wisp-wasmtime-49.0.1/receipt.json", '{"schema":1}\n')
+        self.write(".ci/hosts/wisp-wasmtime-50.0.0/wasmtime", "fixture host\n", executable=True)
+        self.write(".ci/hosts/wisp-wasmtime-50.0.0/LICENSE", "fixture host license\n")
+        self.write(".ci/hosts/wisp-wasmtime-50.0.0/receipt.json", '{"schema":1}\n')
         manifest = json.loads((self.producer / "buildtools.json").read_text())
         clang = manifest["tools"]["clang"]
         receipt = {

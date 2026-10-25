@@ -77,7 +77,7 @@ with `--no-deps` after restoring its verified dependencies. Their normal tests,
 packaging and bundle validation still run.
 
 Rust waits for the same LLVM bootstrap and reuses its LLVM 24 SDK. Its job
-builds and tests Rust 1.99.1/WASIp3 and uploads one `rust-wasm32-wasi` bundle.
+builds and tests Rust 1.99.1/WASIp3 and uploads one `rust-linux-x86_64` bundle.
 
 Successful jobs upload the `.wisp.zip` compiler bundle, its `.wisp.json`
 inventory and `.sha256` file, plus `sizes.html`, `sizes.md` and `sizes.json`.
@@ -199,7 +199,7 @@ additionally uses native Cargo for offline project metadata on every build;
 its build scripts and procedural macros run in Wasm. Package inventories list
 external host requirements separately from these bootstrap tools. Runtime hosts
 remain in CI's host directory and are excluded from compiler packages. Rust
-uses the shared Wasmtime 49 host with WASIp3 enabled. AssemblyScript and Swift
+uses the shared Wasmtime 50 host with WASIp3 enabled. AssemblyScript and Swift
 use the pinned Wasmtime Python binding. Host build receipts are included in
 `.ci/prerequisites.json` in the runner workspace.
 GitHub Actions' checkout, setup and artifact actions are part of the CI

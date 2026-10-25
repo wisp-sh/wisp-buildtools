@@ -75,8 +75,10 @@ Each file has a SHA-256, size, mode, format and role. Entrypoints, execution hos
 package dependencies and bootstrap requirements are recorded separately.
 `package-profiles.json` defines the runtime allowlists. Sources used only to build
 compilers, static SDK archives, build trees and caches stay outside the bundles.
-Portable payloads use platform `wasm32-wasi`; admission rejects native binaries
-under that platform.
+Packages containing native compiler companions use platform `linux-x86_64`.
+Source-only payloads use `wasm32-wasi`, which rejects native binaries. Native
+companions and their per-tool manifests live under `precompiled/TOOL/`; loaders
+select them by source hash and execution-host configuration.
 
 Evidence directories, local benchmarks, logs, timing dumps and macro traces are
 excluded even when a containing runtime directory is included. Rust bundles
@@ -98,7 +100,7 @@ use bundle filenames and paths relative to each measured host directory.
 | Download | Complete `.wisp.zip`, including manifest and ZIP framing. |
 | Installed payload | Sum of regular-file bytes in the package inventory. |
 | Wasm | Core modules, Components and Wasm archives. |
-| Native | Native executables or shared libraries in the package; zero for these toolchains. |
+| Native | Precompiled Wasmtime code and any native binaries in the package. Execution hosts remain separate. |
 | Support | Other file formats: JavaScript and JVM compiler code, JDK data, adapters, headers, source libraries, metadata, documentation and notices. |
 | Complete installation | Consumer plus the transitive package dependencies, counted once. |
 | Unique content | Identical files counted once by SHA-256 across the selection. |
@@ -121,13 +123,13 @@ The tested execution hosts currently run on Linux x86_64.
 
 | Tool | Wisp execution host |
 | --- | --- |
-| Clang, LLVM, Nim, Zig | Wisp Wasmtime 49.0.1 with WASI Preview 3 and external core-module imports. |
-| Rust | Wasmtime 49 with WASIp3 component support. |
-| AssemblyScript | External Wasmtime Python bindings 49.0.0 for compiler callbacks. |
-| Go, JavaScript, Python, wasm-tools | External Wasmtime 49.0.1. |
-| Grain | External Wasmtime 49.0.1; QuickJS, the Grain compiler and its backend execute inside Wasm. |
-| Swift | External Wasmtime Python bindings 49.0.0 for compiler/backend linking; the shared wasm-tools package uses the CLI host for Components. |
-| Java, Kotlin, TeaVM, JVM | External Wasmtime 49.0.1 with WASI Preview 1, Wasm tail calls and exceptions. |
+| Clang, LLVM, Nim, Zig | Wisp Wasmtime 50.0.0 with WASI Preview 3 and external core-module imports. |
+| Rust | Wasmtime 50 with WASIp3 component support. |
+| AssemblyScript | External Wasmtime Python bindings 50.0.1 for compiler callbacks. |
+| Go, JavaScript, Python, wasm-tools | External Wasmtime 50.0.0. |
+| Grain | External Wasmtime 50.0.0; QuickJS, the Grain compiler and its backend execute inside Wasm. |
+| Swift | External Wasmtime Python bindings 50.0.1 for compiler/backend linking; the shared wasm-tools package uses the CLI host for Components. |
+| Java, Kotlin, TeaVM, JVM | External Wasmtime 50.0.0 with WASI Preview 1, Wasm tail calls and exceptions. |
 
 Rust Cargo projects also use native `cargo metadata --locked --offline`.
 Dependencies must already be vendored. Rust compilation, build scripts and

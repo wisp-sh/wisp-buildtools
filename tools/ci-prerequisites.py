@@ -221,7 +221,8 @@ def install_for(tool: str) -> dict:
     binaries = {name: install(name) for name in requirements(tool)}
     host_receipts = []
     environment = {"WISP_WASMTIME": str(binaries["wasmtime"]),
-                   "WASMTIME": str(binaries["wasmtime"])}
+                   "WASMTIME": str(binaries["wasmtime"]),
+                   "WISP_BOOTSTRAP_WASMTIME": str(binaries["wasmtime"])}
     paths = [str(binaries["wasmtime"].parent)]
     if tool == "go":
         environment["WISP_GO_HOST_ROOT"] = str(binaries["go-1.27.2"].parents[1])
@@ -269,16 +270,17 @@ def install_for(tool: str) -> dict:
         rustc = subprocess.check_output(["rustup", "which", "--toolchain", bootstrap["version"],
                                         "rustc"], text=True).strip()
         paths.insert(0, str(Path(rustc).parent))
-    if tool in (*SHARED_LLVM_CONSUMERS, *SHARED_RUST_CONSUMERS):
-        prefix = ROOT / ".ci/hosts/wisp-wasmtime-49.0.1"
-        execution_host("build.py", prefix, ROOT / ".ci/host-build")
-        host_receipts.append(prefix / "receipt.json")
-        environment["WISP_WASMTIME"] = str(prefix / "wasmtime")
-        environment["WASMTIME"] = str(prefix / "wasmtime")
-        environment["WISP_LLVM"] = str(ROOT / "llvm/dist/shared")
-        if tool in SHARED_RUST_CONSUMERS:
-            environment["WISP_RUST_WASMTIME"] = str(prefix / "wasmtime")
-        paths.insert(0, str(prefix))
+    host_lock = json.loads((ROOT / 'tools/shared-hosts/wasmtime.lock.json').read_text())
+    subprocess.run(['rustup', 'toolchain', 'install', host_lock['rustVersion'], '--profile', 'minimal'], check=True)
+    prefix = ROOT / '.ci/hosts' / ('wisp-wasmtime-' + host_lock['version'])
+    execution_host('build.py', prefix, ROOT / '.ci/host-build')
+    host_receipts.append(prefix / 'receipt.json')
+    launcher = str(ROOT / 'cwasm.py')
+    environment.update(WISP_CWASM_RUNTIME=str(prefix / 'wasmtime'), WISP_WASMTIME=launcher,
+                       WASMTIME=launcher, WISP_RUST_WASMTIME=launcher,
+                       WISP_OCAML_WASMTIME=launcher, WISP_GOOSE_FRONTEND_HOST=launcher,
+                       WISP_LLVM=str(ROOT / 'llvm/dist/shared'))
+    paths.insert(0, str(prefix))
     github_environment(environment, paths)
     report = {"schema": 1, "tool": tool, "environment": environment, "paths": paths,
               "downloads": {name: LOCK["downloads"][name]["sha256"] for name in binaries},

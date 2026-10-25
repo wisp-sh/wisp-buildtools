@@ -37,7 +37,7 @@ Set `WISP_LLVM` to the installed directory containing the manifest. Wisp supplie
 a Wasmtime host supporting external core-module imports. The runtime helper
 [`shared.py`](shared.py) verifies provider paths, sizes and hashes and returns
 the host's `--preload NAME=FILE` arguments. The packaged provider includes no
-native host. Stock Wasmtime 49's component CLI rejects preloads; Wisp's host
+native host. Stock Wasmtime 50's component CLI rejects preloads; Wisp's host
 connects them with `component::Linker::root().module(...)`.
 
 ## Bootstrap
@@ -65,7 +65,7 @@ The static SDK and its CMake metadata remain available under `artifacts/` for
 bootstrap development. They are excluded from the runtime Wisp package.
 
 Rust 1.99.1 builds a WASIp3 Component with LLVM 24 linked into it and uses the
-same Wasmtime 49 execution host. It has no separate shared LLVM provider.
+same Wasmtime 50 execution host. It has no separate shared LLVM provider.
 
 The linking convention and external-module mechanism are described in the
 [WebAssembly dynamic linking ABI](https://github.com/WebAssembly/tool-conventions/blob/main/DynamicLinking.md),

@@ -1,6 +1,6 @@
 # Rust compiler acceptance
 
-The active recipe targets Rust 1.99.1/WASIp3 with LLVM 24. Use Wasmtime 49.
+The active recipe targets Rust 1.99.1/WASIp3 with LLVM 24. Use Wasmtime 50.
 The compiler's host target does not change these fixtures' WASIp1 application
 target. Run the commands below from `rust/`.
 

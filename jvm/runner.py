@@ -46,7 +46,7 @@ def command(main_class: str, classpath: Sequence[Path], *,
         guest_entries.append(guest if relative == '.' else guest + '/' + relative)
     if len({guest for _, guest in mapped}) != len(mapped):
         raise ValueError('JVM guest mount paths must be unique')
-    invocation = [str(runtime_host()), 'run', '-C', 'cache=y', '-O', 'opt-level=0', '-W', 'all-proposals=y',
+    invocation = [str(runtime_host()), 'run', '-C', 'cache=y', '-O', 'opt-level=0', '-W', 'all-proposals=y', '-W', 'exceptions=y',
                   '--env', 'JAVA_HOME=/runtime/jdk']
     for directory, guest in mapped:
         invocation += ['--dir', f'{directory}::{guest}']

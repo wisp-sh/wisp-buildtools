@@ -43,13 +43,31 @@ def smoke(host, work):
                                       "--invoke", "answer()", str(consumer)], text=True)
     if result.strip() != "42":
         raise RuntimeError(f"shared provider returned {result!r}")
+    native_provider, native_consumer = work / 'provider.cwasm', work / 'consumer.cwasm'
+    run([host, 'compile', provider, '-o', native_provider])
+    run([host, 'compile', consumer, '-o', native_consumer])
+    result = subprocess.check_output([str(host), 'run', '--allow-precompiled', '--preload',
+        f'wisp-test-provider={native_provider}', '--invoke', 'answer()', str(native_consumer)], text=True)
+    if result.strip() != '42':
+        raise RuntimeError('precompiled Component and shared-module smoke failed')
+    exceptions = work / 'exceptions.wat'
+    exceptions.write_text('''(module (tag $error)
+      (func (export "answer") (result i32)
+        (block $caught (try_table (catch_all $caught) (throw $error)))
+        i32.const 42))''')
+    native_exceptions = work / 'exceptions.cwasm'
+    run([host, 'compile', '-Wexceptions=y', exceptions, '-o', native_exceptions])
+    result = subprocess.check_output([str(host), 'run', '--allow-precompiled', '-Wexceptions=y',
+        '--invoke', 'answer', str(native_exceptions)], text=True)
+    if result.strip() != '42':
+        raise RuntimeError('precompiled exception smoke failed')
     return {"externalModuleImport": "wisp-test-provider", "value": 42,
-            "missingProviderRejected": True}
+            "missingProviderRejected": True, "precompiledModules": True, "exceptions": True}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--prefix", type=Path, default=ROOT / ".tools/shared-hosts/wisp-wasmtime-49.0.1")
+    parser.add_argument("--prefix", type=Path, default=ROOT / ".tools/shared-hosts/wisp-wasmtime-50.0.0")
     parser.add_argument("--cache", type=Path, default=ROOT / ".tools/shared-hosts/host-build")
     parser.add_argument("--jobs", type=int, choices=range(1, 9), default=2)
     parser.add_argument("--check", action="store_true", help="verify the installed host and its import smoke test")
@@ -101,7 +119,7 @@ def main():
     environment.update({"CARGO_TARGET_DIR": str(cache / "target"),
                         "CARGO_PROFILE_RELEASE_DEBUG": "0", "CARGO_PROFILE_RELEASE_OPT_LEVEL": "1",
                         "CARGO_PROFILE_RELEASE_STRIP": "symbols", "CARGO_PROFILE_RELEASE_INCREMENTAL": "false"})
-    argv = ["cargo", f'+{lock["rustVersion"]}', "build", "--locked", "--release", "--no-default-features",
+    argv = ["rustup", "run", lock["rustVersion"], "cargo", "build", "--locked", "--release", "--no-default-features",
             "--features", ",".join(lock["features"]), "--bin", "wasmtime", "--jobs", str(args.jobs)]
     run(argv, cwd=source, env=environment)
     host = prefix / "wasmtime"

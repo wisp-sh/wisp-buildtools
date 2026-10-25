@@ -149,6 +149,7 @@ class ContainerTests(unittest.TestCase):
             self.assertIn("compiler/dist/" + relative, inventory)
 
     def test_python_bootstrap_paths_are_portable_and_keep_integrity_hashes(self):
+        (self.root / 'cwasm.py').write_text('# native loader\n')
         self.document["tools"]["python"] = fixture_tool("python")
         base = self.root / "python"
         (base / "dist/strings").mkdir(parents=True)
@@ -159,7 +160,7 @@ class ContainerTests(unittest.TestCase):
             original = {"sha256": {"compiler.wasm": builds.digest(base / "dist/compiler.wasm")},
                         key: {"wasmtime": {"path": "/home/developer/private/bin/wasmtime", "sha256": "a" * 64}}}
             path.write_text(json.dumps(original))
-        record = self.package("python")
+        record = builds.package_tool(self.document, "python", root=self.root, output_dir=self.output, source_only=True)
         bundle = Path(record["archive"])
         packages.validate(bundle)
         with zipfile.ZipFile(bundle) as outer, tarfile.open(fileobj=io.BytesIO(outer.read("toolchain.tar.gz")), mode="r:gz") as archive:
@@ -517,6 +518,32 @@ class ContainerTests(unittest.TestCase):
         other = Path(self.package("other")["archive"])
         result = packages.install([self.bundle, other], self.root / "multiple")
         self.assertEqual(result["packages"], ["wisp:shared", "wisp:compiler", "wisp:other"])
+
+    def test_native_loader_is_shared_only_when_its_complete_inventory_matches(self):
+        loader = self.root / "cwasm.py"
+        loader.write_text("#!/usr/bin/python3\nprint('native loader')\n")
+        loader.chmod(0o755)
+        for name in ("shared", "compiler"):
+            self.document["tools"][name]["package"]["include"].append("cwasm.py")
+            self.package(name)
+        prefix = self.root / "shared-loader"
+        result = packages.install(self.bundle, prefix)
+        self.assertEqual((prefix / "cwasm.py").read_bytes(), loader.read_bytes())
+        self.assertEqual(result["packages"], ["wisp:shared", "wisp:compiler"])
+        # The shared loader still has to pass each package's payload checksum.
+        loader.write_text("print('different loader')\n")
+        self.package("compiler")
+        with self.assertRaisesRegex(ValueError, "ownership collision"):
+            packages.install(self.bundle, self.root / "different-loader")
+
+    def test_identical_other_files_cannot_hide_package_ownership_collisions(self):
+        common = self.root / "common.py"
+        common.write_text("print('common')\n")
+        for name in ("shared", "compiler"):
+            self.document["tools"][name]["package"]["include"].append("common.py")
+            self.package(name)
+        with self.assertRaisesRegex(ValueError, "ownership collision"):
+            packages.install(self.bundle, self.root / "collision")
 
     def test_runtime_cycle_is_rejected_during_installation(self):
         self.document["tools"]["shared"]["runtimeDependencies"] = ["compiler"]

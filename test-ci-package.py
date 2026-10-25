@@ -20,7 +20,7 @@ class PackageCompilerCI(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / 'buildtools.json').write_text('{}')
-            host = root / '.ci/hosts/wisp-wasmtime-49.0.1/wasmtime'
+            host = root / '.ci/hosts/wisp-wasmtime-50.0.0/wasmtime'
             events, exports = [], []
             def install(tool):
                 events.append(tool)
@@ -44,8 +44,9 @@ class PackageCompilerCI(unittest.TestCase):
                  patch.object(ci.subprocess, 'run'), patch.dict(os.environ):
                 ci.provision('go', root / 'recipes')
             self.assertEqual(events, ['go', 'wasm-tools', 'wisp-host'])
-            self.assertEqual(exports[-1]['WISP_WASMTIME'], str(host))
-            self.assertEqual(exports[-1]['WISP_RUST_WASMTIME'], str(host))
+            self.assertEqual(exports[-1]['WISP_WASMTIME'], str(root / 'cwasm.py'))
+            self.assertEqual(exports[-1]['WISP_CWASM_RUNTIME'], str(host))
+            self.assertEqual(exports[-1]['WISP_RUST_WASMTIME'], str(root / 'cwasm.py'))
             self.assertNotEqual(exports[-1]['WISP_BOOTSTRAP_WASMTIME'], str(host))
 
     def test_driver_import_from_an_unrelated_checkout(self):
@@ -74,7 +75,7 @@ class PackageCompilerCI(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / 'buildtools.json').write_text('{}')
-            host = root / '.ci/hosts/wisp-wasmtime-49.0.1/wasmtime'
+            host = root / '.ci/hosts/wisp-wasmtime-50.0.0/wasmtime'
             host.parent.mkdir(parents=True)
             host.touch()
             builds, exports = [], []
@@ -94,7 +95,8 @@ class PackageCompilerCI(unittest.TestCase):
                 ci.provision('clang', root / 'recipes')
             self.assertEqual([value[1] for value in builds], ['clang', 'wasm-tools'])
             self.assertEqual([value[2] for value in builds], ['/bootstrap/clang', '/bootstrap/wasm-tools'])
-            self.assertEqual(exports[-1]['WISP_WASMTIME'], str(host))
+            self.assertEqual(exports[-1]['WISP_WASMTIME'], str(root / 'cwasm.py'))
+            self.assertEqual(exports[-1]['WISP_CWASM_RUNTIME'], str(host))
             self.assertEqual(exports[-1]['WISP_PREVIEW1_ADAPTER'], str(root / 'wasm-tools/dist/wasi_snapshot_preview1.reactor.wasm'))
             self.assertNotEqual(exports[-1]['WISP_BOOTSTRAP_WASMTIME'], str(host))
 

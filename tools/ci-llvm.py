@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SDK = "llvm/artifacts/llvm-24-d297af3-wasip3-o1"
 NATIVE_SDK = "clang/.toolchains/wasi-sdk-34.0-x86_64-linux"
 WASM_TOOLS = "clang/.toolchains/wasm-tools-1.262.0-x86_64-linux"
-HOST = ".ci/hosts/wisp-wasmtime-49.0.1"
+HOST = ".ci/hosts/wisp-wasmtime-50.0.0"
 PAYLOAD_PATHS = (
     SDK, "llvm/dist/shared", "clang/.toolchains/build-p3/bin/clang-wasm.component",
     "clang/include", "nim/work/backend-build/c-backend", "build/receipts/clang/build.json",

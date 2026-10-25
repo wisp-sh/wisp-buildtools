@@ -79,7 +79,7 @@ jobs:
         run: python3 tools/ci-llvm.py restore .ci/llvm-bootstrap.tar.gz
       - name: Identify execution host cache
         id: host-key
-        if: ${{ !inputs.llvm-bootstrap && contains(fromJSON('["clang","llvm","zig","nim","ocaml","goose","rust","teavm","java","kotlin"]'), inputs.toolchain) }}
+        if: ${{ !inputs.llvm-bootstrap }}
         run: |
           python3 - <<'PY'
           import hashlib
@@ -89,8 +89,8 @@ jobs:
           abi = hashlib.sha256(Path('/etc/os-release').read_bytes()).hexdigest()
           with Path(os.environ['GITHUB_OUTPUT']).open('a') as output:
               output.write('abi=' + abi + '\n')
-              output.write('family=49\n')
-              output.write('version=49.0.1\n')
+              output.write('family=50\n')
+              output.write('version=50.0.0\n')
           PY
       - name: Restore native execution host cache
         id: host-cache
@@ -180,7 +180,7 @@ jobs:
       - name: Upload compiler package
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: ${{ inputs.toolchain }}-wasm32-wasi
+          name: ${{ inputs.toolchain }}-linux-x86_64
           path: |
             ${{ env.PACKAGE_DIRECTORY }}/*.wisp.zip
             ${{ env.PACKAGE_DIRECTORY }}/*.wisp.json

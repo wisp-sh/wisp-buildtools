@@ -1,7 +1,18 @@
 {
-  "version": "49.0.1",
+  "version": "50.0.0",
   "rustVersion": "1.99.0",
-  "url": "https://static.crates.io/crates/wasmtime-cli/wasmtime-cli-49.0.1.crate",
-  "sha256": "bf3a12196eff4bc9351fd12096f29aedde659cf3bef121054656405d5766c65b",
-  "features": ["run", "cranelift", "component-model-async", "cache", "parallel-compilation", "wat", "threads", "stack-switching"]
+  "url": "https://static.crates.io/crates/wasmtime-cli/wasmtime-cli-50.0.0.crate",
+  "sha256": "685bfee58e320da926959286d544d7043e5328ad28aa59bca4d306b978bb7b1b",
+  "features": [
+    "run",
+    "compile",
+    "cranelift",
+    "component-model-async",
+    "cache",
+    "parallel-compilation",
+    "wat",
+    "threads",
+    "stack-switching",
+    "gc-drc"
+  ]
 }

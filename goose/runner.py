@@ -18,7 +18,7 @@ def runtime(*, frontend: bool = False) -> Path:
     selected = (os.environ.get('WISP_GOOSE_FRONTEND_HOST') if frontend else None) or os.environ.get('WISP_WASMTIME', 'wasmtime')
     path = shutil.which(selected)
     if not path:
-        raise ValueError("Set WISP_WASMTIME to Wisp's worker or Wasmtime 49 with exception support.")
+        raise ValueError("Set WISP_WASMTIME to Wisp's worker or the Wasmtime 50 compiler launcher with exception support.")
     return Path(path).resolve()
 
 

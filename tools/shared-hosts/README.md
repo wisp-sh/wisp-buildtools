@@ -5,7 +5,7 @@ These source files are an exact copy of Wisp's `tools/shared-hosts` recipe.
 that inventory before CI uses them. This copy lets a buildtools-only checkout
 provision Wisp's runtime without checking out Wisp or copying a developer's host.
 
-The recipe builds pinned Wasmtime 49.0.1 with Component core-module imports from
+The recipe builds pinned Wasmtime 50.0.0 with precompilation, GC-backed exceptions, and Component core-module imports from
 `--preload`. The host belongs to Wisp and stays in the CI host directory. It is
 excluded from compiler packages. LLVM, Clang, Zig, Nim and Rust jobs use it.
 Rust 1.99.1 enables WASIp3 support with `-Sp3=y`. The 38.0.4 recipe remains for

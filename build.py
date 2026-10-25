@@ -21,6 +21,8 @@ import tarfile
 import tempfile
 
 import toolchain_packages as packages
+import cwasm
+import cwasm_profiles
 
 ROOT = Path(__file__).resolve().parent
 MANIFEST = ROOT / "buildtools.json"
@@ -48,6 +50,10 @@ def load_manifest(path: Path = MANIFEST) -> dict:
     if document.get("schema") != 1 or not isinstance(document.get("tools"), dict) or not document["tools"]:
         raise ValueError("unsupported or empty buildtools manifest")
     tools = document["tools"]
+    if path == MANIFEST:
+        import cwasm_profiles
+        if set(tools) != cwasm_profiles.SUPPORTED:
+            raise ValueError('every buildtool must declare its native execution profile in cwasm_profiles.py')
     for name, item in tools.items():
         if not name or any(c not in "abcdefghijklmnopqrstuvwxyz0123456789-" for c in name):
             raise ValueError(f"invalid tool name: {name!r}")
@@ -449,6 +455,12 @@ def execute(document: dict, selected: list[str], command: str, *, root: Path, se
                   "source": item.get("source"), "validation": validation}
         if recipe_sha is not None:
             record["recipeSha256"] = recipe_sha
+        if command == 'build':
+            import cwasm_profiles
+            if name in cwasm_profiles.SUPPORTED:
+                import cwasm
+                native = prepare_tool(document, name, root=root, runtime=cwasm.default_runtime())
+                record['precompiled'] = {relative: digest(path) for relative, path in native.items()}
         receipt.write_text(json.dumps(record, indent=2) + "\n")
 
 
@@ -482,8 +494,19 @@ def package_files(document: dict, selected: str, root: Path) -> dict[str, Path]:
     return dict(sorted(files.items()))
 
 
-def package_tool(document: dict, name: str, *, root: Path, output_dir: Path) -> dict:
+def package_tool(document: dict, name: str, *, root: Path, output_dir: Path, source_only=False) -> dict:
     files = package_files(document, name, root)
+    native_sources = {}
+    import cwasm_profiles
+    if name in cwasm_profiles.SUPPORTED:
+        files['cwasm.py'] = root / 'cwasm.py'
+    if not source_only and name in cwasm_profiles.SUPPORTED:
+        import cwasm
+        native = prepare_tool(document, name, root=root, runtime=cwasm.default_runtime())
+        files.update(native)
+        manifest_path = f'precompiled/{name}/manifest.json'
+        for record in json.loads(files[manifest_path].read_text())['artifacts']:
+            native_sources[record['path']] = record['source']
     manifest = adapter_repackage(name, root)
     # Bootstrap tool locations are local diagnostics, not runtime paths. Keep
     # their identities and hashes without publishing a developer's home path.
@@ -501,14 +524,148 @@ def package_tool(document: dict, name: str, *, root: Path, output_dir: Path) -> 
     if manifest is not None:
         public_metadata[f"{name}/dist/manifest.json"] = manifest
     if not public_metadata:
-        return packages.pack(document, name, files, root=root, output_dir=output_dir)
+        return packages.pack(document, name, files, root=root, output_dir=output_dir, native_sources=native_sources)
     with tempfile.TemporaryDirectory(prefix="wisp-adapter-repackage-") as temporary:
         for relative, metadata in public_metadata.items():
             staged = Path(temporary) / relative
             staged.parent.mkdir(parents=True, exist_ok=True)
             staged.write_bytes(packages.canonical(metadata))
             files[relative] = staged
-        return packages.pack(document, name, files, root=root, output_dir=output_dir)
+        return packages.pack(document, name, files, root=root, output_dir=output_dir, native_sources=native_sources)
+
+
+def precompile_tools(document, selected, *, root, runtime, compiler=None, flags=(), cache=None,
+                     output_dir=None, worker=False, automatic=False):
+    import cwasm
+    import cwasm_profiles
+    python_hosts = {}
+    if output_dir is not None and Path(output_dir).exists():
+        raise ValueError(f"cwasm output directory must be absent: {output_dir}")
+    records = []
+    for name in dependency_order(document, selected, key="runtimeDependencies"):
+        files = package_files(document, name, root)
+        profile = packages.profile(root, name)
+        entrypoints = {entry["path"] for entry in profile.get("entrypoints", [])}
+        for relative, path in files.items():
+            kind = packages.file_format(path)
+            role = packages.file_role(relative, kind, profile.get("roles", []))
+            abi_shim = name == 'assemblyscript' and relative.startswith('assemblyscript/dist/abi-shims/')
+            if kind not in {"wasm-core", "wasm-component"} or (relative not in entrypoints and role not in {"compiler", "runtime"} and not abi_shim):
+                continue
+            execution = cwasm_profiles.execution_profile(name, relative)
+            if execution is None:
+                continue
+            if automatic and execution['backend'] == 'python':
+                host = execution['host']
+                if host not in python_hosts:
+                    python_hosts[host] = cwasm_profiles.python_host(root, host)
+                output = python_hosts[host](path)
+            else:
+                selected_flags = execution.get('flags', []) if automatic else flags
+                output = cwasm.precompile(path, runtime=runtime, compiler=compiler,
+                                          flags=selected_flags, cache=cache, worker=worker)
+            record = cwasm.record_for(output)
+            records.append({"tool": name, "source": relative,
+                            "path": str(Path(relative).with_suffix(".cwasm")),
+                            "format": "cwasm", "wasmFormat": kind, **record, "cachedPath": str(output)})
+    if output_dir is not None:
+        output_dir = Path(output_dir).absolute()
+        if output_dir.exists():
+            raise ValueError(f"cwasm output directory must be absent: {output_dir}")
+        output_dir.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix=".cwasm-publish-", dir=output_dir.parent) as temporary:
+            stage = Path(temporary) / "artifacts"
+            stage.mkdir()
+            for record in records:
+                destination = stage / relative_path(record["path"])
+                if destination.exists():
+                    raise ValueError(f"cwasm output path collision: {record['path']}")
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(record["cachedPath"], destination)
+                if digest(destination) != record["sha256"]:
+                    raise ValueError("compiled artifact changed during publication")
+            public = [{key: value for key, value in record.items() if key != "cachedPath"}
+                      for record in records]
+            (stage / "cwasm-manifest.json").write_bytes(packages.canonical({
+                "schema": 1, "kind": "precompiled-toolchains", "artifacts": public}))
+            stage.rename(output_dir)
+    return records
+
+
+def prepare_tool(document, name, *, root, runtime):
+    """Publish native companions beside, rather than inside, immutable source inventories."""
+    records = precompile_tools(document, [name], root=root, runtime=runtime, automatic=True)
+    records = [record for record in records if record['tool'] == name]
+    directory = root / 'precompiled' / name
+    directory.mkdir(parents=True, exist_ok=True)
+    files, public = {}, []
+    for record in records:
+        filename = record['sha256'] + '.cwasm'
+        destination = directory / filename
+        if not destination.exists():
+            with tempfile.NamedTemporaryFile(dir=directory, delete=False) as pending:
+                staged = Path(pending.name)
+                try:
+                    with Path(record['cachedPath']).open('rb') as source:
+                        shutil.copyfileobj(source, pending)
+                    pending.close()
+                    if digest(staged) != record['sha256']:
+                        raise ValueError('native compiler artifact changed during publication')
+                    staged.chmod(0o644)
+                    staged.replace(destination)
+                finally:
+                    staged.unlink(missing_ok=True)
+        relative = destination.relative_to(root).as_posix()
+        files[relative] = destination
+        public.append({**{key: value for key, value in record.items() if key != 'cachedPath'}, 'path': relative})
+    manifest = directory / 'manifest.json'
+    with tempfile.NamedTemporaryFile(dir=directory, delete=False) as pending:
+        staged = Path(pending.name)
+        try:
+            pending.write(packages.canonical({'schema': 1, 'kind': 'precompiled-toolchains', 'artifacts': public}))
+            pending.close()
+            staged.chmod(0o644)
+            staged.replace(manifest)
+        finally:
+            staged.unlink(missing_ok=True)
+    files[manifest.relative_to(root).as_posix()] = manifest
+    # Native filenames are content hashes. Keep only the currently published
+    # generation after a host upgrade, without touching other files.
+    for path in directory.glob('*.cwasm'):
+        if re.fullmatch(r'[a-f0-9]{64}\.cwasm', path.name) and path.relative_to(root).as_posix() not in files:
+            path.unlink()
+    return files
+
+
+def prepare_installation(document, selected, *, root, runtime, output_dir=None):
+    """Prepare all providers and optionally export an overlay for an existing installation."""
+    files, records = {'cwasm.py': root / 'cwasm.py'}, []
+    for name in dependency_order(document, selected, key='runtimeDependencies'):
+        companions = prepare_tool(document, name, root=root, runtime=runtime)
+        files.update(companions)
+        document_path = companions[f'precompiled/{name}/manifest.json']
+        for record in json.loads(document_path.read_text())['artifacts']:
+            records.append({**record, 'cachedPath': str(root / record['path'])})
+    if output_dir is not None:
+        output_dir = Path(output_dir).absolute()
+        if output_dir.exists():
+            raise ValueError(f'cwasm output directory must be absent: {output_dir}')
+        output_dir.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix='.cwasm-export-', dir=output_dir.parent) as temporary:
+            stage = Path(temporary) / 'artifacts'
+            stage.mkdir()
+            for relative, source in files.items():
+                destination = stage / relative_path(relative)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                expected = digest(source)
+                shutil.copy2(source, destination)
+                if digest(destination) != expected:
+                    raise ValueError('native companion changed during export')
+            public = [{key: value for key, value in record.items() if key != 'cachedPath'} for record in records]
+            (stage / 'cwasm-manifest.json').write_bytes(packages.canonical({
+                'schema': 1, 'kind': 'precompiled-toolchains', 'artifacts': public}))
+            stage.rename(output_dir)
+    return records
 
 
 def main(argv=None):
@@ -516,6 +673,15 @@ def main(argv=None):
     commands = parser.add_subparsers(dest="command", required=True)
     listing = commands.add_parser("list", help="list compiler packages")
     listing.add_argument("--json", action="store_true")
+    precompilation = commands.add_parser("precompile", help="precompile installed compiler guests into a local cwasm cache")
+    precompilation.add_argument("tool", help="tool name or all")
+    precompilation.add_argument("--wasmtime", help="native execution host; defaults to the configured Wasmtime 50 host")
+    precompilation.add_argument("--compiler", default=os.environ.get("WISP_CWASM_COMPILER"), help="Wasmtime with the compile subcommand; defaults to --wasmtime")
+    precompilation.add_argument("--cache-dir", type=Path)
+    precompilation.add_argument("--worker", action="store_true", help="use wisp-worker's own precompile command and engine configuration")
+    precompilation.add_argument("--automatic", action="store_true", help="use each tool's CLI or Python execution profile")
+    precompilation.add_argument("--output-dir", type=Path, help="publish cwasm files and their manifest into a new directory")
+    precompilation.add_argument("--engine-arg", action="append", default=[], help="exact engine argument, repeat as --engine-arg=-Oopt-level=0")
     for name in ("plan", "build", "test", "package", "sizes"):
         command = commands.add_parser(name)
         command.add_argument("tool", help="tool name or all")
@@ -526,6 +692,7 @@ def main(argv=None):
             command.add_argument("--no-deps", action="store_true", help="reuse compiler dependencies already built separately")
         if name == "package":
             command.add_argument("--output-dir", type=Path, default=ROOT / "dist")
+            command.add_argument("--source-only", action="store_true", help="package bootstrap inputs without native compiler companions")
         if name == "sizes":
             command.add_argument("--package-dir", type=Path, default=ROOT / "dist")
             command.add_argument("--output-dir", type=Path)
@@ -551,6 +718,28 @@ def main(argv=None):
         return 0
     selected = list(document["tools"]) if args.tool == "all" else [args.tool]
     dependency_order(document, selected)
+    if args.command == "precompile":
+        import cwasm
+        parsed = cwasm.engine_options([*args.engine_arg, "guest.wasm"], engine_only=True)
+        if parsed is None or parsed[1] or parsed[2] != len(args.engine_arg):
+            raise ValueError("--engine-arg must contain only Wasmtime engine options")
+        flags = parsed[0]
+        if args.worker and flags:
+            raise ValueError("--worker uses its fixed engine configuration; omit --engine-arg")
+        if args.automatic and (args.worker or args.compiler or flags):
+            raise ValueError('--automatic selects each execution profile; omit --worker, --compiler and --engine-arg')
+        if args.cache_dir is not None:
+            os.environ['WISP_CWASM_CACHE'] = str(args.cache_dir.resolve())
+        runtime = args.wasmtime or cwasm.default_runtime()
+        if args.automatic:
+            records = prepare_installation(document, selected, root=ROOT, runtime=runtime, output_dir=args.output_dir)
+        else:
+            records = precompile_tools(document, selected, root=ROOT, runtime=runtime,
+                                      compiler=args.compiler, flags=flags, cache=args.cache_dir,
+                                      output_dir=args.output_dir, worker=args.worker)
+        for record in records:
+            print(json.dumps(record), flush=True)
+        return 0
     settings = configuration(ROOT, args.jobs)
     if args.command == "plan":
         plan = build_plan(document, selected, settings)
@@ -566,7 +755,7 @@ def main(argv=None):
         return 0
     if args.command == "package":
         providers = dependency_order(document, selected, key="runtimeDependencies")
-        results = [package_tool(document, name, root=ROOT, output_dir=args.output_dir.resolve()) for name in providers]
+        results = [package_tool(document, name, root=ROOT, output_dir=args.output_dir.resolve(), source_only=args.source_only) for name in providers]
         data = packages.report([Path(record["archive"]) for record in results])
         packages.write_reports(data, args.output_dir.resolve())
         for record in results:

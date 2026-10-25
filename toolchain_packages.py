@@ -266,7 +266,9 @@ class HashReader:
         return data
 
 
-def pack(document: dict, name: str, files: dict[str, Path], *, root: Path, output_dir: Path) -> dict:
+def pack(document: dict, name: str, files: dict[str, Path], *, root: Path, output_dir: Path,
+         native_sources=None) -> dict:
+    native_sources = native_sources or {}
     profiles = load_profiles(root)
     item = document["tools"][name]
     config = profiles.get("tools", {}).get(name, {})
@@ -278,7 +280,8 @@ def pack(document: dict, name: str, files: dict[str, Path], *, root: Path, outpu
     overlap = max(len(home_prefix), len(root_prefix), len(b".t3/projects/"), len(b"/Users/") + 255 + 1) - 1
     for relative, path in files.items():
         safe_path(relative)
-        public_strings = PUBLIC_UPSTREAM_STRINGS.get(relative, ())
+        public_strings = (PUBLIC_UPSTREAM_STRINGS.get(relative, ())
+                          + PUBLIC_UPSTREAM_STRINGS.get(native_sources.get(relative, ''), ()))
         lookahead = max([overlap, *(len(value) - 1 for value in public_strings)])
 
         def private_home(data, limit):
@@ -307,12 +310,20 @@ def pack(document: dict, name: str, files: dict[str, Path], *, root: Path, outpu
             contains_home |= private_home(previous, len(previous))
             if count != attributes.st_size:
                 raise ValueError(f"package input changed during inventory: {relative}")
-            if contains_home and PUBLIC_UPSTREAM_PAYLOADS.get(relative) != checksum.hexdigest():
+            derived_public = False
+            if relative in native_sources:
+                original = native_sources[relative]
+                expected = PUBLIC_UPSTREAM_PAYLOADS.get(original)
+                derived_public = bool(expected and original in files and digest(files[original]) == expected)
+            if contains_home and PUBLIC_UPSTREAM_PAYLOADS.get(relative) != checksum.hexdigest() and not derived_public:
                 raise ValueError(f"package input contains a build-machine path: {relative}; rebuild with path remapping")
         kind = header_format(header, path)
+        original = native_sources.get(relative)
+        role = (file_role(original, file_format(files[original]), config.get('roles', []))
+                if original is not None else file_role(relative, kind, config.get('roles', [])))
         inventory[relative] = {"size": count, "sha256": checksum.hexdigest(),
                                "mode": 0o755 if attributes.st_mode & 0o111 else 0o644,
-                               "format": kind, "role": file_role(relative, kind, config.get("roles", []))}
+                               "format": kind, "role": role}
     # Stage outside the destination: failure leaves neither a partial bundle nor
     # a destination directory that could be mistaken for a successful package.
     with tempfile.TemporaryDirectory(prefix="wisp-toolchain-package-") as temporary:
@@ -345,7 +356,7 @@ def pack(document: dict, name: str, files: dict[str, Path], *, root: Path, outpu
                                  "note": "Install this Wisp toolchain package once in the same prefix. Its files are not embedded in this bundle."})
         doc = {"schema": 4, "kind": "toolchain", "identity": "wisp:" + name,
                "version": profiles.get("packageVersion", "0.1.0"), "tool": name,
-               "upstreamVersion": item["version"], "platform": profiles.get("platform", "linux-x86_64" if sizes["nativeBytes"] else "wasm32-wasi"),
+               "upstreamVersion": item["version"], "platform": ("linux-x86_64" if native_sources else profiles.get("platform", "linux-x86_64" if sizes["nativeBytes"] else "wasm32-wasi")),
                "archive": {"file": "toolchain.tar.gz", "size": payload.stat().st_size,
                            "sha256": digest(payload), "inventory": inventory},
                "entrypoints": config.get("entrypoints", []), "requirements": requirements,
@@ -471,7 +482,7 @@ class SingleGzip(io.RawIOBase):
         return count
 
 
-def consume_payload(archive, doc, prefix=None):
+def consume_payload(archive, doc, prefix=None, *, shared_files=()):
     with archive.open("toolchain.tar.gz") as source:
         compressed = HashReader(source)
         with io.BufferedReader(SingleGzip(compressed), buffer_size=64 * 1024) as stream:
@@ -500,7 +511,8 @@ def consume_payload(archive, doc, prefix=None):
                 if prefix is not None:
                     path = prefix / relative
                     path.parent.mkdir(parents=True, exist_ok=True)
-                    target = path.open("xb")
+                    if relative not in shared_files or not path.exists():
+                        target = path.open("xb")
                 checksum, remaining = hashlib.sha256(), entry.size
                 beginning = b""
                 try:
@@ -600,11 +612,16 @@ def install(bundle: Path | list[Path], prefix: Path) -> dict:
         raise ValueError(f"installation prefix already exists: {prefix}")
     selected = bundle if isinstance(bundle, list) else [bundle]
     graph = resolve_packages([Path(path) for path in selected])
-    inventory = {}
+    inventory, shared_files = {}, set()
     for _, doc in graph:
         for relative, spec in doc["archive"]["inventory"].items():
-            if relative.startswith("share/wisp/toolchains/") or relative in inventory:
+            # Every native tool package carries the same root launcher. Share
+            # only that file, with identical bytes, mode, and format required.
+            shared = relative == "cwasm.py" and inventory.get(relative) == spec
+            if relative.startswith("share/wisp/toolchains/") or (relative in inventory and not shared):
                 raise ValueError(f"package file ownership collision: {relative}")
+            if shared:
+                shared_files.add(relative)
             inventory[relative] = spec
     prefix.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".wisp-toolchain-", dir=prefix.parent) as work:
@@ -617,7 +634,7 @@ def install(bundle: Path | list[Path], prefix: Path) -> dict:
             with archive:
                 if doc != expected:
                     raise ValueError("package changed during dependency resolution")
-                consume_payload(archive, doc, stage)
+                consume_payload(archive, doc, stage, shared_files=shared_files)
             (receipts / f"{doc['tool']}.json").write_bytes(canonical(doc))
         if prefix.exists() or prefix.is_symlink():
             raise ValueError("installation prefix appeared during verification")

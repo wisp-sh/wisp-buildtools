@@ -84,6 +84,61 @@ Wisp supplies the execution hosts; compiler bundles do not include Wasmtime.
 See [packages and size accounting](docs/packages.md) for bundle contents,
 validation, installation and the boundary between compiler and host sizes.
 
+### Native compiler artifacts
+
+`build.py build` and `build.py package` prepare `.cwasm` companions for every
+compiler guest and shared LLVM module. Packages include those artifacts under
+`precompiled/TOOL/`, their source and native hashes, execution profiles, and the
+shared native loader. The original Wasm inventories remain available for
+provenance checks and rebuilding after a host upgrade. Composition inputs such
+as Preview 1 adapters and CPython templates remain Wasm data.
+
+Source the environment file to select the native launcher and Wasmtime 50 host:
+
+```sh
+source env.sh
+python3 build.py build javascript
+python3 build.py package javascript
+```
+
+CLI adapters and shared `--preload` modules load matching native companions.
+AssemblyScript, its ABI shims, and Swift's primary and backend modules use their
+Python embedding's own serialized artifacts with Wasmtime Python 50.0.1.
+These profiles retain each embedding's engine configuration and target a CPU
+baseline for the host architecture. Java, Kotlin and TeaVM share the native JVM
+guest. Wisp's worker-based compiler calls prepare and reuse checked native
+artifacts in a host-only compiler cache.
+
+To convert an existing installation without rebuilding its Wasm guests:
+
+```sh
+python3 build.py precompile all --automatic --output-dir dist/native-tools
+```
+
+`--automatic` selects the execution profiles in `cwasm_profiles.py`. The output
+contains native guests and `cwasm-manifest.json`; distribute these together with
+the toolchain's libraries and notices. Native companions in regular toolchain
+bundles use platform `linux-x86_64`. `package --source-only` is available for
+bootstrap archives that intentionally omit native companions.
+
+Native artifacts bind to the host binary or Python library, engine settings,
+source hash and target. A different host prepares a new local artifact instead
+of using incompatible code. The default private cache is `build/cwasm`; set
+`WISP_CWASM_CACHE` to choose another disk-backed directory. Compilation uses one
+worker and serializes jobs sharing that cache. Publication removes obsolete
+native generations from each tool's artifact directory.
+
+For the Wisp worker's fixed execution profile, use `precompile TOOL --worker
+--wasmtime /path/to/wisp-worker`. Direct native input requires `run
+--allow-precompiled` or `serve --allow-precompiled`. Protocol clients explicitly
+opt in with `Client::spawn_with_precompiled` after authenticating artifacts.
+Ordinary application inputs continue through Wasm validation. Wasmtime cannot
+validate arbitrary machine code, so native artifacts must come from a trusted
+compiler or authenticated package.
+
+Precompilation removes compilation from startup. It does not change the selected
+optimization level. See [Wasmtime precompilation](https://docs.wasmtime.dev/examples-pre-compiling-wasm.html).
+
 GitHub Actions definitions live in the root [`.github/workflows`](.github/workflows).
 See [CI builds](docs/ci.md) for automatic checks, full builds and runner requirements.
 
@@ -274,7 +329,7 @@ and C/C++ runtime libraries, then links small Clang and Nim consumers with
 external core-module imports. The installed `llvm` package contains shared
 libraries and their integrity manifest; static bootstrap archives remain local.
 Rust 1.99.1 builds a WASIp3 compiler Component using this LLVM 24 SDK.
-It links the static backend into its Component and uses Wasmtime 49.
+It links the static backend into its Component and uses Wasmtime 50.
 
 ## Package recipe Action
 

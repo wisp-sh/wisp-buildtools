@@ -76,7 +76,7 @@ pinned backend hash unless `--clang-build-receipt PATH` is supplied explicitly.
 Clang owns its resource headers. Zig keeps only upstream `zig.h` locally.
 `WISP_CLANG_RESOURCE_DIR` selects the external Clang header directory;
 `../clang/include` is the default.
-Wisp provides the Wasmtime host. Version 49.0.1 is tested with both
+Wisp provides the Wasmtime host. Version 50.0.0 is tested with both
 WASI Preview 1 and WASI 0.3 command execution. Its bytes are excluded from
 the compiler package.
 

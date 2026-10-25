@@ -23,7 +23,7 @@
         {
           "name": "Wisp Wasmtime host",
           "kind": "runtime-host",
-          "version": "49.0.1",
+          "version": "50.0.0",
           "included": false,
           "note": "Wisp-owned execution host with WASI Preview 3 and external Component core-module imports. Select it with WISP_WASMTIME. The engine is not part of this compiler package."
         }
@@ -125,9 +125,9 @@
         {
           "name": "Wasmtime",
           "kind": "runtime-host",
-          "version": "49.0.1",
+          "version": "50.0.0",
           "included": false,
-          "note": "External Wasmtime 49.0.1 CLI is tested. Select it with the required --wasmtime argument. No native Go installation or network is needed to compile local Go sources."
+          "note": "External Wasmtime 50.0.0 CLI is tested. Select it with the required --wasmtime argument. No native Go installation or network is needed to compile local Go sources."
         },
         {
           "name": "Go module installer",
@@ -216,7 +216,7 @@
         {
           "name": "Wisp Wasmtime host",
           "kind": "runtime-host",
-          "version": "49.0.1",
+          "version": "50.0.0",
           "included": false,
           "note": "Wisp supplies the execution engine and loads the four verified shared core modules. This package supplies LLVM and its Wasm C/C++ runtime libraries; source bootstrap SDKs and native hosts are excluded."
         }
@@ -320,7 +320,7 @@
         {
           "name": "Wasmtime",
           "kind": "runtime-host",
-          "version": "49.0.1",
+          "version": "50.0.0",
           "included": false,
           "note": "External Wasmtime host with WASIp3 component support, selected by WISP_RUST_WASMTIME or --wasmtime."
         },
@@ -419,7 +419,7 @@
         {
           "name": "Wisp Wasmtime host",
           "kind": "runtime-host",
-          "version": "49.0.1",
+          "version": "50.0.0",
           "included": false,
           "note": "Wisp-owned execution host with WASI Preview 3 and external Component core-module imports. Select it with WISP_WASMTIME. The engine is not part of this compiler package."
         }
@@ -521,7 +521,7 @@
         {
           "name": "Wasmtime Python bindings",
           "kind": "runtime-host",
-          "version": "49.0.0",
+          "version": "50.0.1",
           "included": false,
           "note": "Wisp-owned Wasmtime Python bindings and native engine, selected by WISP_WASMTIME_PYTHON. Required host callbacks use the Python API. Node and npm are bootstrap-only requirements."
         }
@@ -627,7 +627,7 @@
         {
           "name": "Wisp Wasmtime host",
           "kind": "runtime-host",
-          "version": "49.0.1",
+          "version": "50.0.0",
           "included": false,
           "note": "Wisp-owned execution host with WASI Preview 3 and external Component core-module imports. Select it with WISP_WASMTIME. The engine is not part of this compiler package."
         }
@@ -747,7 +747,7 @@
         {
           "name": "Wasmtime",
           "kind": "runtime-host",
-          "version": "49.0.1",
+          "version": "50.0.0",
           "included": false,
           "note": "External CLI; this version is tested. Supplies WASI Preview 1 and Component Model execution. Set WISP_WASMTIME or install wasmtime on PATH."
         }
@@ -866,7 +866,7 @@
         {
           "name": "Wasmtime",
           "kind": "runtime-host",
-          "version": "49.0.1",
+          "version": "50.0.0",
           "included": false,
           "note": "External CLI; this version is tested. Supplies WASI Preview 1 and Component Model execution. Set WISP_WASMTIME or install wasmtime on PATH."
         }
@@ -999,7 +999,7 @@
         {
           "name": "Wasmtime",
           "kind": "runtime-host",
-          "version": "49.0.1",
+          "version": "50.0.0",
           "included": false,
           "note": "External CLI; this version is tested. Supplies WASI Preview 1 and Component Model execution. Set WISP_WASMTIME or install wasmtime on PATH."
         }
@@ -1093,7 +1093,7 @@
         {
           "name": "Wasmtime",
           "kind": "runtime-host",
-          "version": "49.0.1",
+          "version": "50.0.0",
           "included": false,
           "note": "Wisp-provided external execution host. Select it with WISP_WASMTIME; no engine or native Grain/Node compiler is bundled."
         }
@@ -1177,7 +1177,7 @@
         {
           "name": "Wasmtime Python bindings",
           "kind": "runtime-host",
-          "version": "49.0.0",
+          "version": "50.0.1",
           "included": false,
           "note": "Wisp-owned external bindings and engine, selected with WISP_WASMTIME_PYTHON. They instantiate the compiler primary and its matching shared backend before guest entry. No engine or native swiftc is bundled. Component assembly also uses the shared wasm-tools CLI host."
         }
@@ -1243,7 +1243,7 @@
         {
           "name": "Wisp Wasmtime Python host",
           "kind": "runtime-host",
-          "version": "49.0.0",
+          "version": "50.0.1",
           "included": false,
           "note": "External bindings and engine supplied by Wisp. These backend modules use an image-specific table ABI matched to the exact Swift compiler and linker primary hashes; LLVM24 and Rust LLVM19 are separate profiles."
         }
@@ -1292,7 +1292,7 @@
         {
           "name": "Wasmtime",
           "kind": "runtime-host",
-          "version": "49.0.1",
+          "version": "50.0.0",
           "included": false,
           "note": "Wisp-owned external CLI with WASI Preview1, tail calls and exceptions. No engine or native JVM is bundled."
         }
@@ -1592,7 +1592,7 @@
         {
           "name": "Wasmtime with exception support",
           "kind": "runtime-host",
-          "version": "49.0.1",
+          "version": "50.0.0",
           "included": false,
           "note": "Set WISP_OCAML_WASMTIME or WISP_BOOTSTRAP_WASMTIME for OCaml. WISP_WASMTIME selects the shared LLVM execution host."
         }
@@ -1674,7 +1674,7 @@
         {
           "name": "Wisp Wasmtime host",
           "kind": "runtime-host",
-          "version": "49.0.1",
+          "version": "50.0.0",
           "included": false,
           "note": "Wasm exceptions for the frontend; WASI Preview 3 and external core-module imports for shared LLVM. Set WISP_WASMTIME."
         }

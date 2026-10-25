@@ -27,7 +27,7 @@ def runtime(*, backend: bool = False) -> Path:
         or os.environ.get('WISP_WASMTIME', 'wasmtime'))
     selected = shutil.which(name)
     if not selected:
-        raise ValueError('Set WISP_WASMTIME to a Wasmtime 49 executable.')
+        raise ValueError('Set WISP_WASMTIME to the Wasmtime 50 compiler launcher.')
     return Path(selected)
 
 

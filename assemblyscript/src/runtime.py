@@ -10,6 +10,8 @@ import tempfile
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT.parent))
+import cwasm
 if binding_root := os.environ.get("WISP_WASMTIME_PYTHON"):
     host_modules = pathlib.Path(binding_root).resolve(strict=True)
     if host_modules.is_relative_to(ROOT):
@@ -58,14 +60,25 @@ class CppException(Exception):
         self.pointer = pointer
 
 
+def compilation_engine():
+    config = wasmtime.Config()
+    config.target = cwasm.host_target()
+    config.cache = True
+    config.cranelift_opt_level = "none"
+    config.parallel_compilation = False
+    return wasmtime.Engine(config)
+
+
+def load_module(engine, path, *, artifact_only=False):
+    return cwasm.load_module(wasmtime, engine, path, artifact_only=artifact_only,
+                            configuration={"host": "assemblyscript", "target": cwasm.host_target(),
+                                           "loaderSha256": cwasm.digest(__file__)})
+
+
 class AssemblyScript:
     def __init__(self):
         validate_artifacts()
-        config = wasmtime.Config()
-        config.cache = True
-        config.cranelift_opt_level = "none"
-        config.parallel_compilation = False
-        self.engine = wasmtime.Engine(config)
+        self.engine = compilation_engine()
         self.store = wasmtime.Store(self.engine)
         self.bexports = None
         self.exception = None
@@ -73,9 +86,7 @@ class AssemblyScript:
         self.uncaught = 0
         self.aexports = None
         self.aliases = json.loads((ROOT / "dist/binaryen-aliases.json").read_text())
-        self.bmodule = wasmtime.Module.from_file(
-            self.engine, str(ROOT / "dist/binaryen.wasm")
-        )
+        self.bmodule = load_module(self.engine, ROOT / "dist/binaryen.wasm")
         blink = wasmtime.Linker(self.engine)
         self.import_results = {
             item.name: list(item.type.results) for item in self.bmodule.imports
@@ -92,9 +103,7 @@ class AssemblyScript:
         self.bmemory = self.bexports["ya"]
         self.btable = self.bexports["QB"]
         self.bexports["za"](self.store)
-        self.amodule = wasmtime.Module.from_file(
-            self.engine, str(ROOT / "dist/assemblyscript.wasm")
-        )
+        self.amodule = load_module(self.engine, ROOT / "dist/assemblyscript.wasm")
         alink = wasmtime.Linker(self.engine)
         for item in self.amodule.imports:
             if item.module == "binaryen":
@@ -109,7 +118,7 @@ class AssemblyScript:
                     if not path.is_file():
                         raise RuntimeError(f"Missing prebuilt Binaryen ABI shim: {item.name}; rerun bootstrap.py")
                     shim = wasmtime.Instance(
-                        self.store, wasmtime.Module.from_file(self.engine, str(path)), [target]
+                        self.store, load_module(self.engine, path), [target]
                     )
                     alink.define(
                         self.store,

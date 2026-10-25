@@ -37,7 +37,7 @@ separate from the LLVM 24 C++ ABI. Its manifest records the original module
 hashes, function counts, selection policy and compressed selected-name evidence.
 
 Wisp provides the execution engines outside compiler packages.
-`WISP_WASMTIME_PYTHON` points to its Wasmtime 49 Python binding when that binding
+`WISP_WASMTIME_PYTHON` points to its Wasmtime 50 Python binding when that binding
 is outside the host Python installation. The loader instantiates the primary,
 then its backend, then invokes the entry point. `WISP_WASMTIME` runs the shared
 Wasm tools and completed programs. Engine compilation caches remain host files

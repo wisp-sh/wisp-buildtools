@@ -13,6 +13,8 @@ import resource
 import time
 
 ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT.parent))
+import cwasm
 
 
 def profile(stage, **details):
@@ -33,7 +35,7 @@ def profile(stage, **details):
         stream.write(json.dumps(value) + "\n")
 
 
-def load_module(wasmtime, engine, path):
+def compile_module(wasmtime, engine, path):
     """Borrow mapped compiler bytes during compilation instead of copying twice."""
     path = Path(path)
     profile("module-load-start", path=str(path), bytes=path.stat().st_size)
@@ -49,6 +51,14 @@ def load_module(wasmtime, engine, path):
         module = wasmtime.Module._from_ptr(pointer)
     profile("module-load-finished", path=str(path))
     return module
+
+
+def load_module(wasmtime, engine, path, *, artifact_only=False):
+    return cwasm.load_module(wasmtime, engine, path, artifact_only=artifact_only,
+        configuration={"host": "swift", "loaderSha256": sha(__file__),
+                       "target": cwasm.host_target(),
+                       "backend": os.environ.get("WISP_SWIFT_HOST_BACKEND", "cranelift")},
+        compile_module=lambda: compile_module(wasmtime, engine, path))
 
 
 def sha(path):
@@ -167,6 +177,7 @@ def prepared_shards(name):
 
 def compilation_engine(wasmtime):
     config = wasmtime.Config()
+    config.target = cwasm.host_target()
     config.cache = os.environ.get("WISP_SWIFT_CACHE_CONFIG", True)
     config.parallel_compilation = False
     selected_backend = os.environ.get("WISP_SWIFT_HOST_BACKEND", "cranelift")
@@ -187,7 +198,7 @@ def compilation_engine(wasmtime):
 
 def execute(name, arguments, mounts):
     integrity()
-    os.environ.setdefault("RAYON_NUM_THREADS", "2")
+    os.environ.setdefault("RAYON_NUM_THREADS", "1")
     wasmtime = binding()
     engine, selected_backend = compilation_engine(wasmtime)
     store = wasmtime.Store(engine)
