@@ -100,3 +100,8 @@ Component. The WASIp1 splicer builds, but authored-WIT exports trap when the
 stock pipeline skips Wizer. A cold library initializer or Wasm-hosted snapshotter
 is still needed. QuickJS remains the default engine and
 the runtime limits above still apply.
+
+The follow-up [`wizer` host adapter](../wizer/README.md) uses the explicitly
+approved normal native Wizer capability. Its StarlingMonkey probe now passes
+both synchronous and no-I/O Promise-returning authored-WIT arithmetic exports.
+The full engine migration gates remain separate; QuickJS is still the default.

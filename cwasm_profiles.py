@@ -7,7 +7,7 @@ from pathlib import Path
 # These files are consumed by component assembly, never instantiated as tools.
 SUPPORTED = {'clang', 'go', 'llvm', 'rust', 'zig', 'assemblyscript', 'nim', 'javascript',
              'python', 'wasm-tools', 'grain', 'swift', 'llvm-swift', 'jvm', 'teavm',
-             'java', 'kotlin', 'ocaml', 'goose', 'tsrs'}
+             'java', 'kotlin', 'ocaml', 'goose', 'tsrs', 'wizer'}
 
 DATA = {
     'wasm-tools/dist/wasi_snapshot_preview1.reactor.wasm',
@@ -18,6 +18,8 @@ DATA = {
 def execution_profile(tool, relative):
     if relative in DATA or relative.startswith('javascript/.toolchains/runtimes/'):
         return None
+    if tool == 'wizer':
+        return None  # Explicit native host capability; no compiler guest.
     if tool == 'tsrs':
         return {'backend': 'python', 'host': 'tsrs'}
     if tool in {'assemblyscript', 'swift', 'llvm-swift'}:

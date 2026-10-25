@@ -126,6 +126,7 @@ The tested execution hosts currently run on Linux x86_64.
 | Clang, LLVM, Nim, Zig | Wisp Wasmtime 50.0.0 with WASI Preview 3 and external core-module imports. |
 | Rust | Wasmtime 50 with WASIp3 component support. |
 | AssemblyScript | External Wasmtime Python bindings 50.0.1 for compiler callbacks. |
+| wizer | External Wasmtime 50.0.0 with normal Wizer. Native snapshot capture is an explicitly approved host capability; application initialization stays in Wasm. |
 | tsrs | External Wasmtime Python bindings 50.0.1 for isolated `tsrs_host` filesystem callbacks. |
 | Go, JavaScript, Python, wasm-tools | External Wasmtime 50.0.0. |
 | Grain | External Wasmtime 50.0.0; QuickJS, the Grain compiler and its backend execute inside Wasm. |
@@ -141,6 +142,12 @@ bootstrap requirements where listed, outside installed source compilation.
 Python's snapshot bootstrap checks the official Wasmtime executable hash;
 `WISP_BOOTSTRAP_WASMTIME` selects that Wisp-owned host for the root build command.
 Normal source builds use `WISP_WASMTIME`.
+
+The optional `wizer` package selects `WISP_WIZER_WASMTIME` for normal Wizer in
+the native host. This explicitly approved capability executes initialization as
+Wasm, then captures and serializes the initialized state natively. Its receipts
+record the exception and never claim a fully Wasm-hosted build. The host stays
+external to the adapter bundle.
 
 ## Validate and install
 

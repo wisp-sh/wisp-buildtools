@@ -33,3 +33,5 @@
 /tsrs/dist/
 /tsrs/.downloads/
 /tsrs/.install-*/
+/wizer/dist/
+/wizer/.install-*/

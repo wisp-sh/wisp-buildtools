@@ -1238,6 +1238,64 @@
         ],
         "optional": []
       }
+    },
+    "wizer": {
+      "directory": "wizer",
+      "description": "Pinned adapter for normal Wizer in the approved native Wasmtime host",
+      "version": "50.0.0",
+      "dependencies": [
+        "wasm-tools"
+      ],
+      "runtimeDependencies": [],
+      "bootstrapRequirements": [
+        "Python 3.12+",
+        "External Wasmtime 50.0.0 with Wizer; pinned official binary or Wisp source host receipt"
+      ],
+      "build": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/wizer/bootstrap.py"
+          ]
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/wizer/bootstrap.py",
+            "--check"
+          ]
+        },
+        {
+          "argv": [
+            "{python}",
+            "{root}/wizer/verify.py"
+          ]
+        }
+      ],
+      "sourceInputs": [
+        "wizer/toolchain.lock.json",
+        "wizer/host.py",
+        "wizer/bootstrap.py",
+        "wizer/snapshot.py"
+      ],
+      "artifacts": [
+        "wizer/dist/manifest.json"
+      ],
+      "package": {
+        "include": [
+          "wizer/README.md",
+          "wizer/toolchain.lock.json",
+          "wizer/verification.json",
+          "wizer/host-verification.json",
+          "wizer/host.py",
+          "wizer/bootstrap.py",
+          "wizer/snapshot.py",
+          "wizer/dist"
+        ],
+        "optional": []
+      }
     }
   }
 }

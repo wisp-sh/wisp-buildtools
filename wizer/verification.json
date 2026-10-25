@@ -1,0 +1,80 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "name": "memory-global",
+      "passed": true,
+      "bytes": 106,
+      "seconds": 0.2261998550966382,
+      "result": "42"
+    },
+    {
+      "name": "initializer removed",
+      "passed": true
+    },
+    {
+      "name": "reactor",
+      "passed": true,
+      "bytes": 91,
+      "seconds": 0.24700244050472975,
+      "result": "42"
+    },
+    {
+      "name": "simd",
+      "passed": true,
+      "bytes": 92,
+      "seconds": 0.24679074808955193,
+      "result": "42"
+    },
+    {
+      "name": "initializer traps reject publication",
+      "passed": true
+    },
+    {
+      "name": "fuel bounds initialization",
+      "passed": true
+    },
+    {
+      "name": "no-inherited-env",
+      "passed": true,
+      "bytes": 140,
+      "seconds": 0.24142818991094828,
+      "result": "0"
+    },
+    {
+      "name": "EXPLICIT",
+      "passed": true,
+      "bytes": 150,
+      "seconds": 0.24057380855083466,
+      "result": "1"
+    },
+    {
+      "name": "WASI disabled by default",
+      "passed": true
+    },
+    {
+      "name": "explicit-directory",
+      "passed": true,
+      "bytes": 279,
+      "seconds": 0.2849422888830304,
+      "result": "42"
+    },
+    {
+      "name": "no implicit filesystem preopens",
+      "passed": true
+    },
+    {
+      "name": "unrecognized native hosts rejected before execution",
+      "passed": true
+    },
+    {
+      "name": "native application inputs rejected",
+      "passed": true
+    },
+    {
+      "name": "failed initialization preserves previous output",
+      "passed": true
+    }
+  ],
+  "compilerExecution": "Approved normal native Wizer host; application initialization is Wasm"
+}

@@ -59,7 +59,9 @@ provider. `jvm` and `teavm` are shared compiler/runtime data packages for Java a
 Kotlin. `wasm-tools` supplies Component assembly, validation and adapters.
 Install exact dependency versions declared by each bundle. `tsrs` is an
 optional shared TypeScript checker with an isolated in-memory filesystem host;
-it does not emit application Components.
+it does not emit application Components. `wizer` supplies the explicitly
+approved native snapshot host adapter; its application initialization executes
+as Wasm and its receipts record native snapshot capture.
 
 ## Consumer packages and publication
 

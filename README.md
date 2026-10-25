@@ -31,6 +31,7 @@ needed for the optional application integration checks.
 | [javascript](javascript/README.md) | JavaScript and TypeScript Components using QuickJS and esbuild Wasm |
 | [python](python/README.md) | CPython WASI source compilation and Component packaging |
 | [tsrs](tsrs/README.md) | Shared WASIp1 TypeScript checker with isolated filesystem callbacks |
+| [wizer](wizer/README.md) | Adapter for normal Wizer in the approved native Wasmtime host |
 | [wasm-tools](wasm-tools/README.md) | Shared WASIp1 WIT and Component assembly tools |
 
 ## Getting started

@@ -1,10 +1,12 @@
 # StarlingMonkey spike, 2026-10-25
 
-The decision is **no-go for migration in this change**. QuickJS remains the
+The original decision under the fully Wasm-hosted snapshot rule was **no-go**.
+The native Wizer follow-up below supersedes that snapshot restriction. Full
+migration acceptance remains unverified. QuickJS remains the
 engine. The prebuilt StarlingMonkey runtime works cold as a CLI Component, and
 the Rust splicer runs as a WASIp1 guest. However, skipping Wizer does not produce
 a working authored-WIT library: the first arithmetic export traps, including
-when feature stubbing is omitted. No native snapshot step was added.
+when feature stubbing is omitted. No native snapshot step was added in that original spike.
 
 This is a failure of the stock snapshot-free library path tested here. It does
 not prove that a new cold library initializer or Wasm-hosted snapshotter cannot
@@ -31,8 +33,8 @@ generates bindings with the Rust splicer, launches native Wizer on
 `componentize.wizer`, then stubs unused WASI imports and assembles the Component.
 Its Weval alternative is also native. [Wizer 10](https://github.com/bytecodealliance/wizer/blob/v10.0.0/Cargo.toml)
 uses Wasmtime 36 to execute initialization and capture memory and globals.
-No supported WASIp1 snapshotter was established. Using native Wizer for an
-application build would violate the stage rule, so it was not run.
+No supported WASIp1 snapshotter was established. The original stage rule excluded native Wizer for application builds, so it
+was not run in that spike. The later approval is recorded below.
 
 The prebuilt embedding's `call` function assumes initialized runtime state.
 The [initialization wrapper](https://github.com/bytecodealliance/ComponentizeJS/blob/4d812f5a7b524cea5bcfd565cac55f3fab876a57/embedding/embedding.cpp)
@@ -219,3 +221,50 @@ scopes according to `/proc/PID/cgroup`. Scratch, caches and artifacts used ext4.
 Existing host swap remained near 2.9 GiB, with no sustained swap-out observed.
 No unrelated data or caches were removed, and SpiderMonkey source compilation
 was not attempted.
+
+## Approved native Wizer follow-up
+
+The user subsequently approved normal Wizer as part of Wisp's native execution
+host. Application initialization still executes as Wasm in Wasmtime; native
+Wizer captures and serializes the initialized state. The buildtools
+[`wizer` package](../../wizer/README.md) supplies a pinned, constrained adapter and
+records `nativeSnapshotHostApproved: true` and `fullyWasmHostedBuild: false`.
+
+With the existing official Wasmtime 50.0.0 host, the same pinned WASIp1 splicer
+and runtime now produce working authored-WIT arithmetic Components. Both
+`export function add` and `export async function add`, with the latter awaiting
+`Promise.resolve(a+b)`, return 42 through the Component's public `add(20,22)`
+export. These exercise the f64 ABI declared by `examples/add.wit`.
+
+The synchronous Component is 11,953,396 bytes; the async Component is 11,955,266
+bytes. Snapshot generation took 20.129 and 21.781 seconds. Fresh process
+invocations took 13.923 and 15.513 seconds, including opt0 JIT compilation. Both
+fit the existing 16 MiB cap. `check_init` returned zero before assembly, and both
+Components passed wasm-tools guest validation.
+
+The reproducible probe is:
+
+```sh
+export WISP_WIZER_WASMTIME=/path/to/the-pinned-wasmtime-50-host
+python3 -B javascript/tools/starlingmonkey-spike/native_snapshot.py
+```
+
+[Raw native Wizer results](starlingmonkey-native-wizer.json) record source,
+bindings, output and host hashes. A preliminary run supplied i32 metadata for
+the f64 WIT signature and returned an incorrect numeric value; the recorded
+passing probe uses the declared f64 parameter and return types.
+
+This removes the initial library initialization blocker when the approved
+native host capability is used. It does not claim that all JavaScript
+verification cases or the full yaml/markdown-it Component and distribution
+checks have been rerun on StarlingMonkey. QuickJS remains the production
+adapter's default until those migration gates pass.
+
+The same two probes also passed on the newly source-built Wisp host with Wizer
+enabled, SHA-256
+`14026ac1ef087f0a027bffd679ddbaa7b5400f7167bff1a0d7dc56e2d1cbfaaa`.
+The synchronous and async Components measured 11,953,418 and 11,955,293 bytes.
+Snapshot times were 23.714 and 25.592 seconds; fresh invocations took 17.275 and
+17.980 seconds including JIT. These are single observations per variant, not
+benchmark medians. Neither snapshot contained the private checkout prefix.
+[Wisp host results](starlingmonkey-wisp-wizer.json) record the complete receipts.

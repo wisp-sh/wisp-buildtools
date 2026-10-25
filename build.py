@@ -403,8 +403,8 @@ def verify_package_inputs(name: str, root: Path) -> None:
              root / "rust/dist/compiler/build/bootstrap/rustc.wasm",
              "--output", root / "llvm/dist/rust-shared"], root=root)
         return
-    if name == "tsrs":
-        run([sys.executable, root / "tsrs/bootstrap.py", "--check"], root=root)
+    if name in {"tsrs", "wizer"}:
+        run([sys.executable, root / name / "bootstrap.py", "--check"], root=root)
         return
     if name == "javascript":
         base = root / "javascript"

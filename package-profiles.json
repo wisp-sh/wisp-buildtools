@@ -1824,6 +1824,61 @@
           "role": "metadata"
         }
       ]
+    },
+    "wizer": {
+      "include": [
+        "wizer/README.md",
+        "wizer/toolchain.lock.json",
+        "wizer/verification.json",
+        "wizer/host-verification.json",
+        "wizer/host.py",
+        "wizer/bootstrap.py",
+        "wizer/snapshot.py",
+        "wizer/dist"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "snapshot",
+          "path": "wizer/snapshot.py",
+          "format": "host-script"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Python",
+          "kind": "orchestrator",
+          "version": "3.12+",
+          "included": false,
+          "note": "Native orchestration adapter for the approved Wizer host capability."
+        },
+        {
+          "name": "Wasmtime with Wizer",
+          "kind": "runtime-host",
+          "version": "50.0.0",
+          "included": false,
+          "note": "External normal Wizer host, pinned by official binary hash or Wisp source-host recipe and binary receipt. Application initialization remains Wasm."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "wizer/*.py",
+          "role": "adapter"
+        },
+        {
+          "pattern": "wizer/*.md",
+          "role": "documentation"
+        },
+        {
+          "pattern": "wizer/*.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "wizer/dist/*.json",
+          "role": "metadata"
+        }
+      ]
     }
   }
 }
