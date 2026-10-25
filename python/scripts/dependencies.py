@@ -41,6 +41,10 @@ def satisfies(version, constraints):
             result = result[:-1]
         return result
     actual = parts(version)
+    numeric = tuple(int(p) for p in version.split('.'))
+    def matches_prefix(prefix):
+        padded = numeric + (0,) * max(0, len(prefix) - len(numeric))
+        return padded[:len(prefix)] == prefix
     for constraint in filter(None, constraints.split(',')):
         match = re.fullmatch(r'(==|!=|~=|<=|>=|<|>)([0-9]+(?:\.[0-9]+)*(?:\.\*)?)', constraint)
         if not match:
@@ -50,13 +54,15 @@ def satisfies(version, constraints):
             if operator not in ('==', '!='):
                 raise ValueError('wildcard only supported with == or !=')
             prefix = tuple(int(p) for p in expected.split('.')[:-1])
-            equal = tuple(int(p) for p in version.split('.')[:len(prefix)]) == prefix
+            equal = matches_prefix(prefix)
             valid = equal if operator == '==' else not equal
         else:
             target = parts(expected)
             if operator == '~=':
+                if len(expected.split('.')) < 2:
+                    raise ValueError('compatible Python version constraint needs at least two components: ' + constraint)
                 prefix = tuple(int(p) for p in expected.split('.')[:-1])
-                valid = actual >= target and tuple(int(p) for p in version.split('.')[:len(prefix)]) == prefix
+                valid = actual >= target and matches_prefix(prefix)
             else:
                 valid = {'==': actual == target, '!=': actual != target, '<': actual < target,
                          '<=': actual <= target, '>': actual > target, '>=': actual >= target}[operator]

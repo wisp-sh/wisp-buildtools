@@ -106,6 +106,10 @@ class DependencyTests(unittest.TestCase):
         self.assertTrue(satisfies('1.2.3', '==1.2.*'))
         self.assertFalse(satisfies('1.2.3', '!=1.2.*'))
         self.assertTrue(satisfies('1.0.0.0.0.0.0.0.0', '==1'))
+        self.assertTrue(satisfies('1', '==1.0.*'))
+        self.assertFalse(satisfies('1', '!=1.0.*'))
+        with self.assertRaisesRegex(ValueError, 'at least two components'):
+            satisfies('2.0', '~=1')
 
 
 if __name__ == '__main__':
