@@ -6,7 +6,7 @@ import tempfile
 import unittest
 import zipfile
 
-from scripts.common import digest
+from scripts.common import digest, LOCK
 from scripts.dependencies import prepare, satisfies
 
 
@@ -57,8 +57,7 @@ class DependencyTests(unittest.TestCase):
     def test_native_wheel_and_traversal_and_package_data_fail_closed(self):
         for options, message in [({'native': True}, 'native Python extensions'),
                                  ({'extra': '../escape.py'}, 'unsafe Python wheel'),
-                                 ({'extra': 'one/native.so'}, 'native Python extensions'),
-                                 ({'extra': 'one/data.json'}, 'package data')]:
+                                 ({'extra': 'one/native.so'}, 'native Python extensions')]:
             with self.subTest(options=options):
                 self.packages.clear()
                 self.wheel('one', **options)
@@ -73,9 +72,9 @@ class DependencyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'does not satisfy'):
             self.run_prepare()
 
-    def test_pyproject_requires_exact_pins(self):
+    def test_pyproject_ranges_still_require_an_artifact_lock(self):
         (self.project / 'pyproject.toml').write_text('[project]\ndependencies=["one>=1"]\n')
-        with self.assertRaisesRegex(ValueError, 'pin an exact'):
+        with self.assertRaisesRegex(ValueError, 'python-deps.lock.json'):
             prepare(self.project, self.root / 'extracted')
 
     def test_vendor_inventory_is_checked_and_bundled(self):
@@ -108,9 +107,87 @@ class DependencyTests(unittest.TestCase):
         self.assertTrue(satisfies('1.0.0.0.0.0.0.0.0', '==1'))
         self.assertTrue(satisfies('1', '==1.0.*'))
         self.assertFalse(satisfies('1', '!=1.0.*'))
-        with self.assertRaisesRegex(ValueError, 'at least two components'):
+        with self.assertRaises(ValueError):
             satisfies('2.0', '~=1')
 
+
+class MetadataTests(unittest.TestCase):
+    setUp = DependencyTests.setUp
+    wheel = DependencyTests.wheel
+    run_prepare = DependencyTests.run_prepare
+
+    def test_vendored_metadata_parser_matches_the_pinned_inventory(self):
+        vendor = Path(__file__).parent / 'scripts/_vendor'
+        manifest = json.loads((vendor / 'manifest.json').read_text())
+        self.assertEqual(manifest['packaging'], LOCK['packaging'])
+        for path, sha in manifest['sha256'].items():
+            self.assertEqual(digest(vendor / path), sha, path)
+
+    def test_requirement_includes_constraints_and_inactive_hashes(self):
+        self.wheel('one')
+        sha = self.packages[0]['sha256']
+        (self.project / 'shared.txt').write_text('one>=1,<2\n')
+        (self.project / 'requirements.txt').write_text(
+            '-c shared.txt\n-r shared.txt\n'
+            + 'one; sys_platform == "win32" --hash=sha256:' + '0' * 64 + '\n'
+            + 'one; sys_platform == "wasi" \\\n  --hash=sha256:' + sha + '\n')
+        (self.project / 'python-deps.lock.json').write_text(json.dumps({'schema': 1, 'packages': self.packages}))
+        roots, receipt = prepare(self.project, self.root / 'extracted')
+        self.assertEqual(len(roots), 1)
+        self.assertIn('shared.txt', receipt['inputs'])
+
+    def test_direct_url_is_only_an_offline_identity_and_checks_its_hash(self):
+        self.wheel('one')
+        url = 'https://invalid.example/one.whl#sha256=' + self.packages[0]['sha256']
+        self.packages[0]['url'] = url
+        roots, _ = self.run_prepare('one @ ' + url)
+        self.assertEqual(len(roots), 1)
+        import shutil
+        shutil.rmtree(self.root / 'extracted')
+        bad = url.split('#')[0] + '#sha256=' + '0' * 64
+        self.packages[0]['url'] = bad
+        with self.assertRaisesRegex(ValueError, 'URL hash differs'):
+            self.run_prepare('one>=1\none @ ' + bad)
+    def test_markers_are_evaluated_for_wasi_and_optional_extras_are_not_installed(self):
+        self.wheel('one', ['missing-win; sys_platform == "win32"', 'missing-opt; extra == "dev"', 'two>=1; python_version >= "3.14"'])
+        self.wheel('two')
+        _, receipt = self.run_prepare()
+        self.assertEqual([p['name'] for p in receipt['packages']], ['one', 'two'])
+
+    def test_late_extras_expand_a_previously_selected_dependency(self):
+        self.wheel('one', ['two', 'two[feature]'])
+        wheel = self.wheel('two', ['three; extra == "feature"'])
+        with zipfile.ZipFile(wheel, 'a') as archive:
+            archive.writestr('two-1.2.dist-info/EXTRA', 'ignored data')
+        # Rebuild this tiny synthetic wheel to add a Provides-Extra header.
+        with zipfile.ZipFile(wheel) as archive:
+            contents = {p.filename: archive.read(p) for p in archive.infolist()}
+        contents['two-1.2.dist-info/METADATA'] += b'Provides-Extra: feature\n'
+        with zipfile.ZipFile(wheel, 'w') as archive:
+            for name, data in contents.items(): archive.writestr(name, data)
+        self.packages[-1]['sha256'] = digest(wheel)
+        self.wheel('three')
+        _, receipt = self.run_prepare()
+        self.assertEqual([p['name'] for p in receipt['packages']], ['one', 'three', 'two'])
+        self.assertEqual(receipt['packages'][-1]['extras'], ['feature'])
+
+    def test_project_version_ranges_select_exact_locked_artifacts(self):
+        self.wheel('one')
+        (self.project/'pyproject.toml').write_text('[project]\ndependencies=["one>=1,<2"]\n')
+        (self.project/'python-deps.lock.json').write_text(json.dumps({'schema':1,'packages':self.packages}))
+        roots, _ = prepare(self.project, self.root/'extracted')
+        self.assertEqual(len(roots), 1)
+
+    def test_data_files_are_extracted_and_hashed_with_the_wheel(self):
+        self.wheel('one', extra='one/data.json')
+        roots, receipt = self.run_prepare()
+        self.assertEqual((roots[0]/'one/data.json').read_bytes(), b'payload')
+        self.assertIn(self.packages[0]['path'], receipt['inputs'])
+
+    def test_version_semantics_include_prereleases_epochs_and_local_versions(self):
+        self.assertTrue(satisfies('2.0rc1', '==2.0rc1'))
+        self.assertTrue(satisfies('1!2.0+vendor.1', '>=1!2.0'))
+        self.assertFalse(satisfies('1.9', '>=1!1.0'))
 
 if __name__ == '__main__':
     unittest.main()

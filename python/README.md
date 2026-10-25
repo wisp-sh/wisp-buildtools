@@ -8,9 +8,12 @@ imports or parses application source.
 ## Inferred contracts
 
 With the current package installed, `wisp build` needs only a Python source
-entrypoint and its project root. Public top-level functions defined in that
-module are inferred using guest CPython's `ast`. Imported functions are not
-exports. Select another API module by making it the entrypoint.
+entrypoint and its project root. Public top-level functions, including reexports from bundled modules, are
+inferred using guest CPython's `ast`. A literal `__all__` can select the exports.
+Select another API module by making it the entrypoint. Imported dataclasses,
+enums, type aliases and module-qualified annotations are resolved statically
+across the bundle. Imported types use module-qualified WIT names to avoid collisions.
+Conditional definitions and dynamically computed export lists are unsupported.
 
 ```python
 from dataclasses import dataclass
@@ -37,7 +40,7 @@ def checked(value: int) -> Result[int, str]:
 ```
 
 `int`, `float`, `bool`, `str`, `bytes`, `list[T]`, `Optional[T]`, `T | None`,
-entry-module dataclasses and enums map to WIT. Integers use `s64`; floats use
+bundled-module dataclasses and enums map to WIT. Integers use `s64`; floats use
 `f64`. `None` is a void return. `Result[T, E]` declares a normal success return
 or an `Err(E)` exception, including `None` for either payload. Ordinary exceptions
 trap. Guest wrappers convert dataclasses and enums to generated binding values.
@@ -85,28 +88,40 @@ synchronous worlds with scalar values, strings, lists, records, options, tuples,
 enums, flags, variants and results. Resources, handles, futures, streams, inline
 interfaces and world-level exported types are unsupported.
 
-Explicit provisioning is optional and still useful for custom stdlib imports:
+Explicit provisioning remains available for custom stdlib snapshots:
 
 ```sh
 python3 python/bootstrap_contract.py --wit library.wit --world library \
   --preload-module html.parser --preload-module logging
 ```
 
-Templates snapshot imports. Add any needed stdlib modules, including dynamic
-imports, explicitly. Changing a preload list requires `--rebuild`. Installed
-`dist/contracts/<hash>` templates are reused when present. Older packages need
-rebootstrapping to supply inference, runtime conversions and provisioning assets.
+Guest AST analysis follows reachable local imports and discovers stdlib imports,
+including function-local imports and literal `importlib.import_module("name")`
+calls. Those imports are preinitialized automatically in the matching runtime.
+Changing the discovered set changes the template cache key. Unavailable stdlib
+modules can still fail when application initialization or execution imports them;
+WASI does not provide every CPython OS facility. Computed imports and lazy stdlib
+helpers may need an explicit `preload-modules = ["html.parser"]` setting under
+`[tool.wisp.python]` in `pyproject.toml`. Explicit imports must succeed during
+provisioning. Resource readers and distribution metadata helpers are included
+in every contract runtime.
+Installed `dist/contracts/<hash>` templates are reused when their loader and
+preload set match. Older loader snapshots are upgraded automatically.
 
 ## Pure Python dependencies
 
-Set `--package-root` to the directory containing local top-level packages. Extra
-vendored roots can still use repeatable `--python-path`. Package initialization,
+Set `--package-root` to the directory containing local top-level packages.
+For a `src/` layout, pass `--package-root PROJECT/src --dependency-root PROJECT`;
+Wisp uses `build.project` as the package root and the configuration directory as
+the dependency root. Extra vendored roots can use repeatable `--python-path`.
+Package initialization,
 relative and namespace imports, circular imports and lazy imports run in guest
 CPython through the source loader.
 
 Dependencies in `[project].dependencies` in `pyproject.toml` or `requirements.txt`
-must pin exact stable numeric versions. Place `python-deps.lock.json` at the
-package root. It selects local, SHA-256-checked wheels or vendor directories:
+accept PEP 440 versions and PEP 508 requirements. Place
+`python-deps.lock.json` beside the dependency declarations. It selects local,
+SHA-256-checked wheels or vendor directories:
 
 ```json
 {
@@ -122,32 +137,52 @@ package root. It selects local, SHA-256-checked wheels or vendor directories:
 }
 ```
 
-Use `example-package==1.2.3` in the project dependency list. Every transitive
-package must also have a lock entry. Wheel metadata names, versions and dependency
-constraints are checked. Only purelib `py*-none-any` wheels are accepted.
-Requirements may attach `--hash=sha256:...`, which must agree with the lock.
-Stable numeric comparisons, wildcard `==`/`!=` and `~=` constraints in transitive
-metadata are supported. Extras, environment markers, prereleases, URLs, editable
-installs, source distributions and dynamic project dependencies fail explicitly.
-No pip or package setup code runs. No dependency is downloaded.
+The requirement can use a range such as `example-package>=1,<2`; the lock still
+selects exactly one version and artifact per distribution. Every active
+transitive package must have a lock entry. Names, versions, `Requires-Python`,
+wheel tags and dependency constraints are checked. Only purelib `*-none-any`
+wheels compatible with guest CPython 3.14 are accepted.
 
-A vendor entry uses a directory `path`, a `files` map of relative `.py` filenames
+The pinned, vendored `packaging` 26.2 parser supports markers, extras, prereleases,
+epochs and local versions. Markers are evaluated for CPython 3.14.0 on WASI
+(`sys_platform="wasi"`, `platform_system="WASI"`, `platform_machine="wasm32"`),
+independently of the host. Project optional dependencies are selected with
+`[tool.wisp.python] extras = ["feature"]`. Requirements files accept `-r` includes,
+`-c` constraints, continuations and `--hash=sha256:...`; hashes must agree with
+the lock. A direct URL is an identity only: it must match the lock's `url`, its
+optional SHA-256 fragment must agree, and bytes always come from the lock's local
+`path`. No URL is fetched. Editable installs, source distributions, installer
+options and dynamic project dependencies are unsupported. No pip, setup code
+or build backend runs. See the [upstream requirement syntax](https://packaging.pypa.io/en/stable/requirements.html).
+
+A vendor entry uses a directory `path`, a `files` map of relative source and data filenames
 to SHA-256 values and a `sha256` of that map's UTF-8 JSON encoding with sorted
 keys and separators `,` and `:` without whitespace. Its optional `requires` list
 declares transitive constraints. All files must match the inventory. Original
 vendor roots are excluded from the project scan and bundled once from verified
 scratch copies. Dependency pins and original input hashes appear in the receipt.
 
-Native extensions, package data, relocated wheel contents, symlinks, overlapping
-roots and ambiguous module names fail. Standard-library availability is still
-limited by the snapshot. A pure wheel is not a promise that every import it uses
-is present in the selected runtime.
+Package data and wheel `.dist-info` metadata are bundled with source. Guest code
+can read them through `importlib.resources`, `pkgutil.get_data`,
+`importlib.metadata`, and Python `open`/`pathlib` calls using `__file__` paths.
+They live in a read-only virtual `/__wisp__/` tree, without host filesystem
+preopens. Data is not exposed as an OS file descriptor, and writes, mmap and
+native filesystem consumers are unsupported. Wheel `.data/purelib` relocation
+is supported; other installation schemes are rejected. Vendor locks can declare
+`extras` and `requires`; missing distribution metadata is synthesized from that
+lock. Native extensions, bytecode-only packages, symlinks, overlapping roots and
+ambiguous module names fail. A pure wheel can still depend on unavailable WASI
+facilities.
+
+Hidden files and common build directories are excluded. The dependency root's
+top-level `out/` is also excluded so previous Wisp outputs are not bundled as
+package data. Nested package directories named `out` remain available.
 
 ## Bootstrap and validation
 
 The base package bootstrap targets Linux x86_64 and needs native Python, Cargo
 with `wasm32-wasip1`, and the native binaries pinned in `toolchain.lock.json`.
-It downloads only the pinned componentize-py wheel and prepares the shared WASI
+It downloads only pinned bootstrap artifacts and prepares the shared WASI
 wasm-tools package. Check RAM, disk and scratch filesystems before starting.
 Use disk-backed scratch and one compiler worker.
 
@@ -168,8 +203,9 @@ The legacy scalar path remains `compile.py source.py -o output.wasm` without
 annotated Python callable. Wisp retains this profile when `entry` is explicit.
 The default Wisp path instead infers the source API.
 
-Aggregate bundled Python source plus its loader is limited to 1 MiB, and finished
-Components to 64 MiB. There are at most 64 public functions, 16 parameters per
+Aggregate source plus package data is limited to 16 MiB; the encoded guest
+program plus loader is limited to 32 MiB, and finished Components to 64 MiB.
+The bundle allows at most 4096 modules and 16384 source/data files. There are at most 64 public functions, 16 parameters per
 function and 32 levels of inferred type expansion. Builds deny guest networking,
 inherited environment and I/O, and filesystem preopens. A consuming host chooses
 its own capabilities. Runtime initialization is time-limited and failed builds

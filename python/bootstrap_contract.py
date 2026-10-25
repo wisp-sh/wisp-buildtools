@@ -58,12 +58,14 @@ def main():
     parser.add_argument('--offline', action='store_true', help='use only bundled, pinned provisioning tools')
     parser.add_argument('--wit', required=True, type=Path)
     parser.add_argument('--world', required=True)
+    parser.add_argument('--auto-preload-module', action='append', default=[], help='attempt a statically discovered stdlib import in guest CPython')
     parser.add_argument('--preload-module', action='append', default=[], metavar='MODULE',
                         help='import a stdlib module into the template during provisioning; repeatable')
     parser.add_argument('--cargo', default='cargo', help='deprecated; export helper is supplied by the base package')
     parser.add_argument('--rebuild', action='store_true', help='atomically replace an existing contract template')
     args = parser.parse_args()
     modules = preload_modules(args.preload_module)
+    automatic = preload_modules(args.auto_preload_module)
     if not verified_package(ROOT / 'dist'):
         raise ValueError('provision the base Python toolchain with bootstrap.py first')
     tools = {key: tool(key) for key in ('wasm-tools', 'wasm-opt', 'wac')}
@@ -86,7 +88,8 @@ def main():
                  and manifest.get('exports') == exports
                  and manifest.get('componentizePy') == LOCK['componentize_py']
                  and manifest.get('sourceModules') == LOADER_VERSION
-                 and manifest.get('preloadModules', []) == modules)
+                 and manifest.get('preloadModules', []) == modules
+                 and manifest.get('automaticPreloads', []) == automatic)
         for name, expected in manifest.get('bootstrapInputs', {}).items():
             path = ROOT / name
             valid = valid and path.resolve().is_relative_to(ROOT.resolve()) and path.is_file() and digest(path) == expected
@@ -120,7 +123,7 @@ def main():
         run([*command, 'bindings', bindings], env=environment, cwd=work)
         app = work / 'app'
         app.mkdir()
-        runtime_source = generate_runtime(bindings, modules, exports)
+        runtime_source = generate_runtime(bindings, modules, exports, automatic)
         (app / '_wisp_runtime.py').write_text(runtime_source)
         runtime = work / 'runtime.wasm'
         run([*command, 'componentize', '-p', app, '_wisp_runtime', '-o', runtime], env=environment, timeout=600, cwd=work)
@@ -143,7 +146,7 @@ def main():
         (staged / 'runtime.py').write_text(runtime_source)
         manifest = {'schema': 1, 'contractSha256': key, 'exports': exports,
                     'componentizePy': LOCK['componentize_py'], 'sourceModules': LOADER_VERSION,
-                    'preloadModules': modules,
+                    'preloadModules': modules, 'automaticPreloads': automatic,
                     'bootstrapInputs': {p: digest(ROOT / p) for p in
                                         ('bootstrap_contract.py', 'scripts/contracts.py', 'scripts/runtime_contract.py',
                                          'scripts/source_loader.py', 'scripts/source_bundle.py', 'toolchain.lock.json')},

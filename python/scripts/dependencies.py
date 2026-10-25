@@ -10,6 +10,7 @@ import re
 import stat
 import tomllib
 import zipfile
+from urllib.parse import urlsplit, parse_qs
 
 from scripts.common import digest
 from scripts.source_bundle import MAX_SOURCE_BYTES, NATIVE_SUFFIXES
@@ -17,58 +18,88 @@ from scripts.source_bundle import MAX_SOURCE_BYTES, NATIVE_SUFFIXES
 MAX_ARCHIVE_BYTES = 16 * 1024 * 1024
 
 
+from scripts._vendor.packaging.requirements import Requirement, InvalidRequirement
+from scripts._vendor.packaging.specifiers import SpecifierSet
+from scripts._vendor.packaging.version import Version
+from scripts._vendor.packaging.tags import parse_tag, compatible_tags
+from scripts.limits import GUEST_ENVIRONMENT
+
+
 def normalized(name):
     return re.sub(r'[-_.]+', '-', name).lower()
 
 
 def requirement(value, *, pinned=False):
-    # Markers, extras, URLs and editable installs must be resolved before locking.
-    match = re.fullmatch(r'\s*([A-Za-z0-9][A-Za-z0-9_.-]*)\s*(?:\(?\s*((?:(?:===|==|!=|~=|<=|>=|<|>)\s*[0-9][0-9.*]*(?:\s*,\s*)?)+)\s*\)?)?\s*', value)
-    if not match:
-        raise ValueError('unsupported Python requirement; use plain pinned local dependencies: ' + value)
-    constraints = (match[2] or '').replace(' ', '')
-    if pinned and not re.fullmatch(r'==[0-9]+(?:\.[0-9]+)*', constraints):
-        raise ValueError('Python project dependencies must pin an exact stable version: ' + value)
-    return normalized(match[1]), constraints
+    """Parse metadata only. Artifact identity and hashes come from the local lock."""
+    try:
+        return Requirement(value)
+    except InvalidRequirement as error:
+        raise ValueError('invalid Python requirement: ' + value) from error
 
 
 def satisfies(version, constraints):
-    if not re.fullmatch(r'[0-9]+(?:\.[0-9]+)*', version):
-        raise ValueError('Python dependency versions must be stable numeric releases: ' + version)
-    def parts(value):
-        result = tuple(int(p) for p in value.split('.'))
-        while result and result[-1] == 0:
-            result = result[:-1]
-        return result
-    actual = parts(version)
-    numeric = tuple(int(p) for p in version.split('.'))
-    def matches_prefix(prefix):
-        padded = numeric + (0,) * max(0, len(prefix) - len(numeric))
-        return padded[:len(prefix)] == prefix
-    for constraint in filter(None, constraints.split(',')):
-        match = re.fullmatch(r'(==|!=|~=|<=|>=|<|>)([0-9]+(?:\.[0-9]+)*(?:\.\*)?)', constraint)
-        if not match:
-            raise ValueError('unsupported Python version constraint: ' + constraint)
-        operator, expected = match.groups()
-        if expected.endswith('.*'):
-            if operator not in ('==', '!='):
-                raise ValueError('wildcard only supported with == or !=')
-            prefix = tuple(int(p) for p in expected.split('.')[:-1])
-            equal = matches_prefix(prefix)
-            valid = equal if operator == '==' else not equal
-        else:
-            target = parts(expected)
-            if operator == '~=':
-                if len(expected.split('.')) < 2:
-                    raise ValueError('compatible Python version constraint needs at least two components: ' + constraint)
-                prefix = tuple(int(p) for p in expected.split('.')[:-1])
-                valid = actual >= target and matches_prefix(prefix)
-            else:
-                valid = {'==': actual == target, '!=': actual != target, '<': actual < target,
-                         '<=': actual <= target, '>': actual > target, '>=': actual >= target}[operator]
-        if not valid:
-            return False
-    return True
+    return SpecifierSet(constraints).contains(Version(version), prereleases=True)
+
+
+def enabled(req, extras=(), environment=None):
+    env = dict(GUEST_ENVIRONMENT, **(environment or {}))
+    return req.marker is None or any(req.marker.evaluate(dict(env, extra=extra))
+                                     for extra in {'', *extras})
+
+
+def project_requirements(root, extras=()):
+    """Read PEP 621 / requirements files without invoking any build backend."""
+    requested, hashes, inputs, constraints = [], {}, {}, []
+    settings = {}
+    pyproject = _path(root, 'pyproject.toml')
+    if pyproject.is_file():
+        inputs['pyproject.toml'] = digest(pyproject)
+        document = tomllib.loads(pyproject.read_text())
+        project = document.get('project', {})
+        if 'dependencies' in project.get('dynamic', []):
+            raise ValueError('dynamic Python dependencies require prebuilt, locked wheel metadata')
+        settings = document.get('tool', {}).get('wisp', {}).get('python', {})
+        extras = set(extras) | set(settings.get('extras', []))
+        requested += [requirement(value) for value in project.get('dependencies', [])]
+        optional = project.get('optional-dependencies', {})
+        for extra in sorted(extras):
+            if extra not in optional:
+                raise ValueError('unknown Python project extra: ' + extra)
+            requested += [requirement(value) for value in optional[extra]]
+    seen = set()
+    def read(path, constraint=False):
+        path = _path(root, path)
+        relative = path.relative_to(root).as_posix()
+        identity = (relative, constraint)
+        if identity in seen:
+            return
+        if len(seen) >= 64:
+            raise ValueError('Python requirements include limit is 64 files')
+        seen.add(identity)
+        if path.stat().st_size > 1024 * 1024:
+            raise ValueError('Python requirements file exceeds 1 MiB: ' + relative)
+        inputs[relative] = digest(path)
+        text = path.read_text().replace('\\\n', ' ')
+        for line in text.splitlines():
+            line = re.split(r'\s+#', line.strip(), maxsplit=1)[0].strip()
+            if not line or line.startswith('#'):
+                continue
+            include = re.fullmatch(r'(?:-r|--requirement(?:=|\s+))\s*(.+)', line)
+            limits = re.fullmatch(r'(?:-c|--constraint(?:=|\s+))\s*(.+)', line)
+            if include or limits:
+                target = (path.parent / (include or limits)[1]).relative_to(root).as_posix()
+                read(target, constraint or limits is not None)
+                continue
+            allowed = set(re.findall(r'\s+--hash=sha256:([0-9a-f]{64})(?=\s|$)', line))
+            value = re.sub(r'\s+--hash=sha256:[0-9a-f]{64}(?=\s|$)', '', line)
+            req = requirement(value)
+            (constraints if constraint else requested).append(req)
+            if allowed:
+                name = normalized(req.name)
+                hashes.setdefault(name, []).append((req, allowed))
+    if (root / 'requirements.txt').is_file():
+        read('requirements.txt')
+    return requested, hashes, inputs, constraints, settings
 
 
 def _path(root, name):
@@ -85,35 +116,16 @@ def _path(root, name):
     return current
 
 
-def prepare(root: Path, destination: Path):
-    """Return roots to bundle and a receipt; destination is task-owned scratch."""
-    requested = []
-    hashes = {}
-    inputs = {}
-    requirements = root / 'requirements.txt'
-    pyproject = root / 'pyproject.toml'
-    if requirements.is_file():
-        inputs['requirements.txt'] = digest(requirements)
-        for line in requirements.read_text().splitlines():
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-            value, _, suffix = line.partition(' --hash=sha256:')
-            name, constraint = requirement(value, pinned=True)
-            if suffix and not re.fullmatch('[0-9a-f]{64}', suffix):
-                raise ValueError('invalid requirements.txt SHA-256 for ' + name)
-            if suffix:
-                hashes[name] = suffix
-            requested.append((name, constraint))
-    if pyproject.is_file():
-        inputs['pyproject.toml'] = digest(pyproject)
-        project = tomllib.loads(pyproject.read_text()).get('project', {})
-        if 'dependencies' in project.get('dynamic', []):
-            raise ValueError('dynamic Python dependencies must be pinned before building')
-        requested += [requirement(value, pinned=True) for value in project.get('dependencies', [])]
+def prepare(root: Path, destination: Path, *, extras=(), environment=None):
+    """Return verified roots and a receipt; all resolution uses local lock entries."""
+    root = root.resolve(strict=True)
+    requested, hashes, inputs, constraints, settings = project_requirements(root, extras)
+    requested = [req for req in requested if enabled(req, environment=environment)]
+    hashes = {name: [allowed for req, allowed in records if enabled(req, environment=environment)]
+              for name, records in hashes.items()}
     if not requested:
         return [], {'inputs': inputs, 'packages': [], 'excludedPaths': []}
-    lock = root / 'python-deps.lock.json'
+    lock = _path(root, 'python-deps.lock.json')
     if not lock.is_file():
         raise ValueError('Python dependencies require python-deps.lock.json with local paths, versions and SHA-256 hashes')
     inputs[lock.name] = digest(lock)
@@ -127,25 +139,42 @@ def prepare(root: Path, destination: Path):
             raise ValueError('duplicate Python dependency lock entry: ' + name)
         packages[name] = package
     selected = {}
-    visiting = set()
+    expanded = {}
+    package_metadata = {}
     destination.mkdir(parents=True, exist_ok=True)
     roots = []
     excluded = []
     total = 0
 
-    def resolve(name, constraints):
+    def resolve(req, parent_extras=()):
         nonlocal total
+        if not enabled(req, parent_extras, environment):
+            return
+        name = normalized(req.name)
         if name not in packages:
             raise ValueError('Python dependency missing from offline lock: ' + name)
         package = packages[name]
-        if not satisfies(package['version'], constraints):
-            raise ValueError(f'Python dependency {name}=={package["version"]} does not satisfy {constraints}')
-        if name in selected or name in visiting:
-            return
-        visiting.add(name)
+        version = Version(package['version'])
+        if not req.specifier.contains(version, prereleases=True):
+            raise ValueError(f'Python dependency {name}=={version} does not satisfy {req.specifier}')
+        for constraint in constraints:
+            if normalized(constraint.name) == name and enabled(constraint, environment=environment):
+                if (not constraint.specifier.contains(version, prereleases=True)
+                        or constraint.url and constraint.url != package.get('url')):
+                    raise ValueError(f'locked Python dependency {name} violates constraint {constraint}')
+        if req.url and package.get('url') != req.url:
+            raise ValueError('Python requirement URL must match the offline lock identity: ' + name)
         expected = package.get('sha256', '')
-        if not re.fullmatch('[0-9a-f]{64}', expected) or hashes.get(name, expected) != expected:
+        if not re.fullmatch('[0-9a-f]{64}', expected) or any(expected not in allowed for allowed in hashes.get(name, [])):
             raise ValueError('missing or conflicting SHA-256 for Python dependency ' + name)
+        if req.url:
+            url_hashes = parse_qs(urlsplit(req.url).fragment).get('sha256', [])
+            if url_hashes and any(value != expected for value in url_hashes):
+                raise ValueError('Python requirement URL hash differs from offline lock: ' + name)
+        requested_extras = set(req.extras)
+        if name in selected:
+            expand(name, requested_extras)
+            return
         path = _path(root, package['path'])
         target = destination / name
         target.mkdir()
@@ -168,13 +197,15 @@ def prepare(root: Path, destination: Path):
                     raise ValueError('Python wheel metadata missing or ambiguous: ' + name)
                 parser = email.parser.Parser()
                 info = parser.parsestr(wheel.read(wheel_info[0]).decode())
-                tags = info.get_all('Tag', [])
-                if info.get('Root-Is-Purelib', '').lower() != 'true' or not tags or any(not re.fullmatch(r'py[0-9]+(?:\.py[0-9]+)*-none-any', tag) for tag in tags):
+                tags = {tag for line in info.get_all('Tag', []) for tag in parse_tag(line)}
+                compatible = set(compatible_tags(python_version=(3, 14), interpreter='cp314', platforms=['any']))
+                if info.get('Root-Is-Purelib', '').lower() != 'true' or not tags or any(tag.abi != 'none' or tag.platform != 'any' for tag in tags) or not tags & compatible:
                     raise ValueError('native Python extensions are unsupported; require a pure Python *-none-any wheel: ' + name)
                 meta = parser.parsestr(wheel.read(metadata[0]).decode())
-                if normalized(meta.get('Name', '')) != name or meta.get('Version') != package['version']:
+                if normalized(meta.get('Name', '')) != name or Version(meta.get('Version', '')) != version:
                     raise ValueError('Python wheel name/version differs from lock: ' + name)
                 dependencies = meta.get_all('Requires-Dist', [])
+                available_extras = {normalized(value) for value in meta.get_all('Provides-Extra', [])}
                 if meta.get('Requires-Python') and not satisfies('3.14.0', meta['Requires-Python'].replace(' ', '')):
                     raise ValueError('Python wheel excludes guest CPython 3.14: ' + name)
                 for entry in entries:
@@ -183,11 +214,18 @@ def prepare(root: Path, destination: Path):
                         raise ValueError('unsafe Python wheel entry: ' + entry.filename)
                     if relative.suffix in NATIVE_SUFFIXES:
                         raise ValueError('native Python extensions are unsupported: ' + entry.filename)
-                    if entry.is_dir() or relative.suffix == '.pyi' or relative.name == 'py.typed' or any(p.endswith('.dist-info') for p in relative.parts):
+                    if entry.is_dir() or relative.suffix == '.pyi' or relative.name == 'py.typed':
                         continue
-                    if '.data' in ''.join(relative.parts) or relative.suffix != '.py':
-                        raise ValueError('Python wheel requires unsupported package data or relocation: ' + entry.filename)
-                    sources[entry.filename] = wheel.read(entry)
+                    parts = relative.parts
+                    if parts[0].endswith('.data'):
+                        if len(parts) < 3 or parts[1] != 'purelib':
+                            raise ValueError('unsupported Python wheel installation scheme: ' + entry.filename)
+                        relative = PurePosixPath(*parts[2:])
+                    if relative.suffix in ('.pyc', '.pyo'):
+                        raise ValueError('Python dependencies must provide source, not bytecode: ' + entry.filename)
+                    if relative.as_posix() in sources:
+                        raise ValueError('Python wheel relocation collision: ' + str(relative))
+                    sources[relative.as_posix()] = wheel.read(entry)
         elif path.is_dir():
             excluded.append(package['path'])
             files = package.get('files')
@@ -207,34 +245,53 @@ def prepare(root: Path, destination: Path):
             vendor_bytes = 0
             for relative, sha in files.items():
                 child = _path(path, relative)
-                if child.suffix != '.py':
-                    raise ValueError('vendored Python package data/native extensions are unsupported: ' + relative)
+                if child.suffix in NATIVE_SUFFIXES:
+                    raise ValueError('native Python extensions are unsupported: ' + relative)
+                if child.suffix in ('.pyc', '.pyo'):
+                    raise ValueError('Python dependencies must provide source, not bytecode: ' + relative)
                 vendor_bytes += child.stat().st_size
                 if vendor_bytes > MAX_SOURCE_BYTES - total:
-                    raise ValueError('Python dependencies exceed the 1 MiB source budget')
+                    raise ValueError('Python dependencies exceed the 16 MiB source/data budget')
                 if digest(child) != sha:
                     raise ValueError('vendored Python checksum mismatch: ' + relative)
                 sources[relative] = child.read_bytes()
                 inputs[package['path'].rstrip('/') + '/' + relative] = sha
             dependencies = package.get('requires', [])
+            available_extras = {normalized(value) for value in package.get('extras', [])}
+            info = normalized(name).replace('-', '_') + '-' + str(version) + '.dist-info/METADATA'
+            sources.setdefault(info, ('Metadata-Version: 2.3\nName: ' + name + '\nVersion: ' + str(version) + '\n'
+                + ''.join('Requires-Dist: ' + value + '\n' for value in dependencies)).encode('utf-8'))
         else:
             raise ValueError('Python dependency must be a local .whl or vendor directory: ' + name)
-        if not sources:
+        if not any(relative.endswith('.py') for relative in sources):
             raise ValueError('Python dependency contains no Python modules: ' + name)
         for relative, data in sources.items():
             total += len(data)
             if total > MAX_SOURCE_BYTES:
-                raise ValueError('Python dependencies exceed the 1 MiB source budget')
+                raise ValueError('Python dependencies exceed the 16 MiB source/data budget')
             file = _path(target, relative)
             file.parent.mkdir(parents=True, exist_ok=True)
             file.write_bytes(data)
         selected[name] = {'name': name, 'version': package['version'], 'sha256': expected}
         roots.append(target)
-        for dependency in dependencies:
-            resolve(*requirement(dependency))
-        visiting.remove(name)
+        package_metadata[name] = (dependencies, available_extras)
+        expand(name, requested_extras)
 
-    for name, constraint in requested:
-        resolve(name, constraint)
+    def expand(name, extras):
+        dependencies, available = package_metadata[name]
+        extras = {normalized(extra) for extra in extras}
+        if extras - available:
+            raise ValueError('unknown Python dependency extras for ' + name + ': ' + ', '.join(sorted(extras - available)))
+        previous = expanded.get(name)
+        combined = (previous or set()) | extras
+        if previous is not None and combined == previous:
+            return
+        expanded[name] = combined
+        selected[name]['extras'] = sorted(combined)
+        for value in dependencies:
+            resolve(requirement(value), combined)
+
+    for req in requested:
+        resolve(req)
     return roots, {'inputs': dict(sorted(inputs.items())), 'packages': [selected[k] for k in sorted(selected)],
                    'excludedPaths': sorted(excluded)}

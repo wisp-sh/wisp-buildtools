@@ -96,7 +96,7 @@ def preload_modules(modules):
     return sorted(set(modules))
 
 
-def generate_runtime(bindings: Path, modules=(), export_contract=None):
+def generate_runtime(bindings: Path, modules=(), export_contract=None, automatic_modules=()):
     """Read trusted generated protocols, never application source."""
     error_types = {}
     def normalize(name):
@@ -152,4 +152,9 @@ def generate_runtime(bindings: Path, modules=(), export_contract=None):
     if not (bindings / 'wit_world/exports/__init__.py').is_file():
         runtime = runtime.replace('from wit_world import exports\n', '')
     imports = ''.join(f'import {module}\n' for module in preload_modules(modules))
+    automatic = preload_modules(automatic_modules)
+    if automatic:
+        imports += ('for __wisp_stdlib in ' + repr(automatic) + ':\n'
+                    '    try:\n        __import__(__wisp_stdlib)\n'
+                    '    except Exception:\n        pass\n')
     return runtime.replace('EXPORTS = []', 'EXPORTS = ' + repr(methods)) + '\n\n' + imports + ''.join(binding_types) + '\n\n'.join(classes)

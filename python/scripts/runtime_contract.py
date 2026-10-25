@@ -1,4 +1,15 @@
 """Runtime template. Application source is loaded only by guest CPython."""
+import pathlib
+import base64
+import io
+import os
+import importlib.resources._adapters
+import importlib.resources.readers
+import importlib.metadata
+import importlib.metadata._adapters
+import email.parser
+import email.message
+import pkgutil
 import dataclasses
 import enum
 import typing
@@ -35,13 +46,17 @@ def _load():
         implementation = namespace.get(owner)
         if program.get('entry') == '__wisp_inferred__':
             # Infer only top-level functions, preserving their original spelling.
-            local = [value for key, value in namespace.items()
-                     if key.replace('_', '').lower() == name.replace('_', '').lower()
-                     and getattr(value, '__module__', None) == namespace['__name__']
-                     and callable(value)]
-            if len(local) > 1:
-                raise TypeError('ambiguous Python export: ' + name)
-            function = local[0] if local else namespace.get(name)
+            mapping = namespace.get('__wisp_export_names__', {})
+            if name in mapping:
+                function = namespace.get(mapping[name])
+            else:
+                local = [value for key, value in namespace.items()
+                         if key.replace('_', '').lower() == name.replace('_', '').lower()
+                         and getattr(value, '__module__', None) == namespace['__name__']
+                         and callable(value)]
+                if len(local) > 1:
+                    raise TypeError('ambiguous Python export: ' + name)
+                function = local[0] if local else namespace.get(name)
         elif implementation is not None and hasattr(implementation, name):
             # Authored contracts retain interface-class precedence over helpers.
             if owner not in instances:

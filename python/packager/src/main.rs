@@ -125,7 +125,7 @@ fn main() -> Result<(), io::Error> {
     let run = || -> Result<(), String> {
         if arguments.len() != 4 { return Err("usage: python-packager TEMPLATE SOURCE ENTRY OUTPUT".into()); }
         let source = fs::read(&arguments[1]).map_err(|e| e.to_string())?;
-        if source.len() > 1024 * 1024 { return Err("Python source exceeds 1 MiB".into()); }
+        if source.len() > 32 * 1024 * 1024 { return Err("Python guest program exceeds 32 MiB".into()); }
         let source = std::str::from_utf8(&source).map_err(|e| e.to_string())?;
         let provider = source_component(source, &arguments[2])?;
         let template = fs::read(&arguments[0]).map_err(|e| e.to_string())?;

@@ -59,5 +59,47 @@ def nothing() -> None: ...
                 guest.infer(source)
 
 
+class ModuleInferenceTests(unittest.TestCase):
+    def analyze(self, entry, **sources):
+        modules = {name: [text, '/__wisp__/' + name.replace('.', '/') + '.py', False]
+                   for name, text in sources.items()}
+        for name in list(modules):
+            parent = name.rpartition('.')[0]
+            while parent:
+                modules.setdefault(parent, [None, '/__wisp__/' + parent.replace('.', '/') + '/__init__.py', True])
+                parent = parent.rpartition('.')[0]
+        return guest.analyze('', modules, entry)
+
+    def test_imported_dataclasses_and_enums_have_distinct_qualified_names(self):
+        result = self.analyze('api', api='import models as m\nfrom other import Person\ndef api(a: m.Person, b: Person) -> m.Color: ...',
+                             models='from dataclasses import dataclass\nfrom enum import Enum\n@dataclass\nclass Person:\n name: str\nclass Color(Enum):\n RED=1\n',
+                             other='from dataclasses import dataclass\n@dataclass\nclass Person:\n value: int\n')
+        self.assertIn('record %models-person', result['declarations'])
+        self.assertIn('record %other-person', result['declarations'])
+        self.assertIn('enum %models-color', result['declarations'])
+
+    def test_reexports_aliases_and_relative_imports_do_not_execute_source(self):
+        result = self.analyze('pkg.api', **{'pkg.api': 'from .impl import greetPerson as helloWorld\n__all__=["helloWorld"]\n',
+            'pkg.impl': 'raise RuntimeError("must never execute")\nfrom .models import Person\ndef greetPerson(p: Person) -> str: ...',
+            'pkg.models': 'from dataclasses import dataclass\n@dataclass\nclass Person:\n name: str\n'})
+        self.assertIn('%hello-world: func(', result['declarations'])
+        self.assertIn('record %pkg-models-person', result['declarations'])
+        self.assertEqual(result['exports'], {'hello_world': 'helloWorld'})
+
+    def test_stdlib_import_discovery_follows_helpers_and_literal_dynamic_imports(self):
+        result = self.analyze('api', api='from helper import api\n', helper='import datetime\nimport importlib\ndef api() -> str:\n return importlib.import_module("decimal").__name__')
+        self.assertTrue({'datetime', 'decimal', 'importlib'} <= set(result['stdlib']))
+
+    def test_aliases_and_builtin_shadowing_are_resolved_statically(self):
+        self.assertIn('list<s64>', self.analyze('api', api='Number=int\nValues=list[Number]\ndef api(x: Values) -> Number: ...')['declarations'])
+        with self.assertRaisesRegex(ValueError, 'function api parameter x'):
+            self.analyze('api', api='class int: pass\ndef api(x: int) -> str: ...')
+
+    def test_cross_module_recursion_and_dynamic_export_lists_fail_clearly(self):
+        with self.assertRaisesRegex(ValueError, 'recursive Python type'):
+            self.analyze('api', api='from models import Node\ndef api(x: Node) -> str: ...', models='from dataclasses import dataclass\n@dataclass\nclass Node:\n child: "Node"')
+        with self.assertRaisesRegex(ValueError, '__all__'):
+            self.analyze('api', api='__all__ = make_exports()\ndef api() -> str: ...')
+
 if __name__ == '__main__':
     unittest.main()

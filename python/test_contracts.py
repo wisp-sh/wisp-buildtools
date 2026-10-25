@@ -103,6 +103,17 @@ def total(values):
         self.assertEqual(runtime['_call']('Api', 'greet_person', 'x'), 'x!')
         self.assertEqual(runtime['_call']('Api', 'answer'), 42)
 
+    def test_inferred_export_map_preserves_reexports_and_keyword_names(self):
+        runtime, _ = self.runtime('''def original(name): return name + "!"
+original.__module__ = 'another_module'
+helloWorld = original
+def import_(): return 42
+__wisp_export_names__ = {'hello_world': 'helloWorld', 'import_': 'import_'}
+''', inferred=True)
+        runtime['EXPORTS'] = [('Api', 'hello_world', 1), ('Api', 'import_', 0)]
+        self.assertEqual(runtime['_call']('Api', 'hello_world', 'x'), 'x!')
+        self.assertEqual(runtime['_call']('Api', 'import_'), 42)
+
     def test_interface_classes_preserve_instance_state(self):
         runtime, _ = self.runtime('''class Api:
     def __init__(self): self.calls = 0
@@ -191,7 +202,7 @@ class Api:
             for name in required:
                 (destination / name).write_bytes(b'fixture')
             manifest = {'schema': 1, 'contractSha256': key, 'exports': exports,
-                        'componentizePy': bootstrapper.LOCK['componentize_py'], 'sourceModules': 1,
+                        'componentizePy': bootstrapper.LOCK['componentize_py'], 'sourceModules': 2,
                         'preloadModules': ['html.parser', 'logging'],
                         'sha256': {name: bootstrapper.digest(destination / name) for name in required}}
             (destination / 'manifest.json').write_text(json.dumps(manifest))
@@ -239,7 +250,7 @@ class TemplateInventoryTests(unittest.TestCase):
             inventory[name] = compiler.digest(path)
         self.manifest = {'schema': 1, 'contractSha256': key, 'exports': exports,
                          'componentizePy': compiler.LOCK['componentize_py'],
-                         'sourceModules': 1, 'sha256': inventory}
+                         'sourceModules': 2, 'sha256': inventory}
         self.args = types.SimpleNamespace(entry='add', world='library', wit=self.wit,
                                           package_root=None, python_path=[], timeout=1)
 
@@ -271,17 +282,15 @@ class TemplateInventoryTests(unittest.TestCase):
         self.reject('checksum mismatch: ../outside')
 
     def test_unknown_loader_version_is_rejected(self):
-        self.manifest['sourceModules'] = 2
+        self.manifest['sourceModules'] = 999
         self.reject('unsupported Python template source-loader version')
 
-    def test_legacy_templates_require_rebuild_for_package_roots(self):
+    def test_legacy_template_inventory_is_readable_for_automatic_upgrade(self):
         del self.manifest['sourceModules']
-        self.args.package_root = self.root
-        self.reject('template lacks package imports')
+        (self.package / 'manifest.json').write_text(json.dumps(self.manifest))
+        key, exports = contract(document(), 'library')
+        self.assertIsNone(compiler.verify_template(self.package, key, exports).get('sourceModules'))
 
-
-if __name__ == '__main__':
-    unittest.main()
 
 
 class RuntimeConversionTests(unittest.TestCase):
@@ -352,3 +361,6 @@ class RuntimeConversionTests(unittest.TestCase):
             with self.assertRaises(Err) as caught:
                 runtime['_call']('Api', 'call', 1)
         self.assertEqual(caught.exception.value, [WireStatus.FAILED])
+
+if __name__ == '__main__':
+    unittest.main()
