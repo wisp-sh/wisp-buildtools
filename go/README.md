@@ -43,10 +43,42 @@ go-toolchain-full-1.27.2/
   bin/{compile,asm,link}.wasm
   goroot/pkg/wasip1_wasm/**/*.a
   goroot/pkg/include/*
+  wit-runtime/{go.mod,LICENSE,wit/**/*.go}
   manifest.toml
   SHA256SUMS
   LICENSE
 ```
+
+## Upstream Component bindings
+
+Wisp uses the official `wit-bindgen-cli 0.61.1` Go backend for synchronous
+Component imports. It pins the generator's reported runtime dependency,
+`go.bytecodealliance.org/pkg v0.2.3`. Source generation runs with
+`--format=false`, so it needs no host Go formatter. Application source still
+compiles with `compile.wasm` and links with `link.wasm`.
+
+`wit-runtime/` contains the unmodified upstream module sources and license.
+`scripts/wasmbuild/wit-runtime.lock.json` records the official Go module ZIP SHA-256, Go checksum
+database entries, and each source file's SHA-256. The toolchain package includes
+these sources. No runtime download occurs during application builds.
+
+To stage this support in a standalone project before invoking the Wasm compiler:
+
+```sh
+python3 scripts/stage-wit-runtime.py --project /path/to/project
+```
+
+Use `--runtime /path/to/toolchain/wit-runtime` to select a packaged copy. Staging
+verifies the pin and rejects changed or additional vendored sources. Wisp stages
+the runtime automatically in its build directory; `WISP_GO_WIT_RUNTIME` selects
+a local support directory when using a previously packaged toolchain.
+
+The linker enables `-checklinkname=0` only when the reachable import graph uses
+`go.bytecodealliance.org/pkg/wit/runtime`. Upstream's allocator calls
+`runtime.sbrk` before Go initialization and exports `cabi_realloc`. It also needs
+a Preview1 reactor adapter exporting `adapter_monotonic_clock_set_paused`, such
+as the Wasmtime 50 adapter used by Wisp. Keep one canonical allocator per module.
+Async worlds require a patched Go scheduler and are outside this stock Go path.
 
 `goroot/pkg/wasip1_wasm` supplies compiler and linker imports. `goroot/pkg/include` supplies assembler headers. These are the GOROOT resources needed by the direct tool calls exercised here; no `goroot/src`, host Go binary, or `stdlib.importcfg` is present. The runner reads tool locations and the GOROOT path from `manifest.toml`, verifies the package against `SHA256SUMS`, and scans the archive tree to create importcfg entries. Compile nodes add only their direct local imports. The link node includes all reachable local archives and the standard-library map.
 

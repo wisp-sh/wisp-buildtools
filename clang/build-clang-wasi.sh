@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")" && pwd)
 BUILD_ROOT=$(cd "$ROOT/.." && pwd)
 TOOLS="$ROOT/.toolchains"
-JOBS=${BUILD_JOBS:-8}
+JOBS=${BUILD_JOBS:-1}
 COMPILER_OPT=${COMPILER_OPT:-O1}
 export NINJA_STATUS="${NINJA_STATUS:-[%f/%t %es] }"
 COMPILER_LAUNCHER=()
@@ -129,3 +129,4 @@ with tempfile.TemporaryDirectory(prefix='.clang-headers-', dir=target.parent) as
 PY
 
 printf 'Built: %s\n' "$BUILD_DIR/bin/clang-wasm.component"
+python3 "$ROOT/target_sdk.py" package

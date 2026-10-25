@@ -57,6 +57,24 @@ class GoAdapterTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "import cycle"):
                 construct(root, toolchain, "project")
 
+    def test_upstream_wit_runtime_uses_wasm_linker_with_sbrk_permission(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            runtime = "go.bytecodealliance.org/pkg/wit/runtime"
+            (root / "main.go").write_text(f'package main\nimport "{runtime}"\n')
+            library = root / "vendor" / runtime
+            library.mkdir(parents=True)
+            (library / "runtime.go").write_text('package runtime\nimport "unsafe"\n')
+            toolchain = type("ToolchainStub", (), {"stdlib": {}, "goroot": root})()
+            graph = construct(root, toolchain, "project")
+            self.assertEqual([node.tool for node in graph.order()], ["compile", "compile", "link"])
+            self.assertIn("-checklinkname=0", graph.nodes["link"].argv)
+
+            (root / "main.go").write_text('package main\n')
+            graph = construct(root, toolchain, "project")
+            self.assertNotIn("-checklinkname=0", graph.nodes["link"].argv)
+            self.assertNotIn(f"compile:{runtime}", graph.nodes)
+
     def test_comment_does_not_create_import(self):
         with tempfile.TemporaryDirectory() as temporary:
             file = Path(temporary) / "main.go"

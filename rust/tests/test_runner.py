@@ -231,6 +231,73 @@ class BuilderPolicyTests(unittest.TestCase):
         self.assertTrue(builder.libs.is_dir())
         self.assertTrue(builder.temp.is_dir())
 
+    def cdylib_fixture(self):
+        self.args.crate_type = 'cdylib'
+        self.args.entry_path = None
+        source = self.project / 'src/lib.rs'
+        source.parent.mkdir()
+        source.write_text('pub struct App;\n')
+        target = {'kind': ['lib'], 'name': 'fixture', 'src_path': str(source)}
+        root = {'id': 'root-package', 'name': 'fixture', 'targets': [target]}
+        metadata = {'packages': [root], 'resolve': {'root': root['id'], 'nodes': []}}
+        return runner.Builder(self.args), source, root, metadata
+
+    def test_cdylib_authored_library_skips_duplicate_root_rlib(self):
+        builder, source, root, metadata = self.cdylib_fixture()
+
+        def build_script(package):
+            builder.script_flags[builder.unit_id(package, 'runtime')] = ['--cfg', 'from_build_script']
+
+        def execute(compiler, argv, package, kind):
+            Path(argv[argv.index('-o') + 1]).write_bytes(b'fixture wasm')
+
+        with patch.object(builder, 'metadata', return_value=metadata), \
+                patch.object(builder, 'dependency_flags', return_value=['--extern', 'dep=/stage/dep.rlib']), \
+                patch.object(builder, 'compile_library') as compile_library, \
+                patch.object(builder, 'build_script', side_effect=build_script) as script, \
+                patch.object(builder, 'flags', return_value=[]), \
+                patch.object(builder, 'execute', side_effect=execute) as compiler, \
+                redirect_stderr(io.StringIO()), patch('sys.stdout', new_callable=io.StringIO):
+            builder.build()
+        compile_library.assert_not_called()
+        script.assert_called_once_with(root)
+        compiler.assert_called_once()
+        argv = compiler.call_args.args[1]
+        self.assertEqual(argv[0], str(source))
+        self.assertEqual(argv[argv.index('--crate-name') + 1], 'fixture')
+        self.assertEqual(argv[argv.index('--crate-type') + 1], 'cdylib')
+        self.assertIn('dep=/stage/dep.rlib', argv)
+        self.assertIn('from_build_script', argv)
+        self.assertEqual(builder.report['libraryName'], 'fixture')
+
+    def test_cdylib_explicit_wrapper_keeps_root_library_dependency(self):
+        builder, source, root, metadata = self.cdylib_fixture()
+        wrapper = self.project / 'entry.rs'
+        wrapper.write_text('extern crate fixture;\n')
+        self.args.entry_path = wrapper
+        library = builder.libs / 'libfixture.rlib'
+
+        def build_script(package):
+            builder.script_flags[builder.unit_id(package, 'runtime')] = []
+
+        def execute(compiler, argv, package, kind):
+            Path(argv[argv.index('-o') + 1]).write_bytes(b'fixture wasm')
+
+        with patch.object(builder, 'metadata', return_value=metadata), \
+                patch.object(builder, 'dependency_flags', return_value=[]), \
+                patch.object(builder, 'compile_library', return_value=library) as compile_library, \
+                patch.object(builder, 'build_script', side_effect=build_script), \
+                patch.object(builder, 'flags', return_value=[]), \
+                patch.object(builder, 'execute', side_effect=execute) as compiler, \
+                patch('sys.stdout', new_callable=io.StringIO):
+            builder.build()
+        compile_library.assert_called_once_with(root['id'])
+        argv = compiler.call_args.args[1]
+        self.assertEqual(argv[0], str(wrapper.resolve()))
+        self.assertEqual(argv[argv.index('--crate-name') + 1], 'wisp_component')
+        self.assertIn('fixture=' + str(library), argv)
+        self.assertEqual(builder.report['libraryName'], 'fixture')
+
     def test_requires_wisp_host_even_if_package_contains_a_runtime(self):
         self.args.wasmtime = None
         bundled = self.prefix / "wasmtime-v0-x86_64-linux/wasmtime"

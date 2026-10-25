@@ -77,3 +77,18 @@ traces stay in the requested result directory. `runtime-adapter.json` records th
 acceptance result hash. Raw logs and traces stay in the results directory. Wisp
 registry interop has its own verifier. See [procedural macros](docs/proc-macros.md)
 for the execution model and restrictions.
+
+To install runner changes into an existing compiler package without rebuilding
+or copying the compiler and sysroot, run:
+
+```sh
+python3 rust/scripts/build-compiler.py --refresh-runner --candidate-out rust/dist/compiler
+```
+
+Run this from the repository root. The command checks the compiler/sysroot
+inventory and original build receipts and recipe snapshots before replacing the
+runner. It records the old and new runner hashes in a receipt under
+`verification/` and in `toolchain.json`. Original compiler build receipts and
+application acceptance evidence are retained, while acceptance for the refreshed
+runner is marked pending until rerun. No source checkout, SDK, compiler process,
+or network access is needed.

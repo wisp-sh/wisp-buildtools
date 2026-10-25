@@ -174,6 +174,7 @@ def action(name: str, *, root: Path, settings: dict) -> dict | None:
             run(["bash", directory / "build-clang-wasi.sh"], root=root,
                 environment={"BUILD_JOBS": settings["jobs"]})
         action("llvm-sdk", root=root, settings=settings)
+        run([python, directory / "target_sdk.py", "package"], root=root)
         run([python, root / "llvm/scripts/shared.py", "build", "--out", root / "llvm/dist/shared",
              "--clang-output", root / "clang/.toolchains/build-p3/bin/clang-wasm.component",
              "--nim-output", root / "nim/work/backend-build/c-backend"], root=root)

@@ -2,3 +2,4 @@
 work/
 include/
 __pycache__/
+wasi-sdk/

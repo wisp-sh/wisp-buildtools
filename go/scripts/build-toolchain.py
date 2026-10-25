@@ -9,6 +9,8 @@ import shutil
 import subprocess
 import tempfile
 
+from wasmbuild.wit_runtime import SUPPORT_ROOT, verified_runtime
+
 GO_VERSION = "go1.27.2"
 SOURCE_SHA256 = "03495da2ba64894d40f5c4992e49454fa78b50690604ff92b6afff5081b76e62"
 
@@ -44,7 +46,8 @@ def main() -> None:
         parser.error(f"output directory is not empty: {destination}")
     destination.mkdir(parents=True, exist_ok=True)
 
-    with tempfile.TemporaryDirectory(prefix="go-wasm-package-") as temporary:
+    runtime_sources = verified_runtime(SUPPORT_ROOT / "wit-runtime")
+    with tempfile.TemporaryDirectory(prefix="go-wasm-package-", dir=destination.parent) as temporary:
         work = Path(temporary)
         cache = args.cache.resolve() if args.cache else work / "gocache"
         cache.mkdir(parents=True, exist_ok=True)
@@ -58,7 +61,7 @@ def main() -> None:
             "CGO_ENABLED": "0",
             "GO111MODULE": "off",
             "GOTOOLCHAIN": "local",
-            "GOMAXPROCS": "2",
+            "GOMAXPROCS": "1",
             "PATH": "/usr/bin:/bin",
             "HOME": str(work),
         }
@@ -70,10 +73,10 @@ def main() -> None:
         bin_dir.mkdir()
         for tool in ("compile", "asm", "link"):
             print(f"building {tool}.wasm", flush=True)
-            run([str(go), "build", "-p", "2", "-trimpath", "-o", str(bin_dir / f"{tool}.wasm"), f"cmd/{tool}"], env)
+            run([str(go), "build", "-p", "1", "-trimpath", "-o", str(bin_dir / f"{tool}.wasm"), f"cmd/{tool}"], env)
 
         # Resolve every standard package during packaging. User builds never call Go.
-        exports = run([str(go), "list", "-p", "2", "-export", "-f",
+        exports = run([str(go), "list", "-p", "1", "-export", "-f",
                        "{{if .Export}}{{.ImportPath}} {{.Export}}{{end}}", "std"], env)
         archive_root = destination / "goroot/pkg/wasip1_wasm"
         names = []
@@ -87,6 +90,10 @@ def main() -> None:
             names.append(name)
         shutil.copytree(root / "pkg/include", destination / "goroot/pkg/include")
         shutil.copyfile(root / "LICENSE", destination / "LICENSE")
+        for name, data in runtime_sources.items():
+            path = destination / "wit-runtime" / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
         (destination / "manifest.toml").write_text(
             f'''[package]
 name = "go/toolchain"
@@ -110,6 +117,7 @@ path = "bin/link.wasm"
 
 [resources]
 goroot = "goroot"
+wit_runtime = "wit-runtime"
 
 [capabilities]
 filesystem = true

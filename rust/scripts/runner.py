@@ -787,19 +787,22 @@ class Builder:
             artifact = self.compile_library(root_id)
         else:
             if self.args.crate_type == 'cdylib':
-                if self.args.entry_path is None or len(library_targets) != 1:
-                    raise BuildError('cdylib needs --entry-path and exactly one ordinary library target')
-                entry = self.args.entry_path.resolve()
-                if not entry.is_file() or not entry.is_relative_to(self.source_manifest.parent):
-                    raise BuildError('--entry-path must be a file inside the source project')
-                target = dict(library_targets[0], src_path=str(entry), name='wisp_component')
+                if len(library_targets) != 1:
+                    raise BuildError('cdylib needs exactly one ordinary library target')
+                target = library_targets[0]
+                self.report['libraryName'] = target['name']
+                if self.args.entry_path is not None:
+                    entry = self.args.entry_path.resolve()
+                    if not entry.is_file() or not entry.is_relative_to(self.source_manifest.parent):
+                        raise BuildError('--entry-path must be a file inside the source project')
+                    target = dict(target, src_path=str(entry), name='wisp_component')
             else:
                 targets = [target for target in root['targets'] if 'bin' in target['kind']]
                 if len(targets) != 1:
                     raise BuildError('expected exactly one application binary target')
                 target = targets[0]
             dependencies = self.dependency_flags(root)
-            if library_targets:
+            if library_targets and (self.args.crate_type != 'cdylib' or self.args.entry_path is not None):
                 library = self.compile_library(root_id)
                 library_target = library_targets[0]
                 dependencies += ['--extern', library_target['name'] + '=' + str(library)]

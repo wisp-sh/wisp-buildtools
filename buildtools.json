@@ -13,6 +13,11 @@
       "sourceInputs": [
         "clang/build-clang-wasi.sh",
         "clang/src/clang_wasm_main.cpp",
+        "clang/target_sdk.py",
+        "llvm/licenses/sdk/receipts.json",
+        "clang/verify_wasi_runtime.py",
+        "clang/examples/wasi-runtime.cpp",
+        "clang/test_target_sdk.py",
         "clang/patches/0001-clang-wasip3-in-process.patch",
         "clang/patches/0002-driverless-clang-wasm.patch",
         "llvm/toolchain.toml",
@@ -44,14 +49,33 @@
       "test": [
         {
           "argv": [
+            "{python}",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "clang",
+            "-p",
+            "test_target_sdk.py"
+          ]
+        },
+        {
+          "argv": [
             "bash",
             "{root}/clang/verify-clang-wasm.sh"
+          ]
+        },
+        {
+          "argv": [
+            "{python}",
+            "{root}/clang/verify_wasi_runtime.py"
           ]
         }
       ],
       "artifacts": [
         "clang/.toolchains/build-p3/bin/clang-wasm.component",
-        "clang/include/stddef.h"
+        "clang/include/stddef.h",
+        "clang/wasi-sdk/manifest.json"
       ],
       "package": {
         "include": [

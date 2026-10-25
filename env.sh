@@ -24,6 +24,14 @@ fi
 export WISP_BOOTSTRAP_WASMTIME="${WISP_BOOTSTRAP_WASMTIME:-$_wisp_bootstrap_runtime}"
 export WISP_LLVM="$_wisp_buildtools_dir/llvm/dist/shared"
 export WISP_CLANG_RESOURCE_DIR="$_wisp_buildtools_dir/clang/include"
+# Release packages contain this SDK subset. Source checkouts can use the pinned
+# bootstrap SDK without making another copy of its headers and static archives.
+_wisp_clang_sdk="$_wisp_buildtools_dir/clang/wasi-sdk"
+if [[ ! -f "$_wisp_clang_sdk/manifest.json" ]]; then
+    _wisp_clang_sdk="$_wisp_buildtools_dir/clang/.toolchains/wasi-sdk-34.0-x86_64-linux"
+fi
+export WISP_CLANG_WASI_SYSROOT="${WISP_CLANG_WASI_SYSROOT:-$_wisp_clang_sdk/share/wasi-sysroot}"
+unset _wisp_clang_sdk
 export WISP_WASMTIME_PYTHON="$_wisp_hosts_dir/wasmtime-python-50.0.1"
 export WISP_CLANG="$_wisp_buildtools_dir/clang/.toolchains/build-p3/bin/clang-wasm.component"
 export WISP_GO_TOOLCHAIN="$_wisp_buildtools_dir/go/dist/go-toolchain-full-1.27.2"

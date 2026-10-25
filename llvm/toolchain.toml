@@ -23,6 +23,7 @@ clang_patches = ["patches/0002-clang-in-process.patch"]
 bootstrap_platform = "linux-x86_64"
 compiler_host_target = "wasm32-wasip3"
 application_target = "wasm32-unknown-unknown"
+application_targets = ["wasm32-unknown-unknown", "wasm32-wasip1"]
 llvm_targets = ["WebAssembly"]
 llvm_projects = ["clang", "lld"]
 llvm_threads = false
@@ -39,6 +40,18 @@ version = "34.0"
 archive = "wasi-sdk-34.0-x86_64-linux.tar.gz"
 url = "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz"
 sha256 = "b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4"
+
+# Runtime subset for Wasm-hosted Clang's --wasi-sysroot mode. This is separate
+# from [sdk], which packages the compiler-host LLVM libraries.
+[application_sdk]
+target = "wasm32-wasip1"
+packager = "../clang/target_sdk.py"
+output = "../clang/wasi-sdk"
+sysroot = "share/wasi-sysroot"
+resource_directory = "lib/clang/23"
+builtins = "lib/clang/23/lib/wasm32-unknown-wasip1/libclang_rt.builtins.a"
+exceptions = false
+native_compiler_fallback = false
 
 [inputs.wasmtime]
 version = "50.0.0"

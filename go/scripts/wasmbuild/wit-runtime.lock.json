@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "module": "go.bytecodealliance.org/pkg",
+  "version": "v0.2.3",
+  "generator": "wit-bindgen-cli 0.61.1",
+  "source": "https://proxy.golang.org/go.bytecodealliance.org/pkg/@v/v0.2.3.zip",
+  "source_sha256": "d4cbea97f18b2afea3f730e917a35b6545f1a1da28ef7397df023998de894ab7",
+  "go_sum": "h1:So9zHg8ahW+TH1JmgBHgIYuKHcinLiEcpV1tqVEZvLA=",
+  "go_mod_sum": "h1:OjA+V8g3uUFixeCKFfamm6sYhTJdg8fvwEdJ2GO0GSk=",
+  "files": {
+    "LICENSE": "a6c48161a09acc75a0e25503bab66a731eb5fba5392ed4bb4743e4ba5085327a",
+    "go.mod": "f2a6e19774697f1e3b69f98bfc23706ea116925b87d50d1f8aaf72887547e659",
+    "wit/async/async.go": "0ab89732e936c9f766ca571e7f56d6406b1fd0a2d28931f5c8d2c86bdedf786b",
+    "wit/async/empty.s": "d156fc8497185571bce9bb8f98974189e986bcd6acda4ec2a607909ec4625963",
+    "wit/runtime/empty.s": "d156fc8497185571bce9bb8f98974189e986bcd6acda4ec2a607909ec4625963",
+    "wit/runtime/runtime.go": "abff1455a417b51e77e83e01da34fe1048330a9fe0e7d607bb5265f2162eb9b5",
+    "wit/types/future.go": "acf7bc853a8e8cd21bbfe9550c2c2ba609787ba44609c58d75e7e75ac0364fce",
+    "wit/types/option.go": "3b009ebb03f82547f1a9d141625895f9035a6b4e9852975f0b4da6af01837b01",
+    "wit/types/result.go": "fe07bb86a71026f9b37212b5e994d837c65cd5cedd86d75cd76ab35ad9c6c539",
+    "wit/types/stream.go": "7e0eb98e7ae6bf5fb500410683a393102aa53879ef493ed14f69d3b589d0e456",
+    "wit/types/tuple.go": "7b812d121557d72c3fa2a5fbb112739ee9df0d20725ec519351b605ac156163d",
+    "wit/types/unit.go": "25709c19244903626b91bc67bc50c320fae8d4484723198c76f501ed079798ad"
+  }
+}

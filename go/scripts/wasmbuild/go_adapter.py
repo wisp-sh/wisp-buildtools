@@ -237,7 +237,11 @@ def construct(root: Path, toolchain: Toolchain, prefix: str,
         dependencies[guest] = Dependency(f"compile:{path}", "archive.a")
     graph.add(Node(
         name="link", tool="link",
-        argv=("-linkmode=internal", "-importcfg", "/build/importcfg",
+        # wit/runtime links runtime.sbrk for canonical allocations before Go
+        # initialization. Only applications using that runtime need this flag.
+        argv=("-linkmode=internal",
+              *(("-checklinkname=0",) if "go.bytecodealliance.org/pkg/wit/runtime" in visited else ()),
+              "-importcfg", "/build/importcfg",
               "-o", "/out/main.wasm", "/build/main.a"),
         environment=GO_ENV.copy(), inputs={"/build/importcfg": importcfg(packagefiles)},
         dependencies=dependencies, outputs={"main.wasm": "/out/main.wasm"},

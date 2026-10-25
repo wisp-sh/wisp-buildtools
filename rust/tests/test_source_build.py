@@ -127,6 +127,86 @@ class SourceBuildTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "already exists"):
             self.package()
 
+    def runner_refresh_fixture(self):
+        self.package()
+        candidate = self.root / "candidate"
+        manifest = json.loads((candidate / "toolchain.json").read_text())
+        manifest["status"] = "standalone-verified"
+        manifest["verification"]["standaloneAcceptancePassed"] = True
+        builder.write_json(candidate / "toolchain.json", manifest)
+        adapter = json.loads((candidate / "runtime-adapter.json").read_text())
+        adapter["status"] = "passed"
+        builder.write_json(candidate / "runtime-adapter.json", adapter)
+        (self.root / "scripts/runner.py").write_text("# refreshed runner fixture\n")
+        return candidate
+
+    def test_refresh_runner_preserves_compiler_sysroot_and_original_recipes(self):
+        candidate = self.runner_refresh_fixture()
+        protected = {path.relative_to(candidate): path.read_bytes() for path in candidate.rglob("*")
+                     if path.is_file() and (path.is_relative_to(candidate / "build")
+                                           or path.name in ("build-driver.py", "source-lock.json", "build-report.json", "source-build.json"))}
+        previous_manifest = builder.digest(candidate / "toolchain.json")
+        previous_runner = builder.digest(candidate / "scripts/runner.py")
+        with patch.object(builder.subprocess, "run", side_effect=AssertionError("refresh executed a tool")), \
+                patch.object(builder.shutil, "copytree", side_effect=AssertionError("refresh copied a toolchain")):
+            result = builder.refresh_runner(candidate)
+        self.assertEqual(result["status"], "refreshed")
+        self.assertEqual((candidate / "scripts/runner.py").read_bytes(), (self.root / "scripts/runner.py").read_bytes())
+        for name, content in protected.items():
+            self.assertEqual((candidate / name).read_bytes(), content, name)
+        manifest = json.loads((candidate / "toolchain.json").read_text())
+        self.assertEqual(manifest["status"], "candidate-unverified")
+        self.assertFalse(manifest["verification"]["standaloneAcceptancePassed"])
+        self.assertEqual(manifest["runner"]["sha256"], builder.digest(candidate / "scripts/runner.py"))
+        receipt_path = candidate / manifest["runnerRefresh"]["path"]
+        self.assertEqual(builder.digest(receipt_path), manifest["runnerRefresh"]["sha256"])
+        receipt = json.loads(receipt_path.read_text())
+        self.assertEqual(receipt["previousManifestSha256"], previous_manifest)
+        self.assertEqual(receipt["previousRunnerSha256"], previous_runner)
+        self.assertEqual(receipt["previousRuntimeAdapter"]["status"], "passed")
+        self.assertEqual(json.loads((candidate / "runtime-adapter.json").read_text())["status"], "pending")
+        before = (candidate / "toolchain.json").read_bytes()
+        self.assertEqual(builder.refresh_runner(candidate)["status"], "unchanged")
+        self.assertEqual((candidate / "toolchain.json").read_bytes(), before)
+
+    def test_refresh_runner_rejects_changed_compiler_sysroot_and_recipes_before_writing(self):
+        candidate = self.runner_refresh_fixture()
+        original_runner = (candidate / "scripts/runner.py").read_bytes()
+        original_manifest = (candidate / "toolchain.json").read_bytes()
+        prefix = candidate / "build/bootstrap"
+        for path in [prefix / "rustc.wasm", next(prefix.glob("sysroot/lib/rustlib/*/lib/libstd-*.rlib")),
+                     candidate / "build-driver.py", candidate / "source-lock.json", candidate / "build-report.json"]:
+            with self.subTest(path=path):
+                content = path.read_bytes()
+                path.write_bytes(content + b" ")
+                with self.assertRaises(ValueError):
+                    builder.refresh_runner(candidate)
+                self.assertEqual((candidate / "scripts/runner.py").read_bytes(), original_runner)
+                self.assertEqual((candidate / "toolchain.json").read_bytes(), original_manifest)
+                path.write_bytes(content)
+        extra = prefix / "unexpected.rlib"
+        extra.write_bytes(b"unexpected input")
+        with self.assertRaisesRegex(ValueError, "differ from inventory"):
+            builder.refresh_runner(candidate)
+        self.assertEqual((candidate / "scripts/runner.py").read_bytes(), original_runner)
+
+    def test_refresh_runner_records_previously_unreceipted_runner_edits(self):
+        candidate = self.runner_refresh_fixture()
+        (candidate / "scripts/runner.py").write_text("# existing local runner update\n")
+        previous_runner = builder.digest(candidate / "scripts/runner.py")
+        result = builder.refresh_runner(candidate)
+        receipt = json.loads(Path(result["receipt"]).read_text())
+        self.assertEqual(receipt["previousRunnerSha256"], previous_runner)
+        self.assertNotEqual(receipt["recordedBuildRunnerSha256"], previous_runner)
+
+    def test_refresh_runner_cli_does_not_require_source_sdk_or_native_tools(self):
+        candidate = self.runner_refresh_fixture()
+        with patch.object(sys, "argv", [str(SCRIPT), "--refresh-runner", "--candidate-out", str(candidate)]), \
+                patch.object(builder, "executable", side_effect=AssertionError("refresh looked up native tools")), \
+                contextlib.redirect_stdout(io.StringIO()) as stdout:
+            self.assertEqual(builder.main(), 0)
+        self.assertEqual(json.loads(stdout.getvalue())["status"], "refreshed")
+
     def prepare_build_outputs(self):
         objects = self.out / "obj"
         compiler = objects / self.lock["compiler_host_target"] / "stage2/bin/rustc.wasm"

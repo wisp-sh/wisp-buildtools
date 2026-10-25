@@ -552,6 +552,113 @@ def package_candidate(source: Path, out: Path, destination: Path, offline: bool)
         stage.rename(destination)
 
 
+def refresh_runner(destination: Path) -> dict:
+    """Update orchestration only, preserving authenticated compiler build inputs."""
+    destination = destination.resolve(strict=True)
+
+    def member(root: Path, name: str) -> Path:
+        relative = Path(name)
+        if relative.is_absolute() or not relative.parts or any(part in (".", "..") for part in relative.parts):
+            raise ValueError(f"unsafe runner refresh input: {name}")
+        path = root / relative
+        if path.is_symlink() or not path.is_file() or not path.resolve().is_relative_to(root):
+            raise ValueError(f"missing or unsafe runner refresh input: {name}")
+        return path
+
+    manifest_path = member(destination, "toolchain.json")
+    manifest = json.loads(manifest_path.read_text())
+    if manifest.get("schemaVersion") != 1 or manifest.get("compilerHost") != "wasm32-wasip3":
+        raise ValueError("runner refresh requires a source-built WASIp3 compiler package")
+    report_path = member(destination, "build-report.json")
+    report = json.loads(report_path.read_text())
+    provenance_path = member(destination, "source-build.json")
+    provenance = json.loads(provenance_path.read_text())
+    report_hash = digest(report_path)
+    if (report.get("schemaVersion") != 1 or report.get("mode") != "build"
+            or report.get("status") != "build-passed" or report.get("compilerBuildCompleted") is not True
+            or report_hash != manifest["compiler"].get("sourceBuildReportSha256")
+            or report_hash != provenance.get("buildReportSha256") or provenance.get("buildReport") != report):
+        raise ValueError("runner refresh compiler build receipt mismatch")
+    recipes = {}
+    for name, field in (("build-driver.py", "buildDriverSha256"), ("source-lock.json", "sourceLockSha256")):
+        actual = digest(member(destination, name))
+        if actual != report.get(field) or actual != provenance.get("buildProvenance", {}).get(name, {}).get("sha256"):
+            raise ValueError(f"runner refresh compiler recipe changed: {name}")
+        recipes[name] = actual
+    for name, expected in manifest.get("licenses", {}).items():
+        if digest(member(destination / "licenses", name)) != expected:
+            raise ValueError(f"runner refresh license changed: {name}")
+    prefix = destination / "build/bootstrap"
+    inventory_path = member(prefix, "SHA256SUMS.json")
+    inventory = json.loads(inventory_path.read_text())
+    if not inventory or len(inventory) > 2048:
+        raise ValueError("runner refresh toolchain inventory size limit")
+    for name, expected in inventory.items():
+        if digest(member(prefix, name)) != expected:
+            raise ValueError(f"runner refresh compiler/sysroot changed: {name}")
+    actual_files = set()
+    for path in prefix.rglob("*"):
+        if path.is_symlink():
+            raise ValueError("runner refresh toolchain contains a symlink")
+        if path.is_file():
+            actual_files.add(path.relative_to(prefix).as_posix())
+    if actual_files != set(inventory) | {"SHA256SUMS.json"}:
+        raise ValueError("runner refresh toolchain files differ from inventory")
+    compiler_name = manifest["compiler"]["module"]
+    compiler_hash = manifest["compiler"]["moduleSha256"]
+    if inventory.get(compiler_name) != compiler_hash or report["compiler"]["sha256"] != compiler_hash:
+        raise ValueError("runner refresh compiler differs from original build")
+    installed_runner = member(destination, "scripts/runner.py")
+    replacement = member(ROOT, "scripts/runner.py").read_bytes()
+    compile(replacement, "scripts/runner.py", "exec")
+    runner_hash = hashlib.sha256(replacement).hexdigest()
+    previous_runner_hash = digest(installed_runner)
+    if runner_hash == previous_runner_hash:
+        return {"status": "unchanged", "runnerSha256": runner_hash, "compilerSha256": compiler_hash}
+    adapter_path = member(destination, "runtime-adapter.json")
+    adapter = json.loads(adapter_path.read_text())
+    if adapter.get("compilerSha256") != compiler_hash:
+        raise ValueError("runner refresh acceptance compiler mismatch")
+    receipt_name = f"verification/runner-refresh-{runner_hash}.json"
+    receipt = {
+        "schemaVersion": 1, "operation": "refresh-runner", "status": "pending-acceptance",
+        "scope": "Runner replaced without rebuilding or rewriting compiler, sysroot, inventory or original build provenance.",
+        "previousManifestSha256": digest(manifest_path),
+        "previousRunnerSha256": previous_runner_hash, "runnerSha256": runner_hash,
+        "recordedBuildRunnerSha256": provenance.get("runnerSha256"),
+        "compilerSha256": compiler_hash, "inventorySha256": digest(inventory_path),
+        "buildReportSha256": report_hash, "sourceBuildSha256": digest(provenance_path),
+        "compilerRecipes": recipes, "refreshDriverSha256": digest(Path(__file__).resolve()),
+        "previousStatus": manifest.get("status"), "previousVerification": manifest.get("verification", {}),
+        "previousRuntimeAdapter": adapter,
+    }
+    manifest["status"] = "candidate-unverified"
+    manifest["verification"] = {"compilerBuildCompleted": True, "deriveAcceptancePassed": False,
+                                "serdeAcceptancePassed": False, "standaloneAcceptancePassed": False,
+                                "firstUsableRelease": False}
+    manifest["runner"] = {"path": "scripts/runner.py", "sha256": runner_hash}
+    # Stage small metadata files beside the package; no compiler or sysroot copies.
+    with tempfile.TemporaryDirectory(prefix=".runner-refresh-", dir=destination) as temporary:
+        stage = Path(temporary)
+        write_json(stage / "receipt.json", receipt)
+        manifest["runnerRefresh"] = {"path": receipt_name, "sha256": digest(stage / "receipt.json")}
+        write_json(stage / "toolchain.json", manifest)
+        write_json(stage / "runtime-adapter.json", {
+            "schemaVersion": 1, "status": "pending", "scope": "Runner refreshed; application acceptance must be rerun.",
+            "compilerSha256": compiler_hash, "runnerSha256": runner_hash,
+            "standaloneCases": [], "receiptFiles": {}, "runnerRefresh": manifest["runnerRefresh"],
+        })
+        (stage / "runner.py").write_bytes(replacement)
+        (stage / "runner.py").chmod(installed_runner.stat().st_mode & 0o777)
+        (destination / "verification").mkdir(exist_ok=True)
+        (stage / "receipt.json").replace(destination / receipt_name)
+        (stage / "runtime-adapter.json").replace(adapter_path)
+        (stage / "runner.py").replace(installed_runner)
+        (stage / "toolchain.json").replace(manifest_path)
+    return {"status": "refreshed", "runnerSha256": runner_hash, "previousRunnerSha256": previous_runner_hash,
+            "compilerSha256": compiler_hash, "receipt": str(destination / receipt_name)}
+
+
 def path_remaps(source: Path, out: Path) -> list[str]:
     # Target flags also apply to stage-0 stdlib builds. Bootstrap's debug-info
     # remapping alone does not cover every metadata artifact we redistribute.
@@ -757,6 +864,7 @@ def main() -> int:
     mode.add_argument("--dry-run", action="store_true", help="compile/run native bootstrap, then x.py build --dry-run")
     mode.add_argument("--build", action="store_true", help="perform the real compiler and sysroot build")
     mode.add_argument("--package", action="store_true", help="package an already successful source build as an unverified candidate")
+    mode.add_argument("--refresh-runner", action="store_true", help="refresh only runner and metadata in --candidate-out after authenticating compiler/sysroot and build provenance")
     parser.add_argument("--source", type=Path, help="defaults to the source revision in source-lock.json")
     parser.add_argument("--out", type=Path, default=ROOT / "build/compiler-source-build-1.99.1")
     parser.add_argument("--wasi-sdk", type=Path, default=ROOT / "downloads/wasi-sdk-34.0-x86_64-linux")
@@ -778,6 +886,9 @@ def main() -> int:
     parser.add_argument("--wasm-opt-timeout", type=int, default=1800)
     parser.add_argument("--offline", action="store_true", help="Cargo registry access disabled; provision locked dependencies and stage0 cache first")
     args = parser.parse_args()
+    if args.refresh_runner:
+        print(json.dumps(refresh_runner(args.candidate_out), indent=2))
+        return 0
     if platform.system() != "Linux" or platform.machine() not in ("x86_64", "AMD64"):
         raise ValueError("this source lock currently provisions Linux x86_64 bootstrap tools only")
     lock_path = ROOT / "source-lock.json"

@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <sys/stat.h>
 
 LLD_HAS_DRIVER(wasm)
 
@@ -24,6 +25,7 @@ int main(int argc, char **argv) {
   const char *optimization = "-O0";
   std::vector<const char *> includes;
   std::vector<const char *> definitions;
+  std::vector<const char *> linkObjects;
   const char *standard = nullptr;
   std::string sysroot;
   for (int i = 1; i < argc; ++i) {
@@ -44,6 +46,15 @@ int main(int argc, char **argv) {
       standard = argv[i];
     } else if (arg == "--wasi-sysroot" && i + 1 < argc) {
       sysroot = argv[++i];
+    } else if (arg == "--link-object" && i + 1 < argc) {
+      const char *path = argv[++i];
+      struct stat info;
+      if (!llvm::StringRef(path).ends_with(".o") || stat(path, &info) != 0 ||
+          !S_ISREG(info.st_mode)) {
+        llvm::errs() << "clang-wasm: --link-object requires a regular .o file: " << path << '\n';
+        return 2;
+      }
+      linkObjects.push_back(path);
     } else if (!arg.starts_with("-") && !input) {
       input = argv[i];
     } else {
@@ -52,7 +63,7 @@ int main(int argc, char **argv) {
     }
   }
   if (!input || !output) {
-    llvm::errs() << "usage: clang-wasm input.cpp -o output.wasm [-O0|-O1] [-I dir] [-D name[=value]] [-std=standard] [--wasi-sysroot dir]\n";
+    llvm::errs() << "usage: clang-wasm input.cpp -o output.wasm [-O0|-O1] [-I dir] [-D name[=value]] [-std=standard] [--wasi-sysroot dir] [--link-object file.o ...]\n";
     return 2;
   }
 
@@ -69,11 +80,16 @@ int main(int argc, char **argv) {
   const std::string targetIncludes = sysroot + "/include/wasm32-wasip1";
   const std::string commonIncludes = sysroot + "/include";
   const std::string cppIncludes = sysroot + "/include/wasm32-wasip1/noeh/c++/v1";
+  const std::string resourceIncludes = sysroot + "/../../lib/clang/23/include";
   if (!sysroot.empty()) {
     if (!isC) {
       args.push_back("-isystem");
       args.push_back(cppIncludes.c_str());
     }
+    // -nobuiltininc prevents bootstrap-host paths from leaking into the guest.
+    // Use the resource headers shipped beside this authenticated target sysroot.
+    args.push_back("-isystem");
+    args.push_back(resourceIncludes.c_str());
     args.push_back("-isystem");
     args.push_back(targetIncludes.c_str());
     args.push_back("-isystem");
@@ -108,8 +124,10 @@ int main(int argc, char **argv) {
 
   std::vector<std::string> linkStorage = {"wasm-ld", "--no-entry", "--export-all",
                                          object, "-o", output};
+  for (const char *path : linkObjects) linkStorage.push_back(path);
   if (!sysroot.empty()) {
     const std::string library = sysroot + "/lib/wasm32-wasip1";
+    linkStorage.push_back("--export=_initialize");
     linkStorage.push_back(library + "/crt1-reactor.o");
     linkStorage.push_back("-L" + library);
     if (!isC) {
