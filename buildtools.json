@@ -510,6 +510,47 @@
             "{python}",
             "{root}/python/verify.py"
           ]
+        },
+        {
+          "argv": [
+            "{python}",
+            "{root}/python/bootstrap_contract.py",
+            "--wit", "{root}/python/examples/library/library.wit",
+            "--world", "library",
+            "--preload-module", "html.parser",
+            "--preload-module", "xml.etree.ElementTree",
+            "--preload-module", "logging",
+            "--preload-module", "typing",
+            "--preload-module", "importlib"
+          ]
+        },
+        {
+          "argv": [
+            "{python}",
+            "{root}/python/verify_contract.py",
+            "--verify-preloads"
+          ]
+        },
+        {
+          "argv": [
+            "{python}",
+            "{root}/python/verify_packages.py"
+          ]
+        },
+        {
+          "argv": [
+            "{python}",
+            "{root}/python/bootstrap_contract.py",
+            "--wit", "{root}/python/examples/root/library.wit",
+            "--world", "library"
+          ]
+        },
+        {
+          "argv": [
+            "{python}",
+            "{root}/python/verify_contract.py",
+            "--example", "root"
+          ]
         }
       ],
       "artifacts": [

@@ -42,6 +42,7 @@ jobs:
           python3 test-build.py
           python3 test-cwasm.py
           python3 javascript/test_bootstrap.py
+          python3 -m unittest discover -s python -p 'test_*.py'
           python3 test-ci.py
           python3 test-ci-package.py
           python3 test-prerequisites.py

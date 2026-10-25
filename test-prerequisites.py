@@ -350,6 +350,8 @@ class ClangCompilerCacheConfigurationTests(unittest.TestCase):
                     path.chmod(0o755)
 
                 executable(commands / "sha256sum", "import sys\nsys.stdin.read()\n")
+                sdk_log = root / "sdk-package.json"
+                executable(root / "target_sdk.py", "import json,sys\nfrom pathlib import Path\nPath(__file__).with_name('sdk-package.json').write_text(json.dumps(sys.argv[1:]))\n")
                 log = root / "cmake.jsonl"
                 executable(commands / "cmake", "import json,os,sys\nwith open(os.environ['CMAKE_LOG'], 'a') as log:\n log.write(json.dumps({'args': sys.argv[1:], 'status': os.environ['NINJA_STATUS']}) + '\\n')\n")
                 if available:
@@ -375,6 +377,7 @@ class ClangCompilerCacheConfigurationTests(unittest.TestCase):
                 result = subprocess.run([shutil.which("bash"), str(root / "build-clang-wasi.sh")],
                                         env=environment, capture_output=True, text=True)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(json.loads(sdk_log.read_text()), ["package"])
                 invocations = [json.loads(line) for line in log.read_text().splitlines()]
                 configurations = [item for item in invocations if "--fresh" in item["args"]]
                 self.assertEqual(len(configurations), 2)

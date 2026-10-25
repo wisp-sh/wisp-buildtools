@@ -276,6 +276,21 @@ class ContainerTests(unittest.TestCase):
                         self.package()
                 unrelated.unlink()
 
+    def test_contract_template_upstream_paths_are_scoped(self):
+        relative = "python/dist/contracts/" + "a" * 64 + "/template.component.wasm"
+        public = packages.PUBLIC_UPSTREAM_STRINGS["python/dist/template.component.wasm"][0]
+        path = self.root / relative
+        path.parent.mkdir(parents=True)
+        self.document["tools"]["compiler"]["package"]["include"].append(relative)
+        with mock.patch.object(packages.Path, "home", return_value=Path("/home/runner")):
+            path.write_bytes(COMPONENT + public)
+            self.package()
+            path.write_bytes(COMPONENT + public + b"/home/runner/private.py\0")
+            with self.assertRaisesRegex(ValueError, "build-machine path"):
+                self.package()
+        self.assertEqual(packages.public_upstream_strings(relative.replace("a" * 64, "invalid")), ())
+        self.assertEqual(packages.public_upstream_strings(relative.replace("template.component.wasm", "other.wasm")), ())
+
     def test_short_inputs_are_also_checked_for_private_paths(self):
         path = self.root / "compiler/dist/compile.py"
         path.write_bytes(b"/u/leak")

@@ -17,15 +17,17 @@ import stat
 import sys
 import tarfile
 import tempfile
+import tomllib
 
 ROOT = Path(__file__).resolve().parent.parent
 SDK = "llvm/artifacts/llvm-24-d297af3-wasip3-o1"
 NATIVE_SDK = "clang/.toolchains/wasi-sdk-34.0-x86_64-linux"
+APPLICATION_SDK = "clang/wasi-sdk"
 WASM_TOOLS = "clang/.toolchains/wasm-tools-1.262.0-x86_64-linux"
 HOST = ".ci/hosts/wisp-wasmtime-50.0.0"
 PAYLOAD_PATHS = (
     SDK, "llvm/dist/shared", "clang/.toolchains/build-p3/bin/clang-wasm.component",
-    "clang/include", "nim/work/backend-build/c-backend", "build/receipts/clang/build.json",
+    "clang/include", APPLICATION_SDK, "nim/work/backend-build/c-backend", "build/receipts/clang/build.json",
     "clang/.toolchains/llvm-project/LICENSE.TXT", NATIVE_SDK, WASM_TOOLS, HOST,
 )
 INPUT_PATHS = (
@@ -159,6 +161,8 @@ def load_helper(path: Path, name: str):
 def validate_outputs(root: Path) -> dict:
     """Check SDK, split-module and native-tool contracts without rebuilding tools."""
     root = Path(root)
+    pin = tomllib.loads((root / "llvm/toolchain.toml").read_text())["inputs"]["wasi_sdk"]
+    load_helper(root / "clang/target_sdk.py", "ci_clang_target_sdk").verify(root / APPLICATION_SDK, pin)
     recipe = read_json((root / "buildtools.json").read_bytes())["tools"]["clang"]
     sdk = load_helper(root / "llvm/scripts/sdk.py", "ci_llvm_sdk").verify(root / SDK)
     metadata = read_json((root / SDK / "share/llvm/sdk.json").read_bytes())

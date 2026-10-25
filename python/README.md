@@ -144,3 +144,138 @@ See the [componentize-py 0.25.1 source](https://github.com/bytecodealliance/comp
 and its [documented import limitation](https://github.com/bytecodealliance/componentize-py/tree/v0.25.1#known-limitations).
 The wrapper uses the Apache 2.0 license in `LICENSE`; the bundled CPython uses
 the notices in `LICENSE.python`. Bootstrap includes both in the distribution.
+
+## Libraries with an authored WIT contract
+
+The additive contract adapter supports multiple named exports, synchronous
+scalar values, strings, lists, records, options, tuples, enums, flags, variants
+and typed results through componentize-py's generated bindings. It requires a
+separate reusable compiler template for each public API. The original scalar
+adapter and `--entry` remain available when `--wit` is omitted.
+
+Provision a template once, during toolchain setup:
+
+```sh
+python3 bootstrap_contract.py --wit examples/library/library.wit --world library
+```
+
+This step uses the pinned native componentize-py, Binaryen and WAC tools recorded
+in `toolchain.lock.json`, plus Cargo with the WASIp1 target. It reads the contract and generates the runtime
+wrapper. It never reads application source. Like the base bootstrap, this can
+require substantial memory and disk space. Use a host with sufficient capacity.
+Templates are stored under `dist/contracts/<contract-sha256>/`; package bundles
+include provisioned templates. Generate a new template whenever the public API
+changes. Application implementations can change without rebuilding the template.
+
+The template snapshots imported modules; it does not provide every CPython
+stdlib module for later dynamic imports. Provision additional stdlib dependencies
+explicitly, including modules a library imports dynamically:
+
+```sh
+python3 bootstrap_contract.py --wit library.wit --world library \
+  --preload-module html.parser --preload-module xml.etree.ElementTree \
+  --preload-module logging --preload-module typing
+```
+
+These imports run in guest CPython during provisioning and include their transitive
+imports. The manifest records the sorted, deduplicated list as `preloadModules`.
+Changing the list for an existing contract requires `--rebuild`. Bundle application
+and third-party source separately; omit preloaded stdlib source. Application builds
+never provision templates and retain the 1 MiB source-bundle limit.
+
+Build the example against its template:
+
+```sh
+python3 compile.py examples/library/main.py \
+  --wit examples/library/library.wit --world library -o build/library.wasm
+wasmtime run --invoke 'greet("世界")' build/library.wasm
+wasmtime run --invoke 'total([20,22])' build/library.wasm
+wasmtime run --invoke 'checked(-1)' build/library.wasm
+```
+
+The source defines ordinary `greet`, `total`, `birthday` and `checked` functions.
+WIT kebab-case function names become Python snake_case names. Alternatively,
+define an interface implementation class with the name shown by the generated
+bindings, such as `class Api`, to keep per-interface instance state. Root exports
+can use ordinary functions or a `class WitWorld` implementation. Each source
+module initializes once per Component instance. Class constructors run once.
+
+Records use the generated dataclasses, such as
+`from wit_world.exports.api import Person`. Those modules are already available
+inside the template. For `result<T, E>`, return the success value directly or
+raise `componentize_py_types.Err(error_value)` for the typed failure. An ordinary
+Python exception traps; it is not silently converted into a declared error.
+The `wit_world` directory and `componentize_py_types.py` beside each provisioned
+template can also supply editor types.
+
+Source compilation and initialization, export signature checks, source-provider
+replacement, final export projection and Component validation run inside Wasm.
+The temporary `wisp-python-validate` export checks all required functions before
+publication and is removed from the finished Component. Failed builds preserve
+an existing output. The build prints a receipt with source, contract, template
+manifest and Component hashes.
+
+This contract path supports an import-free, synchronous WIT world. Resources, handles, futures, streams, inline interfaces
+and world-level type exports are rejected. Export type declarations should live
+in named interfaces. The aggregate Python source bundle, including its loader, and the finished
+Component retain the 1 MiB and 16 MiB limits. Standard-library imports retain
+the base runtime preinitialization limits. Local and vendored pure Python
+modules can be bundled as described below.
+
+Run focused checks without provisioning new templates:
+
+```sh
+python3 -m unittest discover -s python -p 'test_*.py'
+python3 python/verify_contract.py
+cargo test --manifest-path python/contract-packager/Cargo.toml --locked -j 1
+```
+
+The root-export example additionally checks a zero-argument boolean function,
+byte buffers and optional Unicode strings:
+
+```sh
+python3 python/bootstrap_contract.py --wit python/examples/root/library.wit --world library
+python3 python/verify_contract.py --example root
+```
+
+## Local modules and pure Python packages
+
+New contract templates load bundled Python modules inside guest CPython.
+Regular packages, relative imports, namespace packages, circular imports,
+function-local imports and module state follow Python import behavior.
+Entrypoints execute as named modules, so decorators such as `dataclass` can
+find their defining module in `sys.modules`.
+
+Select the directory containing the top-level packages with `--package-root`.
+Supply extra directories of already vendored pure Python dependencies with
+repeatable `--python-path` arguments. These roots must be separate directories.
+No dependency resolver or package installer runs during a build.
+
+```sh
+python3 python/bootstrap_contract.py --wit python/examples/packages/library.wit --world library --rebuild
+python3 python/compile.py python/examples/packages/src/calculator/api.py \
+  --package-root python/examples/packages/src \
+  --python-path python/examples/packages/deps \
+  --wit python/examples/packages/library.wit --world library -o out/python-packages.wasm
+python3 python/verify_packages.py
+```
+
+Without `--package-root`, a new template bundles the entrypoint's directory,
+including its surrounding regular package when it has `__init__.py` files.
+Use an explicit root for namespace packages or a wider application source tree.
+Every `.py` file under each root is included and hashed, with generated caches,
+build outputs and package metadata directories excluded. The receipt records
+all input hashes, the entry module and the final source-bundle hash. Application
+source is never imported or parsed on the host.
+
+Older contract templates keep their single-file behavior. Upgrade one with
+`bootstrap_contract.py --rebuild` to enable module imports. Rebuilding provisions
+a fresh runtime template before replacing the previous one. Later changes to
+application modules require only a normal build. The original scalar adapter
+continues to support its existing single-file API.
+
+Native extensions, symlinks, overlapping roots and conflicting module names
+are rejected. Names reserved by the runtime, or names that shadow a preinitialized
+runtime module, also receive an error. Package data files, installed-distribution
+metadata and arbitrary filesystem imports are not bundled. A pure Python package
+must use the preinitialized standard-library modules supported by the runtime.

@@ -1,0 +1,7 @@
+package demo:python-root@0.1.0;
+
+world library {
+  export is-ready: func() -> bool;
+  export echo-bytes: func(value: list<u8>) -> list<u8>;
+  export maybe: func(value: option<string>) -> option<string>;
+}

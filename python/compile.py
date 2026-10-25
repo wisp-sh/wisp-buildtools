@@ -17,6 +17,11 @@ def main():
     parser.add_argument("source", type=Path)
     parser.add_argument("-o", "--output", required=True, type=Path)
     parser.add_argument("--entry", default="add", help="Python callable to expose through the fixed add export")
+    parser.add_argument("--wit", type=Path, help="authored WIT contract with a provisioned runtime template")
+    parser.add_argument("--world", help="world selected from --wit")
+    parser.add_argument("--package-root", type=Path, help="root for local Python imports, requires --wit")
+    parser.add_argument("--python-path", type=Path, action="append", default=[],
+                        help="additional directory of vendored pure Python modules, repeatable; requires --wit")
     parser.add_argument("--timeout", type=float, default=30,
                         help="seconds allowed for guest source initialization, default 30")
     args = parser.parse_args()
@@ -28,10 +33,19 @@ def main():
     output = args.output.absolute()
     if source == output.resolve():
         raise ValueError("output cannot overwrite Python source")
-    source_bytes = source.read_bytes()
-    source_bytes.decode("utf-8", errors="strict")
+    with source.open("rb") as stream:
+        source_bytes = stream.read(1024 * 1024 + 1)
     if len(source_bytes) > 1024 * 1024:
         raise ValueError("Python source exceeds the initial 1 MiB source limit")
+    source_bytes.decode("utf-8", errors="strict")
+    if args.wit:
+        from compile_contract import compile_contract
+        compile_contract(args, source, output)
+        return
+    if args.package_root or args.python_path:
+        raise ValueError("--package-root and --python-path require --wit")
+    if args.world:
+        raise ValueError("--world requires --wit")
     dist = ROOT / "dist"
     if not verified_package(dist):
         raise ValueError("Python toolchain is missing or changed; run python3 bootstrap.py")

@@ -72,6 +72,8 @@ PUBLIC_UPSTREAM_STRINGS = {
 
 def public_upstream_strings(relative):
     values = PUBLIC_UPSTREAM_STRINGS.get(relative, ())
+    if re.fullmatch(r'python/dist/contracts/[a-f0-9]{64}/template.component.wasm', relative):
+        values += PUBLIC_UPSTREAM_STRINGS['python/dist/template.component.wasm']
     # Pinned Rust stdlib metadata includes this complete env::join_paths
     # documentation example. The trailing byte is rustc's string delimiter.
     if re.fullmatch(r'rust/dist/compiler/build/bootstrap/sysroot/lib/rustlib/'

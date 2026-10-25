@@ -71,6 +71,8 @@ class LLVMArchiveTests(unittest.TestCase):
         self.write("llvm/dist/shared/lib/llvm24.so.wasm", b"\0asm\x01\0\0\0")
         self.write(CLANG, COMPONENT)
         self.write("clang/include/stddef.h", "fixture resource header\n")
+        self.write("clang/wasi-sdk/manifest.json", '{"schema":1,"fixture":true}\n')
+        self.write("clang/wasi-sdk/share/wasi-sysroot/include/stdio.h", "fixture target SDK header\n")
         self.write(NIM, COMPONENT)
         self.write("clang/.toolchains/llvm-project/LICENSE.TXT", "LLVM fixture license\n")
         self.write(f"{NATIVE_SDK}/bin/clang", "fixture native compiler\n", executable=True)
@@ -145,6 +147,8 @@ class LLVMArchiveTests(unittest.TestCase):
                     self.assertTrue(restored.is_dir())
         self.assertEqual((self.consumer / NATIVE_SDK / "bin/clang++").read_bytes(), b"fixture native compiler\n")
         self.assertTrue((self.consumer / ".ci/llvm-bootstrap.json").is_file())
+        self.assertEqual((self.consumer / "clang/wasi-sdk/share/wasi-sysroot/include/stdio.h").read_text(),
+                         "fixture target SDK header\n")
 
     def test_cache_key_is_relocatable_and_changes_for_source_pins_and_recipes(self):
         expected = llvm_ci.cache_key(self.producer)

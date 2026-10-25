@@ -1,0 +1,11 @@
+package demo:python-library@0.1.0;
+
+interface api {
+  record person { name: string, age: u32 }
+  greet: func(name: string) -> string;
+  total: func(values: list<s32>) -> s64;
+  birthday: func(value: person) -> person;
+  checked: func(value: s32) -> result<s32, string>;
+}
+
+world library { export api; }

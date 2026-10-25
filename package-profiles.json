@@ -857,9 +857,16 @@
         "python/dist/runtime",
         "python/dist/licenses",
         "python/runtime",
-        "python/wit"
+        "python/wit",
+        "python/bootstrap_contract.py",
+        "python/compile_contract.py",
+        "python/contract-packager/Cargo.toml",
+        "python/contract-packager/Cargo.lock",
+        "python/contract-packager/src"
       ],
-      "optional": [],
+      "optional": [
+        "python/dist/contracts"
+      ],
       "exclude": [],
       "entrypoints": [
         {
@@ -895,6 +902,10 @@
         }
       ],
       "roles": [
+        {
+          "pattern": "python/dist/contracts/*/template.component.wasm",
+          "role": "runtime"
+        },
         {
           "pattern": "*/licenses/*",
           "role": "licenses"
