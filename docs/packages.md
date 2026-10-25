@@ -30,6 +30,7 @@ requirements with an exact package version:
 | Swift | llvm-swift, the backend profile bound to its compiler and linker images; wasm-tools for Components |
 | JavaScript / TypeScript | wasm-tools |
 | Python | wasm-tools |
+| C# | wasm-tools |
 | Grain | wasm-tools |
 | Java, Kotlin | jvm and teavm |
 | TeaVM | jvm and wasm-tools |
@@ -56,6 +57,11 @@ shared bytecode compiler and portable Java API SDK. It runs inside the same gues
 to produce standalone WASI applications. JDK module images and compiler JARs are
 support bytes in format accounting; their inventory roles identify library and
 compiler contents. Native Java is used only while bootstrapping these packages.
+
+C# runs Roslyn assemblies inside Mono WASI. Its managed compiler/BCL and reference
+assemblies are support bytes stored in a verified ZIP, like JVM compiler JARs.
+The output runtime template is data for the Wasm-hosted packager, not a compiler
+entrypoint. Native .NET and WASI SDK tools are bootstrap-only.
 
 Wisp owns Wasmtime executables and Python bindings. Compiler bundles contain no
 Wasmtime engine. Select the hosts with `WISP_WASMTIME`, `WISP_RUST_WASMTIME` and
@@ -126,7 +132,7 @@ The tested execution hosts currently run on Linux x86_64.
 | Clang, LLVM, Nim, Zig | Wisp Wasmtime 50.0.0 with WASI Preview 3 and external core-module imports. |
 | Rust | Wasmtime 50 with WASIp3 component support. |
 | AssemblyScript | External Wasmtime Python bindings 50.0.1 for compiler callbacks. |
-| Go, JavaScript, Python, wasm-tools | External Wasmtime 50.0.0. |
+| Go, JavaScript, Python, C#, wasm-tools | External Wasmtime 50.0.0. |
 | Grain | External Wasmtime 50.0.0; QuickJS, the Grain compiler and its backend execute inside Wasm. |
 | Swift | External Wasmtime Python bindings 50.0.1 for compiler/backend linking; the shared wasm-tools package uses the CLI host for Components. |
 | Java, Kotlin, TeaVM, JVM | External Wasmtime 50.0.0 with WASI Preview 1, Wasm tail calls and exceptions. |

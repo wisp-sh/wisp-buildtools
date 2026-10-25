@@ -20,7 +20,7 @@ import urllib.request
 ROOT = Path(__file__).resolve().parents[1]
 LOCK = json.loads((ROOT / "tools/ci-tools.lock.json").read_text())
 TOOLS = ("clang", "go", "grain", "ocaml", "goose", "llvm", "rust", "zig", "assemblyscript", "nim",
-         "javascript", "python", "wasm-tools", "swift", "llvm-swift", "jvm", "teavm", "java", "kotlin")
+         "javascript", "python", "wasm-tools", "swift", "llvm-swift", "jvm", "teavm", "java", "kotlin", "csharp")
 SHARED_LLVM_CONSUMERS = ("clang", "llvm", "zig", "nim", "ocaml", "goose", "teavm", "java", "kotlin")
 SHARED_RUST_CONSUMERS = ("rust",)
 CACHE = ROOT / ".ci/downloads"
@@ -39,6 +39,7 @@ def requirements(tool: str) -> list[str]:
     selected += {
         "go": ["go-1.27.2"],
         "grain": ["wasi-sdk-34"],
+        "csharp": ["wasi-sdk-34"],
         "ocaml": ["wasi-sdk-34"],
         "goose": ["wasi-sdk-34"],
         **{name: ["wasi-sdk-34"] for name in ("jvm", "teavm", "java", "kotlin")},
@@ -240,6 +241,8 @@ def install_for(tool: str) -> dict:
         environment["WISP_OCAML_WASI_SDK"] = str(binaries["wasi-sdk-34"].parents[1])
     if tool == "grain":
         environment["WISP_GRAIN_WASI_SDK"] = str(binaries["wasi-sdk-34"].parents[1])
+    if tool == "csharp":
+        environment["WISP_CSHARP_WASI_SDK"] = str(binaries["wasi-sdk-34"].parents[1])
     if tool in ("jvm", "teavm", "java", "kotlin"):
         environment["WISP_JVM_WASI_SDK"] = str(binaries["wasi-sdk-34"].parents[1])
     if tool == "javascript":

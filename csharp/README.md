@@ -1,106 +1,112 @@
-# C# feasibility
+# C#
 
-Status: experimental design only. No C# compiler package, build adapter or
-verified Component exists yet. `python3 build.py build|test|package csharp` is
-not implemented. Bootstrap was deferred because this host cannot preserve the
-required disk reserve. Wisp integration must wait for a verified scalar MVP.
+Experimental scalar adapter. Roslyn 4.8.0 compiles C# to IL inside the .NET 8.0.0
+Mono WASI interpreter. The same Wasm guest embeds the emitted IL into a fixed
+Mono reactor; the shared Wasm `wasm-tools` guest assembles the authored WIT
+Component. Application builds require Python and Wasmtime, with no native .NET
+compiler, NativeAOT, SDK project build or native application relinking.
 
-## Decision
+## Why this approach
 
-Pursue Roslyn running on the .NET 8 Mono WASI interpreter, with a second Mono
-interpreter embedded in each output Component. This satisfies the Wasm-hosted
-source-build rule by design, but Roslyn compatibility and Component packaging
-still need an executable proof.
-
-The [.NET 8 WASI documentation](https://github.com/dotnet/runtime/blob/v8.0.0/src/mono/wasi/README.md)
-describes an IL interpreter. The
-[runtime driver](https://github.com/dotnet/runtime/blob/v8.0.21/src/mono/wasi/runtime/driver.c)
-initializes that interpreter and provides assembly registration, lookup and
-managed method invocation. These are useful building blocks, not evidence that
-Roslyn already works in WASI. The .NET 8 `wasi-experimental` workload is a
-prototype; [the .NET 9 workload rejects this target](https://github.com/dotnet/runtime/issues/114236).
-Do not assume a newer SDK is a compatible replacement.
-
-Native .NET and a native WASI SDK may bootstrap a fixed compiler guest and a
-fixed output runtime. Application builds must then run Roslyn's managed APIs
-inside Wasm to emit IL, embed that IL and its managed dependencies using a Wasm
-packager or Wasm-hosted linker, and assemble/validate the Component with the
-shared Wasm `wasm-tools`. Python only orchestrates those guests and file I/O.
-Native `dotnet build`, `csc`, ILLink, NativeAOT and native relinking of an
-application are outside that boundary. A normal workload publish of each user
-project would therefore be insufficient.
+Mono WASI can interpret IL and register bundled assemblies. This keeps ordinary
+C# source compilation inside Wasm and allows managed language features to remain
+ordinary IL. Native tools bootstrap the fixed compiler guest and runtime only.
+The [upstream driver](https://github.com/dotnet/runtime/blob/v8.0.0/src/mono/wasi/runtime/driver.c)
+provides assembly registration and managed invocation. This is an interpreter
+route, similar to JavaScript's embedded QuickJS runtime.
 
 [componentize-dotnet](https://github.com/bytecodealliance/componentize-dotnet)
-already supplies WIT bindings and AOT Components, but its native application
-compiler conflicts with this rule. It is the best compromise if native source
-builds are ever allowed, not a fallback for this adapter. Porting NativeAOT-LLVM
-itself into Wasm would require a much larger compiler effort. Browser Mono can
-also interpret IL, but would need its JavaScript host services replaced for a
-standalone WASI compiler. Mono WASI starts closer to the required host.
+provides upstream WIT bindings and AOT Components, but its native application
+compiler conflicts with Wisp's source-build rule. Porting NativeAOT-LLVM into
+Wasm would be a much larger project. Browser Mono supplies an interpreter too,
+but requires JavaScript host services absent from a standalone WASI host.
 
-## Tradeoffs and intended scope
+The .NET 8 [WASI workload is an unsupported prototype](https://github.com/dotnet/runtime/blob/v8.0.0/src/mono/wasi/README.md),
+and [.NET 9 rejects the workload](https://github.com/dotnet/runtime/issues/114236).
+The pinned stack is deliberate. It is not a promise of compatibility with newer
+.NET SDKs or the full .NET ecosystem.
 
-Expect startup work for runtime initialization, assembly loading and Roslyn
-metadata loading. Each output carries Mono plus a managed framework subset and
-application IL, so even `Add` will be much larger than a scalar C Component.
-Execution uses an interpreter. Startup, peak memory and Component sizes are
-unmeasured; no performance or size claim is established.
+The WASI crypto assembly throws even for hash algorithm names. Roslyn needs
+hashing during emission, so the compiler's managed closure uses the matching
+browser runtime's crypto assembly and its managed SHA implementations. The
+output runtime keeps the WASI BCL. This does not provide general browser services
+or cryptography to applications.
 
-The first contract is an authored root export `add(s32, s32) -> s32` mapped to
-an ordinary public static `Calculator.Add(int, int)`. The input files are
-[examples/add.cs](examples/add.cs) and [examples/add.wit](examples/add.wit).
-They are acceptance inputs, not verified runnable examples. Initialize the
-runtime once per Component instance, load the embedded IL, validate the exact
-method signature, invoke it and unbox the signed 32-bit result. A trap must
-report managed failures rather than silently returning a scalar default.
+Every Component includes Mono and its untrimmed managed BCL closure. The scalar
+example is about 22 MiB. Runtime initialization, assembly loading and interpreted
+execution cost more than a small native-to-Wasm scalar library. No startup or
+throughput target is claimed. Reflection metadata remains available; trimming
+against only a bootstrap launcher would remove APIs needed by future user IL.
 
-Limit initial source builds to local C# files and explicitly supplied compatible
-managed assemblies. Disable Roslyn concurrent compilation and compiler-server
-use. No MSBuild project evaluation, NuGet restore, analyzers or source generators
-are promised. Reflection needs retained metadata; trimming a fixed runtime
-against only the bootstrap launcher can remove APIs needed by future user IL.
-Keep the compiler metadata/reference assemblies separate from executable BCL
-assemblies. General NuGet compatibility does not follow from Roslyn support.
-Native extensions, P/Invoke, OS processes, threads, networking, general WIT
-objects/strings/resources and async contracts require separate work.
+## Build and use
 
-## Validation gates before registration
+```sh
+export WISP_WASMTIME=/absolute/path/to/wasmtime
+export WISP_CWASM_RUNTIME="$WISP_WASMTIME"
+# Optional existing native SDK, used only by bootstrap:
+export WISP_CSHARP_WASI_SDK=/absolute/path/to/wasi-sdk-34.0-x86_64-linux
+python3 build.py build csharp --jobs 1
+python3 build.py test csharp --jobs 1
+python3 build.py package csharp --jobs 1
 
-1. Pin an SDK, workload packs, Roslyn, reference assemblies, runtime sources,
-   licenses and any bootstrap SDK archives by version and SHA-256. Record the
-   resulting guests and runtime payload in an integrity manifest. No compiler
-   artifacts were downloaded or checksums invented during this assessment.
-2. Bootstrap a compiler guest with native tools, then compile `examples/add.cs`
-   and a deliberate syntax error with only Wasmtime available to the adapter.
-   This must exercise Roslyn and produce a real managed PE assembly.
-3. Embed the emitted IL in a standalone runtime without native application
-   compilation or relinking. Prove that a library reactor can initialize and
-   invoke managed methods without a command `_start` or external DLL preopens.
-4. Assemble the authored WIT Component entirely through Wasm stages. Verify
-   `wasmtime run --invoke 'add(20,22)' add.component.wasm` prints `42`, test
-   negative values, repeated calls, mismatched signatures and managed failures.
-5. Add `bootstrap.py`, `compile.py`, `verify.py`, checksums and entries in
-   `toolchains.json`, `buildtools.json` and `package-profiles.json`. Test build,
-   verification, packaging and an installed package with native compilers absent.
-   Only then add the Wisp adapter in a separate Wisp worktree.
+python3 csharp/compile.py csharp/examples/add.cs \
+  --wit csharp/examples/add.wit --world calculator -o build/add.component.wasm
+"$WISP_WASMTIME" run --invoke 'add(20,22)' build/add.component.wasm
+# 42
+```
 
-## Resource gate recorded on 2026-10-25
+`bootstrap.py` downloads versioned, SHA-256-pinned artifacts into `.toolchains`.
+Without `WISP_CSHARP_WASI_SDK`, it also downloads the pinned native WASI SDK.
+Use `--offline` for cached inputs, `--check` to verify an existing distribution,
+or `--rebuild` to rebuild. A native .NET SDK/workload installation is unnecessary;
+bootstrap uses the pinned SDK directly, without MSBuild restore or NuGet restore.
+`dist/manifest.json` records input, guest and managed assembly checksums.
 
-`free -h` reported 14 GiB RAM, 12 GiB available and 2.9 GiB of 4 GiB swap used.
-`vmstat 1 3` showed no swap activity in the two live samples. The shared agent
-cgroup had an 11,872,866,304-byte memory limit. No compiler build process was
-observed. `df -i` reported 28% inode use. `findmnt -T` confirmed this checkout
-and the home cache use disk-backed ext4; `/tmp` is tmpfs and must not hold builds.
+The managed compiler and framework assemblies are interpreter data distributed
+in `assemblies.zip`. Python unpacks verified bytes into the build's disk-backed
+scratch directory. Roslyn emits a real managed PE assembly in Wasm and writes it
+to a reserved 1 MiB data slot in the fixed reactor. This packaging step runs in
+Wasm too. It does not parse C# or replace source expressions on the host.
 
-The exact disk sample was 6,061,006,848 available bytes. Reserving 5 GiB leaves
-692,297,728 bytes for all job growth. As a baseline capacity probe, the official
-[SDK 8.0.100 archive](https://dotnetcli.blob.core.windows.net/dotnet/Sdk/8.0.100/dotnet-sdk-8.0.100-linux-x64.tar.gz)
-has a 214,395,068-byte Content-Length and its gzip trailer reports 587,776,000
-uncompressed tar bytes. A retained archive plus that uncompressed stream already
-budgets 802,171,068 bytes, before workload packs, Roslyn, caches or build outputs.
-This is not a measured complete installation size or a selected release pin.
-Only HTTP headers and four trailer bytes were read; no SDK archive was saved.
+The adapter validates the entry signature before publication, initializes a
+validation Component without calling the application method, then publishes the
+public Component, adjacent `.wit`, and `.build.json` receipt. The validation
+export does not appear in the public Component. Managed method failures trap.
+Existing outputs are preserved.
 
-No SDK/workload installation, runtime bootstrap, source compilation, Component
-invocation or package test ran. Use a larger disk-backed workspace or another
-host and budget the full bootstrap before resuming. No Wisp files were changed.
+## Supported subset
+
+- One UTF-8 `.cs` file, with a public `Calculator` class and exactly one public,
+  static, non-generic `int Add(int, int)` method. Other classes and private generic
+  helpers may be in that file. Overloads, by-reference parameters and generic
+  entry methods are rejected.
+- Authored WIT with only root `export add: func(left: s32, right: s32) -> s32`.
+  Parameter names may vary. No WIT imports, interface exports or automatic
+  contract inference.
+- Arithmetic, negative values, unchecked signed 32-bit overflow, collections and
+  LINQ have executable checks. This is not general NuGet library certification.
+- Source and emitted IL each have a 1 MiB limit; Components have a 64 MiB limit.
+- Single-threaded Roslyn, no compiler server, MSBuild evaluation, package restore,
+  analyzers, source generators, external assembly references or native extensions.
+  Application runtime APIs remain limited by the WASI BCL and available host
+  capabilities. Threads, subprocesses, arbitrary P/Invoke, networking and general
+  cryptography are unsupported. Output globalization is invariant.
+
+## Verification and resources
+
+`verify.py` clears PATH before source builds. It checks the real Component call
+`add(20,22) = 42`, negative values and overflow, collections/LINQ, managed exception
+traps, syntax and signature diagnostics, unsupported WIT, hidden validation
+exports and preservation of existing output files. `verification.json` records
+check results, hashes, sizes and elapsed time. Packaging verifies the installed
+distribution's full inventory and bootstrap input hashes.
+
+On the shared development host, the initial 5.7 GiB free disk left insufficient
+space above the required 5 GiB reserve. After capacity increased to 15 GiB,
+bootstrap and validation resumed in a verified 4 GiB cgroup with swap disabled
+for that scope. Builds use one worker. Bootstrap budgets 3 GiB disk growth plus
+5 GiB free reserve. Scratch, downloads and caches belong on disk, never `/tmp`
+or another tmpfs. Check RAM, swap, filesystems, inodes and competing jobs before
+running these commands. Optional `WISP_CSHARP_CACHE=/disk/path` selects a Wasmtime
+cache; without it, guest compilation caching is disabled. Remove only task-owned
+intermediates when finished.

@@ -14,7 +14,7 @@ needed for the optional application integration checks.
 | Directory | Current contents |
 | --- | --- |
 | [clang](clang/README.md) | C/C++ compiler hosted in a WASIp3 Component |
-| [csharp](csharp/README.md) | Experimental Roslyn/Mono WASI design and scalar acceptance inputs; compiler package deferred |
+| [csharp](csharp/README.md) | Experimental Wasm-hosted Roslyn compiler and embedded Mono runtime for authored scalar Components |
 | [go](go/README.md) | Go compiler, assembler and linker hosted in WASIp1 |
 | [goose](goose/README.md) | Goose WASI frontend and shared C backend with scalar APIs |
 | [grain](grain/README.md) | Grain compiler and standard library running inside a QuickJS Wasm guest |
