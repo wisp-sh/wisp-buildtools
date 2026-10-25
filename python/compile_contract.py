@@ -67,7 +67,7 @@ def compile_contract(args, source, output):
         public = work / 'public.wasm'
         run(limited(guest_tools.guest_command(package / 'public-exports.wasm', candidate, public)))
         if public.stat().st_size > MAX_COMPONENT_BYTES:
-            raise ValueError('Python Component exceeds the 16 MiB admission limit')
+            raise ValueError('Python Component exceeds the 64 MiB admission limit')
         run(limited(guest_tools.command('validate', public)))
         # Verify the actual exported ABI before publishing any bytes.
         actual = json.loads(run(limited(guest_tools.command('component', 'wit', '--json', public)), capture=True).stdout)

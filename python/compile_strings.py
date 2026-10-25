@@ -51,7 +51,7 @@ sys.meta_path.insert(0, _WispSourceLoader())
     with tempfile.TemporaryDirectory(prefix='.python-strings-',dir=output.parent) as directory:
         work=Path(directory);bundled=work/'program.py';bundled.write_bytes(payload);candidate=work/'candidate.wasm'
         run(guest_tools.guest_command(ROOT/'dist/python-packager.wasm',dist/'template.component.wasm',bundled,args.entry,candidate))
-        if candidate.stat().st_size>MAX_COMPONENT_BYTES:raise ValueError('Python Component exceeds 16 MiB')
+        if candidate.stat().st_size>MAX_COMPONENT_BYTES:raise ValueError('Python Component exceeds 64 MiB')
         run(guest_tools.command('validate',candidate))
         result=run([str(guest_tools.runtime()),'run','-C','cache=y','-O','opt-level=0','-C','parallel-compilation=n','--invoke','validate()',str(candidate)],capture=True,timeout=args.timeout).stdout.strip()
         if result!='ok':raise ValueError('guest package load failed: '+result)

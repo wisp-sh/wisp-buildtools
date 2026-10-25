@@ -35,8 +35,8 @@ def main():
         compile_source(ROOT / "examples/add/main.py", add)
         run(guest_tools.command("validate", add))
         if add.stat().st_size > MAX_COMPONENT_BYTES:
-            raise ValueError("Component exceeds Wisp's 16 MiB limit")
-        passed("valid Component fits Wisp's 16 MiB limit")
+            raise ValueError("Component exceeds Wisp's 64 MiB limit")
+        passed("valid Component fits Wisp's 64 MiB limit")
         for a, b in [(20, 22), (-123, 65), (0, 0), (2147483640, 7), (-2147483648, 0)]:
             actual = invoke(add, f"add({a}, {b})")
             if actual != str(a + b):

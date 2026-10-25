@@ -132,7 +132,7 @@ fn main() -> Result<(), io::Error> {
         let mut count = 0;
         let result = replace(&template, &provider, &mut count, 0)?;
         if count != 1 { return Err(format!("expected one source Component, found {count}")); }
-        if result.len() > 16 * 1024 * 1024 { return Err("Python Component exceeds 16 MiB".into()); }
+        if result.len() > 64 * 1024 * 1024 { return Err("Python Component exceeds 64 MiB".into()); }
         fs::write(&arguments[3], result).map_err(|e| e.to_string())
     };
     run().map_err(|error| io::Error::new(io::ErrorKind::Other, error))

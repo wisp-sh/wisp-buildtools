@@ -50,7 +50,7 @@ return value must have `int` annotations. Returned integers must fit signed
 
 `bootstrap.py` uses the pinned native `componentize-py` wheel to build a reusable
 CPython runtime from `runtime/app.py` and `wit/runtime.wit`. It runs Binaryen on
-the runtime's core modules to reduce the Component below Wisp's 16 MiB limit,
+the runtime's core modules to reduce code size,
 then uses WAC to compose a tiny source-provider Component into the runtime.
 The bootstrap tools are native host programs. This is a bootstrap for a
 Wasm-hosted Python compiler, not a Wasm-hosted build of `componentize-py` itself.
@@ -121,7 +121,7 @@ Generated downloads, tool caches and `dist` are ignored by Git.
 ## Current limits
 
 - One source file and one two-argument `int` callable. The initial source limit
-  is 1 MiB. The finished Component must also fit Wisp's 16 MiB limit.
+  is 1 MiB. The finished Component must also fit Wisp's 64 MiB limit.
 - `collections`, `functools`, `itertools`, `json`, `math`, `re` and their loaded
   dependencies are initialized in the template. `sys` and built-in Python
   functionality are available. `examples/stdlib/main.py` checks classes,
@@ -218,7 +218,7 @@ manifest and Component hashes.
 This contract path supports an import-free, synchronous WIT world. Resources, handles, futures, streams, inline interfaces
 and world-level type exports are rejected. Export type declarations should live
 in named interfaces. The aggregate Python source bundle, including its loader, and the finished
-Component retain the 1 MiB and 16 MiB limits. Standard-library imports retain
+Component retain the 1 MiB and 64 MiB limits. Standard-library imports retain
 the base runtime preinitialization limits. Local and vendored pure Python
 modules can be bundled as described below.
 

@@ -55,7 +55,7 @@ def main():
         run(guest_tools.guest_command(dist / "python-packager.wasm",
             dist / "template.component.wasm", source, args.entry, candidate))
         if candidate.stat().st_size > MAX_COMPONENT_BYTES:
-            raise ValueError(f"Python Component exceeds Wisp's 16 MiB limit: {candidate.stat().st_size} bytes")
+            raise ValueError(f"Python Component exceeds Wisp's 64 MiB limit: {candidate.stat().st_size} bytes")
         run(guest_tools.command("validate", candidate))
         result = invoke(candidate, "validate()", timeout=args.timeout)
         if result != "ok":

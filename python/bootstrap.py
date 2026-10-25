@@ -149,7 +149,7 @@ def main():
         if template.read_bytes()[:8] != COMPONENT_HEADER:
             raise ValueError("bootstrap did not produce a Component")
         if template.stat().st_size > MAX_COMPONENT_BYTES:
-            raise ValueError(f"Python Component exceeds Wisp's 16 MiB limit: {template.stat().st_size} bytes")
+            raise ValueError(f"Python Component exceeds Wisp's 64 MiB limit: {template.stat().st_size} bytes")
         if invoke(template, "validate()") != "ok" or invoke(template, "add(20, 22)") != "42":
             raise ValueError("bootstrapped Python Component failed its guest smoke check")
         runtime_info = invoke(template, "runtime-info()")

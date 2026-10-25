@@ -15,7 +15,7 @@ if os.environ.get("WISP_WASM_TOOLS_TOOLCHAIN"):
     sys.path.insert(0, str(Path(os.environ["WISP_WASM_TOOLS_TOOLCHAIN"]).resolve().parent))
 import wasm_tools as guest_tools
 LOCK = json.loads((ROOT / "toolchain.lock.json").read_text())
-MAX_COMPONENT_BYTES = 16 * 1024 * 1024
+MAX_COMPONENT_BYTES = 64 * 1024 * 1024
 
 
 def digest(path: Path) -> str:

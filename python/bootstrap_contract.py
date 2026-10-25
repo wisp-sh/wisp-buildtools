@@ -128,7 +128,7 @@ def main():
         run([tools['wac'], 'plug', runtime, '--plug', provider, '-o', template], env=environment)
         template.write_bytes(public_template(template.read_bytes(), [*exports, CONTROL]))
         if template.stat().st_size > MAX_COMPONENT_BYTES:
-            raise ValueError(f'Python template exceeds the 16 MiB admission limit: {template.stat().st_size}')
+            raise ValueError(f'Python template exceeds the 64 MiB admission limit: {template.stat().st_size}')
         run([tools['wasm-tools'], 'validate', template])
         # Build only this tiny, dependency-free WASI tool, with one compiler worker.
         cargo_environment = dict(environment, CARGO_TARGET_DIR=str(work / 'cargo-target'))

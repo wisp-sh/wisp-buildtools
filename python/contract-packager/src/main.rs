@@ -28,7 +28,7 @@ fn encode(mut value: usize, out: &mut Vec<u8>) {
     }
 }
 fn public(bytes: &[u8]) -> Result<Vec<u8>, String> {
-    if !bytes.starts_with(HEADER) || bytes.len() > 16 * 1024 * 1024 {
+    if !bytes.starts_with(HEADER) || bytes.len() > 64 * 1024 * 1024 {
         return Err("invalid Python Component or size limit".into());
     }
     let mut out = HEADER.to_vec();

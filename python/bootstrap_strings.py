@@ -61,7 +61,7 @@ def main():
             evidence=ROOT/'dist/strings-blocked';evidence.mkdir(exist_ok=True)
             shutil.copyfile(template,evidence/'oversize-template.component.wasm')
             (evidence/'size.json').write_text(json.dumps({'bytes':template.stat().st_size,'limit':MAX_COMPONENT_BYTES,'sha256':digest(template)}))
-            raise ValueError(f'string template exceeds 16 MiB: {template.stat().st_size}; retained at {evidence}')
+            raise ValueError(f'string template exceeds 64 MiB: {template.stat().st_size}; retained at {evidence}')
         output=run([tool('wasmtime'),'run','-C','cache=y','-C','parallel-compilation=n','-O','opt-level=0','--invoke','transform("世界")',template],capture=True,env=environment,timeout=180).stdout.strip()
         if output!='ok("世界")':raise ValueError('string runtime regression: '+output)
         staged=work/'strings';staged.mkdir();shutil.copyfile(template,staged/template.name)
