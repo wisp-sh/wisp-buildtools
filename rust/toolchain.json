@@ -26,7 +26,7 @@
   },
   "runtime": {
     "provider": "wisp",
-    "version": "49.0.1",
+    "version": "50.0.0",
     "interface": "wasi:cli/run with WASIp3 component support",
     "environment": "WISP_RUST_WASMTIME"
   },

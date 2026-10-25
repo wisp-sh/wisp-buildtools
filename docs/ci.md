@@ -191,6 +191,10 @@ The exact Wisp-owned recipe is copied under `tools/shared-hosts` with an origin
 hash inventory, so CI can build it without a sibling checkout. Its Component
 linker supplies shared LLVM core modules through `--preload`. Rust reuses its
 LLVM 24 SDK with WASI SDK 34 and the matching official Rust bootstrap.
+Both workflow host caches derive their version from `tools/shared-hosts/wasmtime.lock.json`.
+All targets execute compilers with Wasmtime 50. Python's reproducible
+snapshot bootstrap also downloads stock Wasmtime 50.0.0, whose exact binary hash is
+pinned in `python/toolchain.lock.json`.
 
 Go and JavaScript's esbuild bootstrap use Go 1.27.2.
 AssemblyScript bootstrap uses Node 24.20.0. Normal application compilation

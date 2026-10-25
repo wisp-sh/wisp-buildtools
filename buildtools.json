@@ -467,7 +467,7 @@
         "Linux x86_64",
         "Python 3.12+",
         "Rust and wasm32-wasip1 target for packager bootstrap",
-        "pinned Wasmtime 49, wasm-tools 1.262.0, wac 0.12.0 and Binaryen 133 native bootstrap binaries"
+        "pinned Wasmtime 50, wasm-tools 1.262.0, wac 0.12.0 and Binaryen 133 native bootstrap binaries"
       ],
       "build": [
         {
@@ -806,6 +806,7 @@
         "teavm/component.py",
         "teavm/reactor.py",
         "teavm/toolchain.lock.json",
+        "teavm/licenses/ASM-9.10.1.txt",
         "teavm/src/Smoke.java",
         "teavm/src/TeaVMMain.java",
         "teavm/c_backend.py",

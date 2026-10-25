@@ -17,7 +17,11 @@ export WISP_CWASM_RUNTIME="${WISP_CWASM_RUNTIME:-${WISP_WASMTIME:-$_wisp_host_ru
 export WISP_WASMTIME="$_wisp_buildtools_dir/cwasm.py"
 export WISP_OCAML_WASMTIME="$WISP_WASMTIME"
 export WISP_GOOSE_FRONTEND_HOST="$WISP_WASMTIME"
-export WISP_BOOTSTRAP_WASMTIME="${WISP_BOOTSTRAP_WASMTIME:-$_wisp_host_runtime}"
+_wisp_bootstrap_runtime="$_wisp_buildtools_dir/.ci/toolchains/wasmtime/wasmtime-v50.0.0-x86_64-linux/wasmtime"
+if [[ ! -x "$_wisp_bootstrap_runtime" ]]; then
+    _wisp_bootstrap_runtime="$_wisp_host_runtime"
+fi
+export WISP_BOOTSTRAP_WASMTIME="${WISP_BOOTSTRAP_WASMTIME:-$_wisp_bootstrap_runtime}"
 export WISP_LLVM="$_wisp_buildtools_dir/llvm/dist/shared"
 export WISP_CLANG_RESOURCE_DIR="$_wisp_buildtools_dir/clang/include"
 export WISP_WASMTIME_PYTHON="$_wisp_hosts_dir/wasmtime-python-50.0.1"
@@ -26,7 +30,7 @@ export WISP_GO_TOOLCHAIN="$_wisp_buildtools_dir/go/dist/go-toolchain-full-1.27.2
 export WISP_GO="$_wisp_buildtools_dir/go/.bootstrap/go-host/go/bin/go"
 export WISP_RUST="${WISP_RUST:-$_wisp_buildtools_dir/rust/dist/compiler}"
 export WISP_RUST_WASMTIME="${WISP_RUST_WASMTIME:-$WISP_WASMTIME}"
-unset _wisp_hosts_dir _wisp_project_dir _wisp_host_runtime
+unset _wisp_hosts_dir _wisp_project_dir _wisp_host_runtime _wisp_bootstrap_runtime
 # Workspace adapters build new language artifacts before Wisp imports them.
 export WISP_TOOLCHAINS="$_wisp_buildtools_dir/toolchains.py"
 export WISP_OCAML_TOOLCHAIN="$_wisp_buildtools_dir/ocaml"

@@ -27,8 +27,8 @@ ROOT = Path(__file__).resolve().parents[1]
 TOOL_INPUT_LIMIT = 256 * 1024 * 1024
 CORE_WASM = b"\0asm\x01\0\0\0"
 COMPONENT_WASM = b"\0asm\x0d\0\x01\0"
-# Keep output within the Wasmtime 49 host's feature set. In particular,
-# Binaryen 133's --all-features enables compact imports, which Wasmtime 49 cannot load.
+# Keep output within the Wasmtime 50 host's configured feature set.
+# Compact imports are disabled in that profile; do not enable them via Binaryen.
 OPTIMIZER_FEATURES = (
     "--mvp-features", "--enable-threads", "--enable-mutable-globals",
     "--enable-sign-ext", "--enable-nontrapping-float-to-int", "--enable-simd",
@@ -552,7 +552,16 @@ def package_candidate(source: Path, out: Path, destination: Path, offline: bool)
         stage.rename(destination)
 
 
+def path_remaps(source: Path, out: Path) -> list[str]:
+    # Target flags also apply to stage-0 stdlib builds. Bootstrap's debug-info
+    # remapping alone does not cover every metadata artifact we redistribute.
+    return [f"--remap-path-prefix={path.resolve()}={public}" for path, public in (
+        (Path.home(), '/build-user'), (ROOT.parent, '/wisp-buildtools'),
+        (source, '/rustc/source'), (out, '/wisp-buildtools/rust/build'))]
+
+
 def configuration(source: Path, out: Path, sdk: Path, native: dict, jobs: int, lock: dict) -> str:
+    remaps = path_remaps(source, out)
     if lock.get("external_llvm"):
         quote = lambda value: json.dumps(str(value))
         targets = [lock["compiler_host_target"], *lock["application_targets"]]
@@ -604,17 +613,18 @@ ninja = true
 llvm-config = {quote(native["llvm-config"])}
 '''
         for target in dict.fromkeys([lock["compiler_host_target"], *lock["application_targets"]]):
-            if not target.startswith("wasm32-wasi"):
-                continue
             if target != lock["compiler_host_target"]:
                 text += f"\n[target.{target}]\n"
+            if not target.startswith("wasm32-wasi"):
+                text += 'rustflags = ' + json.dumps(remaps) + '\n'
+                continue
             text += f'''wasi-root = {quote(sdk / "share/wasi-sysroot")}
 cc = {quote(sdk / "bin" / (target + "-clang"))}
 cxx = {quote(sdk / "bin" / (target + "-clang++"))}
 ar = {quote(sdk / "bin/llvm-ar")}
 ranlib = {quote(sdk / "bin/llvm-ranlib")}
 linker = {quote(sdk / "bin" / (target + "-clang"))}
-rustflags = ["-Clink-self-contained=no", "-Clink-arg=-Wl,-z,stack-size=16777216"]
+rustflags = {json.dumps(["-Clink-self-contained=no", "-Clink-arg=-Wl,-z,stack-size=16777216", *remaps])}
 '''
         # Bootstrap still consults p2 when preparing the p3 sysroot.
         text += f'''
@@ -697,7 +707,7 @@ ar = {quote(sdk / "bin/llvm-ar")}
 ranlib = {quote(sdk / "bin/llvm-ranlib")}
 linker = {quote(sdk / "bin" / (target + "-clang"))}
 codegen-backends = ["llvm"]
-rustflags = ["-Clink-self-contained=no", "-Clink-arg=-lwasi-emulated-mman", "-Clink-arg=-Wl,-z,stack-size=16777216", "-Clink-arg=-Wl,--stack-first"]
+rustflags = {json.dumps(["-Clink-self-contained=no", "-Clink-arg=-lwasi-emulated-mman", "-Clink-arg=-Wl,-z,stack-size=16777216", "-Clink-arg=-Wl,--stack-first", *remaps])}
 '''
     # Parse our generated configuration before executing any upstream code.
     tomllib.loads(text)

@@ -50,7 +50,7 @@ class SourceBuildTests(unittest.TestCase):
         manifest = {"schemaVersion": 1, "rustRepository": "https://example.invalid/rust",
                     "rustRevision": "rust-revision", "llvmRevision": "llvm-revision",
                     "compilerHost": self.lock["compiler_host_target"], "applicationTarget": "wasm32-wasip1",
-                    "runtime": {"version": "49.0.1"}, "licenses": {}}
+                    "runtime": {"version": "50.0.0"}, "licenses": {}}
         (self.root / "toolchain.json").write_text(json.dumps(manifest))
         self.report = {"schemaVersion": 1, "mode": "build", "status": "build-passed",
                        "sourceRoot": str(self.source), "compilerBuildCompleted": True,
@@ -307,7 +307,7 @@ class SourceBuildTests(unittest.TestCase):
 
 
 class Wasip3BuildTests(unittest.TestCase):
-    def test_optimizer_preserves_import_encoding_supported_by_wasmtime49(self):
+    def test_optimizer_preserves_import_encoding_supported_by_wasmtime50(self):
         native = os.environ.get("WISP_WASM_OPT") or shutil.which("wasm-opt")
         if not native:
             candidate = builder.ROOT.parent / ".ci/toolchains/binaryen/binaryen-version_133/bin/wasm-opt"
@@ -317,7 +317,8 @@ class Wasip3BuildTests(unittest.TestCase):
             self.skipTest("native Binaryen is required for the import-encoding regression")
         optimizer = Path(shutil.which(native) or native).resolve()
         # Two exported imports from one module trigger Binaryen 133's compact
-        # import writer when all proposals are enabled. Wasmtime 49 rejects it.
+        # import writer when all proposals are enabled. Our Wasmtime 50 profile
+        # keeps compact imports disabled.
         imports = bytes.fromhex("02110203656e760166000003656e7601670000")
         module = (builder.CORE_WASM + bytes.fromhex("010401600000") + imports
                   + bytes.fromhex("0709020166000001670001"))
@@ -388,6 +389,23 @@ class Wasip3BuildTests(unittest.TestCase):
         self.assertFalse(config["rust"]["debug-assertions"])
         self.assertTrue(config["rust"]["remap-debuginfo"])
         self.assertEqual(config["target"]["wasm32-wasip3"]["llvm-config"], "native/llvm-config")
+        for target in [lock['compiler_host_target'], *lock['application_targets']]:
+            flags = config['target'][target]['rustflags']
+            self.assertTrue(any(flag.endswith('=/rustc/source') for flag in flags), target)
+            self.assertTrue(any(flag.endswith('=/build-user') for flag in flags), target)
+
+    def test_source_and_output_remaps_remain_single_flags_with_spaces(self):
+        lock = {"external_llvm": {}, "rust_version": "1.99.1",
+                "bootstrap": {"host": "native", "compiler_description": "test"},
+                "compiler_host_target": "wasm32-wasip3",
+                "application_targets": ["wasm32-unknown-unknown"]}
+        lock['external_llvm'] = {'version': '24'}
+        native = {name: Path("native") / name for name in ("rustc", "cargo", "llvm-config", "cc", "cxx")}
+        source, out = Path('source with spaces'), Path('output with spaces')
+        config = builder.tomllib.loads(builder.configuration(source, out, Path('sdk'), native, 1, lock))
+        flags = config['target']['wasm32-unknown-unknown']['rustflags']
+        self.assertIn(f'--remap-path-prefix={source.resolve()}=/rustc/source', flags)
+        self.assertIn(f'--remap-path-prefix={out.resolve()}=/wisp-buildtools/rust/build', flags)
 
     def test_component_install_and_stage0_sysroots(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Small executable ABI fixtures. Uses the external Wasmtime 49 host only.
+"""Small executable ABI fixtures. Uses the external Wasmtime 50 host only.
 
 Run directly; the shared memory lock covers Cargo, transformation and small JITs.
 Scratch and results live here, outside installed distributions.

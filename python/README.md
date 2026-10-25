@@ -87,7 +87,7 @@ only during bootstrap, using `packager/Cargo.lock`. The emitted
 Wasm is portable. `toolchain.lock.json` pins the componentize-py 0.25.1 wheel and
 the exact native tool binaries used here:
 
-- Wasmtime 49.0.4
+- Wasmtime 50.0.4
 - wasm-tools 1.262.0
 - WAC 0.12.0
 - Binaryen 133, official Linux x86_64 release

@@ -1,14 +1,14 @@
 {
-  "version": "49.0.4",
+  "version": "50.0.0",
   "module": {
     "file": "wasi_snapshot_preview1.reactor.wasm",
-    "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.4/wasi_snapshot_preview1.reactor.wasm",
-    "sha256": "5c90169894405bb0273956a7d84b0b5704cb8e6268d25748085310ca6799db78",
-    "size": 51632
+    "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasi_snapshot_preview1.reactor.wasm",
+    "sha256": "73b01f85e42e99c890efbbf619cd765e04e5809da36d976b87fc64abd87f5812",
+    "size": 51660
   },
   "license": {
     "file": "licenses/Wasmtime-LICENSE",
-    "url": "https://raw.githubusercontent.com/bytecodealliance/wasmtime/v49.0.4/LICENSE",
+    "url": "https://raw.githubusercontent.com/bytecodealliance/wasmtime/v50.0.0/LICENSE",
     "sha256": "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5",
     "size": 12243
   }

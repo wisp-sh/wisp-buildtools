@@ -83,14 +83,16 @@ jobs:
         run: |
           python3 - <<'PY'
           import hashlib
+          import json
           import os
           from pathlib import Path
 
           abi = hashlib.sha256(Path('/etc/os-release').read_bytes()).hexdigest()
+          version = json.loads(Path('tools/shared-hosts/wasmtime.lock.json').read_text())['version']
           with Path(os.environ['GITHUB_OUTPUT']).open('a') as output:
               output.write('abi=' + abi + '\n')
-              output.write('family=50\n')
-              output.write('version=50.0.0\n')
+              output.write('family=' + version.split('.')[0] + '\n')
+              output.write('version=' + version + '\n')
           PY
       - name: Restore native execution host cache
         id: host-cache

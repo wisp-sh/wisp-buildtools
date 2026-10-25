@@ -61,7 +61,7 @@ def install_componentize_py() -> Path:
 
 def optimizer_environment(binary: Path) -> dict:
     environment = dict(os.environ)
-    environment["BINARYEN_CORES"] = "2"
+    environment["BINARYEN_CORES"] = os.environ.get("BINARYEN_CORES", "1")
     return environment
 
 

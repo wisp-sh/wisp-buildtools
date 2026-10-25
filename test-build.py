@@ -12,12 +12,33 @@ import tarfile
 import tempfile
 import unittest
 import zipfile
+import hashlib
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parent
 specification = importlib.util.spec_from_file_location("compiler_builds", ROOT / "build.py")
 builds = importlib.util.module_from_spec(specification)
 specification.loader.exec_module(builds)
+
+
+class VendoredBootstrapInputTests(unittest.TestCase):
+    def test_pinned_license_needs_no_network_and_rejects_modified_bytes(self):
+        spec = importlib.util.spec_from_file_location('teavm_bootstrap_test', ROOT / 'teavm/bootstrap.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'licenses/ASM.txt'
+            source.parent.mkdir()
+            source.write_bytes(b'pinned license\n')
+            item = {'source': 'licenses/ASM.txt', 'bytes': source.stat().st_size,
+                    'sha256': hashlib.sha256(source.read_bytes()).hexdigest()}
+            with mock.patch.object(module, 'ROOT', root), mock.patch.object(module.urllib.request, 'urlopen',
+                    side_effect=AssertionError('vendored licenses must not download')):
+                self.assertEqual(module.fetch(item, root / 'cache/license', offline=True), source)
+                source.write_bytes(b'pinned licensE\n')
+                with self.assertRaisesRegex(ValueError, 'vendored bootstrap input checksum mismatch'):
+                    module.fetch(item, root / 'cache/license')
 
 
 def tool(name, *, dependencies=(), runtime_dependencies=()):

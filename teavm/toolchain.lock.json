@@ -285,6 +285,7 @@
     },
     {
       "name": "ASM-9.10.1",
+      "source": "licenses/ASM-9.10.1.txt",
       "url": "https://gitlab.ow2.org/asm/asm/-/raw/ASM_9_10_1/LICENSE.txt",
       "bytes": 1598,
       "sha256": "293b6af371eee28b0ff16f0334ea19e20a3d5522143faa4b95b346855507879a"

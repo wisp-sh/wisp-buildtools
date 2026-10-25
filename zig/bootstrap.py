@@ -142,7 +142,7 @@ def install(args: argparse.Namespace) -> None:
     manifest = {"schema_version": 1, "zig_version": zig["version"], "target": "wasm32-freestanding", "frontend_host": "wasi_snapshot_preview1", "backend_host": "wasip3", "files": files}
     manifest["fullyWasmHostedBuild"] = True
     manifest["clang_backend"] = provenance
-    manifest["host_requirements"] = {"wasmtime": {"provider": "wisp", "tested_version": "49.0.1", "interfaces": ["wasi_snapshot_preview1", "wasi:cli/run@0.3.0"]}}
+    manifest["host_requirements"] = {"wasmtime": {"provider": "wisp", "tested_version": "50.0.0", "interfaces": ["wasi_snapshot_preview1", "wasi:cli/run@0.3.0"]}}
     (dist / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     print(f"Installed {len(files)} files, {sum(item['bytes'] for item in files.values()):,} bytes in {dist}")
 

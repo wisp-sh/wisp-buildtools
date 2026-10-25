@@ -29,6 +29,15 @@ prerequisites = load_module("compiler_ci_prerequisites", ROOT / "tools/ci-prereq
 rust_builder = load_module("compiler_rust_source_builder", ROOT / "rust/scripts/build-compiler.py")
 
 
+class BootstrapVersionTests(unittest.TestCase):
+    def test_stock_bootstrap_cannot_drift_from_the_execution_host_version(self):
+        lock = copy.deepcopy(prerequisites.LOCK)
+        lock['downloads']['wasmtime']['executable'] = 'wasmtime-v0.0.0-x86_64-linux/wasmtime'
+        with mock.patch.object(prerequisites, 'LOCK', lock):
+            with self.assertRaisesRegex(ValueError, 'Wasmtime versions differ'):
+                prerequisites.check_lock()
+
+
 class RustPrerequisiteStagingTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(prefix="compiler-ci-prerequisites-")
@@ -260,7 +269,21 @@ class ExecutionHostCacheTests(unittest.TestCase):
                 variable = "WISP_RUST_WASMTIME" if tool in prerequisites.SHARED_RUST_CONSUMERS else "WISP_WASMTIME"
                 self.assertEqual(report["environment"][variable], str(self.root / 'cwasm.py'))
                 self.assertEqual(report['environment']['WISP_CWASM_RUNTIME'], str(self.prefix(tool) / 'wasmtime'))
+                self.assertEqual(report['environment']['WISP_BOOTSTRAP_WASMTIME'], str(self.prefix(tool) / 'wasmtime'))
+                self.assertNotIn('wasmtime', report['downloads'])
                 self.assertEqual(report["executionHosts"][self.prefix(tool).name], {"cached": True})
+
+    def test_only_python_snapshot_bootstrap_installs_stock_wasmtime(self):
+        python = prerequisites.install_for('python')
+        stock = self.root / '.ci/toolchains/wasmtime' / prerequisites.LOCK['downloads']['wasmtime']['executable']
+        self.assertEqual(python['environment']['WISP_BOOTSTRAP_WASMTIME'], str(stock))
+        self.assertIn('wasmtime', python['downloads'])
+        self.assertEqual(python['environment']['WISP_WASMTIME'], str(self.root / 'cwasm.py'))
+        for tool in ('go', 'wasm-tools', 'assemblyscript'):
+            with self.subTest(tool=tool):
+                report = prerequisites.install_for(tool)
+                self.assertNotIn('wasmtime', report['downloads'])
+                self.assertEqual(report['environment']['WISP_BOOTSTRAP_WASMTIME'], str(self.prefix(tool) / 'wasmtime'))
 
     def test_missing_binary_or_receipt_builds_without_accepting_partial_cache(self):
         for tool in ("clang", "rust"):

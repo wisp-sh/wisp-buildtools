@@ -133,7 +133,7 @@ def rebuild(args):
                                 "recipe": digest(ROOT / "bootstrap.py"), "runner": digest(ROOT / "src/quickjs-wasi.c"),
                                 "runtime": digest(ROOT / "src/node-shim.js"),
                                 "extractor": digest(ROOT / "src/extract-compiler.py"), "licenses": digest(ROOT / "src/licenses.py")},
-            "hostRequirements": {"wasmtime": {"provider": "wisp", "testedVersion": "49.0.1", "environment": "WISP_WASMTIME"}},
+            "hostRequirements": {"wasmtime": {"provider": "wisp", "testedVersion": "50.0.0", "environment": "WISP_WASMTIME"}},
             "runtimeCache": {"optional": True, "description": "--cache-dir stores QuickJS bytecode and compiled Grain library objects outside the package"},
             "sha256": {path.relative_to(dist).as_posix(): digest(path) for path in sorted(dist.rglob("*")) if path.is_file()},
         }

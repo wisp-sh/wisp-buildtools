@@ -24,7 +24,7 @@ class PackageCompilerCI(unittest.TestCase):
             events, exports = [], []
             def install(tool):
                 events.append(tool)
-                return {'environment': {'WISP_WASMTIME': '/stock/wasmtime-49.0.4'}, 'paths': []}
+                return {'environment': {'WISP_WASMTIME': '/host/wasmtime-50.0.0'}, 'paths': []}
             def execution_host(recipe, prefix, cache):
                 events.append('wisp-host')
                 self.assertEqual(recipe, 'build.py')
@@ -47,7 +47,7 @@ class PackageCompilerCI(unittest.TestCase):
             self.assertEqual(exports[-1]['WISP_WASMTIME'], str(root / 'cwasm.py'))
             self.assertEqual(exports[-1]['WISP_CWASM_RUNTIME'], str(host))
             self.assertEqual(exports[-1]['WISP_RUST_WASMTIME'], str(root / 'cwasm.py'))
-            self.assertNotEqual(exports[-1]['WISP_BOOTSTRAP_WASMTIME'], str(host))
+            self.assertEqual(exports[-1]['WISP_BOOTSTRAP_WASMTIME'], str(host))
 
     def test_driver_import_from_an_unrelated_checkout(self):
         script = (
@@ -98,7 +98,7 @@ class PackageCompilerCI(unittest.TestCase):
             self.assertEqual(exports[-1]['WISP_WASMTIME'], str(root / 'cwasm.py'))
             self.assertEqual(exports[-1]['WISP_CWASM_RUNTIME'], str(host))
             self.assertEqual(exports[-1]['WISP_PREVIEW1_ADAPTER'], str(root / 'wasm-tools/dist/wasi_snapshot_preview1.reactor.wasm'))
-            self.assertNotEqual(exports[-1]['WISP_BOOTSTRAP_WASMTIME'], str(host))
+            self.assertEqual(exports[-1]['WISP_BOOTSTRAP_WASMTIME'], str(host))
 
 
 if __name__ == '__main__':

@@ -124,7 +124,7 @@ def main():
         "assemblyscript": SOURCE_VERSION,
         "binaryen": "131.0.0-nightly.20260721",
         "host": "Wisp with Python 3.10+ and its Wasmtime Python API",
-        "host_requirements": {"wasmtime_python": {"provider": "wisp", "tested_version": "49.0.0", "environment": "WISP_WASMTIME_PYTHON", "interface": "Python Wasmtime API with Core Wasm host callbacks"}},
+        "host_requirements": {"wasmtime_python": {"provider": "wisp", "tested_version": "50.0.1", "environment": "WISP_WASMTIME_PYTHON", "interface": "Python Wasmtime API with Core Wasm host callbacks"}},
         "compiler_execution": "AssemblyScript compiler and Binaryen backend both execute as Wasm in Wasmtime",
         "fullyWasmHostedBuild": True,
         "abi_adapters": "prebuilt Wasm modules, generated only during bootstrap",

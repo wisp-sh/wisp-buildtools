@@ -10,7 +10,9 @@ The recipe builds pinned Wasmtime 50.0.0 with precompilation, GC-backed exceptio
 excluded from compiler packages. LLVM, Clang, Zig, Nim and Rust jobs use it.
 Rust 1.99.1 enables WASIp3 support with `-Sp3=y`. The 38.0.4 recipe remains for
 historical Rust 1.83 artifacts and is outside the active Rust pipeline.
-AssemblyScript uses the separate Python API. Other jobs use the official host.
+AssemblyScript and Swift use the separate Wasmtime 50 Python API. All CLI jobs
+use the shared host. Python's snapshot bootstrap additionally pins the official
+Wasmtime 50 binary.
 
 Change the Wisp source recipes first, copy all six source files here, and update
 their origin hashes together. The source archive and Cargo lockfile remain

@@ -27,7 +27,7 @@ The package builder pins Go 1.27.2 and checks the release version. It runs `go l
 ```sh
 python3 scripts/build.py \
   --toolchain dist/go-toolchain-full-1.27.2 \
-  --wasmtime .bootstrap/wasmtime/wasmtime-v49.0.1-x86_64-linux/wasmtime \
+  --wasmtime .bootstrap/wasmtime/wasmtime-v50.0.0-x86_64-linux/wasmtime \
   --project examples/multipkg \
   --output out/multipkg/main.wasm \
   --cache .bootstrap/wasmtime-cache \
@@ -63,7 +63,7 @@ Run the integration cache check and the source-discovery tests with:
 ```sh
 python3 scripts/check-cache.py \
   --toolchain dist/go-toolchain-full-1.27.2 \
-  --wasmtime .bootstrap/wasmtime/wasmtime-v49.0.1-x86_64-linux/wasmtime \
+  --wasmtime .bootstrap/wasmtime/wasmtime-v50.0.0-x86_64-linux/wasmtime \
   --cache .bootstrap/wasmtime-cache
 python3 -m unittest discover -s tests -v
 ```

@@ -20,7 +20,7 @@ bootstrap. Source builds use the packaged module without a native fallback.
 
 Upstream source and license: <https://github.com/bytecodealliance/wasm-tools>.
 
-The package also supplies the checksum-pinned Wasmtime 49.0.4 Preview 1 reactor
+The package also supplies the checksum-pinned Wasmtime 50.0.4 Preview 1 reactor
 adapter for Component assembly. `adapter.lock.json` records its source, version
 and license. Adapters resolve it through `wasm_tools.preview1_adapter()` or an
 explicit `WISP_PREVIEW1_ADAPTER` override. The module is Wasm, not a native engine.

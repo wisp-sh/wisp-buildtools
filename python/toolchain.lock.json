@@ -8,8 +8,8 @@
   },
   "tools": {
     "wasmtime": {
-      "version": "49.0.4",
-      "sha256": "edd1cc98eac2fe1759bcc43aaf5f8c0b935ca1447fc78517d01f3a352d535c72"
+      "version": "50.0.0",
+      "sha256": "f95e5beba6d176b447c2939607bae968ea47f87b156ddf559762f1bb3c00e9b7"
     },
     "wasm-tools": {
       "version": "1.262.0",

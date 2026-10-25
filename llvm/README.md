@@ -82,7 +82,7 @@ requires `42`:
 python3 scripts/verify-sdk-smoke.py \
   --sdk artifacts/llvm-24-d297af3-wasip3-o1 \
   --wasi-sdk ../clang/.toolchains/wasi-sdk-34.0-x86_64-linux \
-  --wasmtime ../clang/.toolchains/wasmtime-v49.0.1-x86_64-linux/wasmtime \
+  --wasmtime ../clang/.toolchains/wasmtime-v50.0.0-x86_64-linux/wasmtime \
   --out artifacts/sdk-smoke
 python3 -m unittest discover -s tests -v
 ```

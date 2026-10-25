@@ -70,6 +70,22 @@ def package(dist: Path, nim: Path, sdk: Path, llvm: Path, work: Path, backend: P
 def run(args: list[str | Path], **kwargs) -> None:
     subprocess.run([str(a) for a in args], check=True, **kwargs)
 
+def portable_diagnostics(nim: Path) -> None:
+    # These compile-time tuples describe the compiler's own implementation,
+    # rather than user source. Keep filenames without baking in the builder.
+    patches = {
+        'compiler/msgs.nim': ('instantiationInfo(-2, fullPaths = true)', 'instantiationInfo(-2, fullPaths = false)'),
+        'compiler/vm.nim': ('instantiationInfo(-2, fullPaths = true)', 'instantiationInfo(-2, fullPaths = false)'),
+    }
+    for relative, (before, after) in patches.items():
+        path = nim / relative
+        text = path.read_text()
+        if after in text and before not in text:
+            continue
+        if text.count(before) != 1:
+            raise ValueError(f'Nim diagnostic path patch no longer applies: {relative}')
+        path.write_text(text.replace(before, after))
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--wasi-sdk', type=Path, default=Path(os.environ.get('WASI_SDK_PATH', ROOT.parent / 'clang/.toolchains/wasi-sdk-34.0-x86_64-linux')))
@@ -106,18 +122,21 @@ def main() -> None:
         with tarfile.open(archive) as source:
             source.extractall(tools, filter='data')
     if not args.package_only:
+        portable_diagnostics(nim)
         cc = sdk / 'bin/clang'
         if not cc.is_file(): raise SystemExit(f'WASI SDK compiler missing: {cc}')
         cache = work / 'nimcache'
         # WASI has no spawn.h. Keep osproc on the fork/exec path covered by
         # unsupported_processes.c rather than Nim's default POSIX spawn path.
-        run([nim / 'bin/nim', 'c', '--compileOnly', '--genScript', '--cpu:wasm32', '--os:linux', '--cc:clang', '--threads:off', '--mm:orc', '-d:release', f'-d:gitHash={LOCK["nim"]["git_commit"]}', '-d:useMalloc', '-d:useFork', '-d:noSignalHandler', '-d:nimNoReadline', '-d:nimNoLinenoise', '--exceptions:goto', f'--nimcache:{cache}', nim / 'compiler/nim.nim'], cwd=ROOT)
+        run([nim / 'bin/nim', 'c', '--compileOnly', '--genScript', '--forceBuild:on', '--cpu:wasm32', '--os:linux', '--cc:clang', '--threads:off', '--mm:orc', '-d:release', f'-d:gitHash={LOCK["nim"]["git_commit"]}', '-d:useMalloc', '-d:useFork', '-d:noSignalHandler', '-d:nimNoReadline', '-d:nimNoLinenoise', '--exceptions:goto', f'--nimcache:{cache}', nim / 'compiler/nim.nim'], cwd=ROOT)
         main_c = cache / '@mnim.nim.c'
         text = main_c.read_text().replace('int main(int argc, char** args, char** env) {', 'extern char **environ;\nint main(int argc, char** args) {\n  char **env = environ;')
         main_c.write_text(text)
         generated = json.loads((cache / 'nim.json').read_text())['compile']
         objects = [Path(entry[0]).with_suffix('.o') for entry in generated]
-        common = [cc, '--target=wasm32-wasip1', '-O1', '-w', '-ferror-limit=8', '-I' + str(ROOT / 'src/compat'), '-include', ROOT / 'src/compat.h', '-Dreadlink=nim_wasi_readlink', '-D_WASI_EMULATED_SIGNAL', '-D_WASI_EMULATED_PROCESS_CLOCKS', '-I' + str(nim / 'lib')]
+        common = [cc, '--target=wasm32-wasip1', '-O1', '-w', '-ferror-limit=8',
+                  f'-ffile-prefix-map={Path.home()}=/build-user', f'-ffile-prefix-map={ROOT}=/wisp-buildtools/nim',
+                  '-I' + str(ROOT / 'src/compat'), '-include', ROOT / 'src/compat.h', '-Dreadlink=nim_wasi_readlink', '-D_WASI_EMULATED_SIGNAL', '-D_WASI_EMULATED_PROCESS_CLOCKS', '-I' + str(nim / 'lib')]
         def compile_unit(pair: tuple[list, Path]) -> None:
             entry, output = pair
             run([*common, '-c', entry[0], '-o', output], cwd=ROOT)

@@ -52,7 +52,6 @@ def provision(toolchain, recipe_root):
                         '--no-deps', '--jobs', '2'], cwd=ROOT, check=True)
     exported = {
         'WISP_BUILDTOOLS_ROOT': ROOT,
-        'WISP_BOOTSTRAP_WASMTIME': ROOT / '.ci/toolchains/wasmtime' / prerequisites['LOCK']['downloads']['wasmtime']['executable'],
         'WISP_COMPILER_MEMORY_LOCK': os.environ['WISP_COMPILER_MEMORY_LOCK'],
         'WISP_PREVIEW1_ADAPTER': ROOT / 'wasm-tools/dist/wasi_snapshot_preview1.reactor.wasm',
         'WISP_WASM_TOOLS': ROOT / 'wasm-tools/dist/wasm-tools.wasm',
@@ -66,9 +65,11 @@ def provision(toolchain, recipe_root):
     # Later prerequisite installers may select the upstream host. Compiler
     # families needing Wisp's host must keep the derived host after provisioning.
     host = ROOT / '.ci/hosts/wisp-wasmtime-50.0.0/wasmtime'
+    exported['WISP_BOOTSTRAP_WASMTIME'] = (
+        ROOT / '.ci/toolchains/wasmtime' / prerequisites['LOCK']['downloads']['wasmtime']['executable']
+        if toolchain == 'python' else host)
     if toolchain == 'go':
-        # Go's compiler bootstrap uses stock Wasmtime, but `wisp build` checks
-        # and uses the separately pinned Wisp host for application compilation.
+        # Verify the application execution host before exporting it to recipes.
         prerequisites['execution_host']('build.py', host.parent, ROOT / '.ci/host-build')
     if host.is_file():
         exported.update(WISP_CWASM_RUNTIME=host, WISP_WASMTIME=ROOT / 'cwasm.py',

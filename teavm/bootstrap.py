@@ -30,6 +30,13 @@ def digest(path):
 
 
 def fetch(item, target, offline=False):
+    if 'source' in item:
+        source = ROOT / item['source']
+        if (source.is_symlink() or not source.resolve().is_relative_to(ROOT)
+                or not source.is_file() or source.stat().st_size != item['bytes']
+                or digest(source) != item['sha256']):
+            raise ValueError(f'vendored bootstrap input checksum mismatch: {item["source"]}')
+        return source
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.exists() and digest(target) == item["sha256"]:
         return target
@@ -76,7 +83,7 @@ def write_sdk(archive, target):
 
 def source_inputs():
     return [ROOT / name for name in ["bootstrap.py", "wasi_runtime.py", "c_backend.py", "driver.py", "compile.py",
-            "src/TeaVMMain.java", "src/Smoke.java", "src/RuntimePatch.java", "src/WasiPlugin.java", "src/wasi-entry.c", "src/c-backend.cpp", "toolchain.lock.json"]]
+            "src/TeaVMMain.java", "src/Smoke.java", "src/RuntimePatch.java", "src/WasiPlugin.java", "src/wasi-entry.c", "src/c-backend.cpp", "toolchain.lock.json", "licenses/ASM-9.10.1.txt"]]
 
 
 def main():

@@ -43,12 +43,16 @@ jobs:
           echo "llvm=$(python3 tools/ci-llvm.py key)" >> "$GITHUB_OUTPUT"
           python3 - <<'PY'
           import hashlib
+          import json
           import os
           from pathlib import Path
 
           abi = hashlib.sha256(Path('/etc/os-release').read_bytes()).hexdigest()
+          version = json.loads(Path('tools/shared-hosts/wasmtime.lock.json').read_text())['version']
           with Path(os.environ['GITHUB_OUTPUT']).open('a') as output:
               output.write('abi=' + abi + '\n')
+              output.write('host-family=' + version.split('.')[0] + '\n')
+              output.write('host-version=' + version + '\n')
           PY
       - name: Restore verified LLVM bootstrap cache
         id: llvm-cache
@@ -68,8 +72,8 @@ jobs:
         continue-on-error: true
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
-          path: .ci/hosts/wisp-wasmtime-49.0.1
-          key: wisp-host49-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.keys.outputs.abi }}-${{ hashFiles('tools/shared-hosts/*.py', 'tools/shared-hosts/*.json', 'tools/shared-hosts/*.patch', 'tools/ci-tools.lock.json') }}
+          path: .ci/hosts/wisp-wasmtime-${{ steps.keys.outputs.host-version }}
+          key: wisp-host${{ steps.keys.outputs.host-family }}-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.keys.outputs.abi }}-${{ hashFiles('tools/shared-hosts/*.py', 'tools/shared-hosts/*.json', 'tools/shared-hosts/*.patch', 'tools/ci-tools.lock.json') }}
       - name: Restore LLVM compiler object cache
         id: compiler-cache
         if: steps.restored.outcome != 'success'
@@ -88,7 +92,7 @@ jobs:
         continue-on-error: true
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
-          path: .ci/hosts/wisp-wasmtime-49.0.1
+          path: .ci/hosts/wisp-wasmtime-${{ steps.keys.outputs.host-version }}
           key: ${{ steps.host-cache.outputs.cache-primary-key }}
       - name: Build shared compiler backend from pinned sources
         if: steps.restored.outcome != 'success'

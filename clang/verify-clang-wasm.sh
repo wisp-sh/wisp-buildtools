@@ -36,7 +36,7 @@ for sample in add template struct constexpr c include; do
     rm -f "$ROOT/work/driverless/include.hpp"
     extra_args=(-I /work/includes)
   fi
-  "$WASMTIME" run -S p3=y "${SHARED_ARGS[@]}" --dir "$ROOT/work/driverless::/work" "$COMPILER" \
+  "$WASMTIME" run -O opt-level=0 -S p3=y "${SHARED_ARGS[@]}" --dir "$ROOT/work/driverless::/work" "$COMPILER" \
     "/work/$sample.$extension" -o "/work/$sample.wasm" -O1 "${extra_args[@]}"
   "$WASM_TOOLS" validate "$ROOT/work/driverless/$sample.wasm"
   export_name=test
@@ -53,19 +53,19 @@ for sample in add template struct constexpr c include; do
   echo "$sample: $result"
 done
 printf 'extern "C" int broken( {\n' > "$ROOT/work/driverless/invalid.cpp"
-if "$WASMTIME" run -S p3=y "${SHARED_ARGS[@]}" --dir "$ROOT/work/driverless::/work" "$COMPILER" \
+if "$WASMTIME" run -O opt-level=0 -S p3=y "${SHARED_ARGS[@]}" --dir "$ROOT/work/driverless::/work" "$COMPILER" \
   /work/invalid.cpp -o /work/invalid.wasm 2> "$ROOT/work/driverless/invalid.log"; then
   echo 'invalid source compiled' >&2; exit 1
 fi
 rg -q 'error:' "$ROOT/work/driverless/invalid.log"
 cp "$ROOT/examples/exceptions.cpp" "$ROOT/work/driverless/exceptions.cpp"
-if "$WASMTIME" run -S p3=y "${SHARED_ARGS[@]}" --dir "$ROOT/work/driverless::/work" "$COMPILER" \
+if "$WASMTIME" run -O opt-level=0 -S p3=y "${SHARED_ARGS[@]}" --dir "$ROOT/work/driverless::/work" "$COMPILER" \
   /work/exceptions.cpp -o /work/exceptions.wasm \
   2> "$ROOT/work/driverless/exceptions.log"; then
   echo 'exceptions unexpectedly enabled' >&2; exit 1
 fi
 rg -q "exceptions disabled" "$ROOT/work/driverless/exceptions.log"
-if "$WASMTIME" run -S p3=y "${SHARED_ARGS[@]}" --dir "$ROOT/work/driverless::/work" "$COMPILER" \
+if "$WASMTIME" run -O opt-level=0 -S p3=y "${SHARED_ARGS[@]}" --dir "$ROOT/work/driverless::/work" "$COMPILER" \
   /work/add.cpp -o /work/invalid-target.wasm --target=x86_64 \
   2> "$ROOT/work/driverless/invalid-target.log"; then
   echo 'target override accepted' >&2; exit 1
@@ -73,10 +73,30 @@ fi
 rg -q 'unsupported argument' "$ROOT/work/driverless/invalid-target.log"
 if command -v strace >/dev/null; then
   strace -f -e trace=execve -o "$ROOT/work/driverless/execve.log" \
-    "$WASMTIME" run -S p3=y "${SHARED_ARGS[@]}" --dir "$ROOT/work/driverless::/work" "$COMPILER" \
+    "$WASMTIME" run -O opt-level=0 -S p3=y "${SHARED_ARGS[@]}" --dir "$ROOT/work/driverless::/work" "$COMPILER" \
     /work/add.cpp -o /work/traced.wasm
-  test "$(rg -c 'execve\(' "$ROOT/work/driverless/execve.log")" = 1
-  echo "subprocess trace: only Wasmtime launched"
+  python3 - "$ROOT/work/driverless/execve.log" "$WASMTIME" "$ROOT/.." <<'PY'
+import json
+from pathlib import Path
+import re
+import sys
+
+launcher = Path(sys.argv[2]).resolve()
+allowed = {launcher}
+root = Path(sys.argv[3]).resolve()
+if launcher == root / 'cwasm.py':
+    sys.path.insert(0, str(root))
+    import cwasm
+    allowed.add(cwasm.default_runtime())
+executions = re.findall(r'execve\(("(?:[^"\\]|\\.)*")', Path(sys.argv[1]).read_text())
+if not executions:
+    raise SystemExit('subprocess trace contains no execve calls')
+for encoded in executions:
+    program = Path(json.loads(encoded)).resolve()
+    if program not in allowed:
+        raise SystemExit(f'unexpected host executable during guest compilation: {program}')
+print('subprocess trace: only the compiler launcher and Wasmtime executed')
+PY
 else
   echo "subprocess trace: skipped because strace is unavailable"
 fi

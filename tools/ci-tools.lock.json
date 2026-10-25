@@ -3,10 +3,10 @@
   "platform": "linux-x86_64",
   "downloads": {
     "wasmtime": {
-      "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.4/wasmtime-v49.0.4-x86_64-linux.tar.xz",
-      "sha256": "6561abd54bdf941b6519cce883e0857cc9bce94d92c65287ed838d895a27f5a9",
-      "executable": "wasmtime-v49.0.4-x86_64-linux/wasmtime",
-      "executableSha256": "edd1cc98eac2fe1759bcc43aaf5f8c0b935ca1447fc78517d01f3a352d535c72"
+      "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-x86_64-linux.tar.xz",
+      "sha256": "77c19ee0437991f9ac7837b9c269d9c7076744f85dad263fea5214cc2723c7ff",
+      "executable": "wasmtime-v50.0.0-x86_64-linux/wasmtime",
+      "executableSha256": "f95e5beba6d176b447c2939607bae968ea47f87b156ddf559762f1bb3c00e9b7"
     },
     "wasm-tools": {
       "url": "https://github.com/bytecodealliance/wasm-tools/releases/download/v1.262.0/wasm-tools-1.262.0-x86_64-linux.tar.gz",

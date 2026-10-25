@@ -16,12 +16,27 @@ from runner import ROOT, digest, manifest
 
 LOCK = json.loads((ROOT / 'toolchain.lock.json').read_text())
 
+BUILD_ENV = None
 
 def run(*args, cwd=None, env=None):
-    subprocess.run(list(map(str, args)), cwd=cwd, env=env, check=True)
+    subprocess.run(list(map(str, args)), cwd=cwd, env=env if env is not None else BUILD_ENV, check=True)
+
+
+def build_environment(work):
+    # OCaml's reproducible-build format is TARGET=SOURCE, with %-escaped paths.
+    def encode(value):
+        return str(value).replace('%', '%#').replace('=', '%+').replace(':', '%.')
+    mappings = [(Path.home(), '/build-user'), (ROOT.parent, '/wisp-buildtools'),
+                (work, '/wisp-buildtools/ocaml/build')]
+    environment = dict(os.environ)
+    entries = [environment['BUILD_PATH_PREFIX_MAP']] if environment.get('BUILD_PATH_PREFIX_MAP') else []
+    entries.extend(encode(target) + '=' + encode(source.resolve()) for source, target in mappings)
+    environment['BUILD_PATH_PREFIX_MAP'] = ':'.join(entries)
+    return environment
 
 
 def main():
+    global BUILD_ENV
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--wasi-sdk', type=Path, default=Path(os.environ.get(
         'WISP_OCAML_WASI_SDK', ROOT.parent / LOCK['wasiSdk']['provider'])))
@@ -40,6 +55,7 @@ def main():
             pass
     sdk = args.wasi_sdk.resolve(strict=True)
     work = (args.package_from or args.work_dir).resolve()
+    BUILD_ENV = build_environment(work)
     work.mkdir(parents=True, exist_ok=True)
     cache = ROOT / '.toolchains'
     cache.mkdir(exist_ok=True)
@@ -62,17 +78,18 @@ def main():
                         source.extract(member, directory, filter='data')
         disabled = ['--disable-native-compiler', '--disable-ocamldoc', '--disable-debugger',
                     '--disable-ocamltest', '--disable-debug-runtime', '--disable-instrumented-runtime']
-        run('sh', './configure', *disabled, cwd=native)
+        run('sh', './configure', '--prefix=/ocaml', *disabled, cwd=native)
         run('make', f'-j{max(1,args.jobs)}', 'coldstart', cwd=native)
         run('make', f'-j{max(1,args.jobs)}', 'ocamlc', 'library', cwd=native)
         run('make', '-C', 'tools', 'stripdebug', cwd=native)
         run('patch', '-p1', '-i', ROOT / 'src/wasi-runtime.patch', cwd=target)
         cc = str(sdk / 'bin/clang')
-        run('sh', './configure', '--host=wasm32-unknown-wasi', *disabled,
+        run('sh', './configure', '--prefix=/ocaml', '--host=wasm32-unknown-wasi', *disabled,
             '--disable-shared', '--disable-systhreads', '--disable-unix-lib',
             f'CC={cc} -mllvm -wasm-enable-sjlj -mexception-handling -mllvm -wasm-use-legacy-eh=false',
             f'AR={sdk / "bin/llvm-ar"}', f'RANLIB={sdk / "bin/llvm-ranlib"}',
-            'LIBS=-lsetjmp', 'CFLAGS=-O1 -D_WASI_EMULATED_SIGNAL -D_WASI_EMULATED_PROCESS_CLOCKS', cwd=target)
+            'LIBS=-lsetjmp',
+            f'CFLAGS=-O1 -D_WASI_EMULATED_SIGNAL -D_WASI_EMULATED_PROCESS_CLOCKS -ffile-prefix-map={ROOT.parent}=/wisp-buildtools', cwd=target)
         header = target / 'runtime/caml/s.h'
         header.write_text(header.read_text().replace('#define HAS_SYSTEM 1', '/* #undef HAS_SYSTEM */'))
         makefile = target / 'runtime/Makefile'

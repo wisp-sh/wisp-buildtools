@@ -16,7 +16,7 @@ proc add*(a, b: int32): int32 {.exportc, cdecl.} =
 ```
 
 ```sh
-../clang/.toolchains/wasmtime-v49.0.1-x86_64-linux/wasmtime run \
+../clang/.toolchains/wasmtime-v50.0.0-x86_64-linux/wasmtime run \
   --invoke add work/add.wasm 20 22
 # 42
 ```

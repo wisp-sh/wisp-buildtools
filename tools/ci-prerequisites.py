@@ -33,7 +33,9 @@ def digest(path: Path) -> str:
 
 
 def requirements(tool: str) -> list[str]:
-    selected = ["wasmtime"]
+    # Python's reproducible snapshot bootstrap pins the exact stock 50 binary.
+    # All compiler execution uses the Wisp host from shared-hosts/wasmtime.lock.json.
+    selected = ["wasmtime"] if tool == "python" else []
     selected += {
         "go": ["go-1.27.2"],
         "grain": ["wasi-sdk-34"],
@@ -118,6 +120,14 @@ def check_lock() -> None:
         if original.is_file() and digest(original) != expected:
             raise ValueError(f"refresh the CI copy of the Wisp host recipe: {name}")
     host_lock = json.loads((host / "wasmtime.lock.json").read_text())
+    if python_lock['tools']['wasmtime']['version'] != host_lock['version']:
+        raise ValueError('Python bootstrap and compiler execution host Wasmtime versions differ')
+    stock = LOCK['downloads']['wasmtime']
+    if stock['executable'] != f"wasmtime-v{host_lock['version']}-x86_64-linux/wasmtime":
+        raise ValueError('CI bootstrap and compiler execution host Wasmtime versions differ')
+    adapter_lock = json.loads((ROOT / 'wasm-tools/adapter.lock.json').read_text())
+    if adapter_lock['version'] != host_lock['version']:
+        raise ValueError('Preview 1 adapter and compiler execution host Wasmtime versions differ')
     if tuple(map(int, host_lock["rustVersion"].split("."))) > tuple(map(int, LOCK["rustBootstrap"]["version"].split("."))):
         raise ValueError("CI and Wisp execution host Rust versions differ")
     rust_host_lock = json.loads((host / "rust-wasmtime.lock.json").read_text())
@@ -220,18 +230,14 @@ def execution_host(recipe: str, prefix: Path, cache: Path) -> None:
 def install_for(tool: str) -> dict:
     binaries = {name: install(name) for name in requirements(tool)}
     host_receipts = []
-    environment = {"WISP_WASMTIME": str(binaries["wasmtime"]),
-                   "WASMTIME": str(binaries["wasmtime"]),
-                   "WISP_BOOTSTRAP_WASMTIME": str(binaries["wasmtime"])}
-    paths = [str(binaries["wasmtime"].parent)]
+    environment = {}
+    paths = []
     if tool == "go":
         environment["WISP_GO_HOST_ROOT"] = str(binaries["go-1.27.2"].parents[1])
     if tool == "goose":
-        environment["WISP_GOOSE_FRONTEND_HOST"] = str(binaries["wasmtime"])
         environment["WASI_SDK_PATH"] = str(binaries["wasi-sdk-34"].parents[1])
     if tool == "ocaml":
         environment["WISP_OCAML_WASI_SDK"] = str(binaries["wasi-sdk-34"].parents[1])
-        environment["WISP_OCAML_WASMTIME"] = str(binaries["wasmtime"])
     if tool == "grain":
         environment["WISP_GRAIN_WASI_SDK"] = str(binaries["wasi-sdk-34"].parents[1])
     if tool in ("jvm", "teavm", "java", "kotlin"):
@@ -279,6 +285,7 @@ def install_for(tool: str) -> dict:
     environment.update(WISP_CWASM_RUNTIME=str(prefix / 'wasmtime'), WISP_WASMTIME=launcher,
                        WASMTIME=launcher, WISP_RUST_WASMTIME=launcher,
                        WISP_OCAML_WASMTIME=launcher, WISP_GOOSE_FRONTEND_HOST=launcher,
+                       WISP_BOOTSTRAP_WASMTIME=str(binaries.get('wasmtime', prefix / 'wasmtime')),
                        WISP_LLVM=str(ROOT / 'llvm/dist/shared'))
     paths.insert(0, str(prefix))
     github_environment(environment, paths)

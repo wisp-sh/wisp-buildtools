@@ -22,7 +22,7 @@
     "linkage": "shared-everything-core-module-imports"
   },
   "runtime": {
-    "wasmtime_minimum": "49.0.0",
+    "wasmtime_minimum": "50.0.0",
     "required_features": [
       "p3"
     ]

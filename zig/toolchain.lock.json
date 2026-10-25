@@ -24,7 +24,7 @@
   "host_requirements": {
     "wasmtime": {
       "provider": "wisp",
-      "tested_version": "49.0.1",
+      "tested_version": "50.0.0",
       "interfaces": [
         "wasi_snapshot_preview1",
         "wasi:cli/run@0.3.0"

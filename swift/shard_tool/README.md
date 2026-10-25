@@ -125,7 +125,7 @@ manifest; the pinned input is already stripped.
 
 ## Verification
 
-From `swift/`, run `python3 shard_tool/test_shard.py` for small Wasmtime 49
+From `swift/`, run `python3 shard_tool/test_shard.py` for small Wasmtime 50
 differential fixtures.
 Set `WISP_WASMTIME_PYTHON` to the external binding directory, or install the binding
 in the host Python environment. The verifier holds the common lock and compares

@@ -67,6 +67,9 @@ def main():
             env = {**os.environ, 'TMPDIR': str(staging)}
             subprocess.run([str(sdk / 'bin/clang++'), '--target=wasm32-wasip1', '-std=c++20',
                             '-O1', '-fwasm-exceptions', '-mllvm', '-wasm-use-legacy-eh=false',
+                            f'-ffile-prefix-map={Path.home()}=/build-user',
+                            f'-ffile-prefix-map={ROOT.parent}=/wisp-buildtools',
+                            f'-ffile-prefix-map={tree}=/wisp-buildtools/goose/source',
                             '-I', str(tree / 'src'), str(ROOT / 'src/compiler.cpp'),
                             '-Wl,-z,stack-size=67108864', '-Wl,--max-memory=2147483648',
                             '-lunwind', '-o', str(compiler)], env=env, check=True)

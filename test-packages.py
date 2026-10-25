@@ -197,6 +197,21 @@ class ContainerTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "build-machine path"):
                 self.package()
 
+    def test_stdlib_documentation_example_does_not_allow_private_metadata_paths(self):
+        relative = ('rust/dist/compiler/build/bootstrap/sysroot/lib/rustlib/'
+                    'wasm32-unknown-unknown/lib/libstd-0123456789abcdef.rmeta')
+        path = self.root / relative
+        path.parent.mkdir(parents=True)
+        example = b'rust-metadata: paths.push(PathBuf::from("/home/xyz/bin"));\xc1'
+        path.write_bytes(example)
+        self.document['tools']['compiler']['package']['include'].append(relative)
+        packages.validate(Path(self.package()['archive']))
+        for private in (b'/home/xyz/bin/private.rs', b'/Users/developer/private.rs',
+                        str(self.root).encode() + b'/private.rs'):
+            path.write_bytes(example + private)
+            with self.subTest(private=private), self.assertRaisesRegex(ValueError, 'build-machine path'):
+                self.package()
+
     def test_upstream_exception_never_allows_checkout_or_t3_paths(self):
         relative = "compiler/dist/compiler.wasm"
         path = self.root / relative

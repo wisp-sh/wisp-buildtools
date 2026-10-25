@@ -50,7 +50,7 @@ def main():
     work = root / "work" / "benchmark" / str(name)
     work.mkdir(parents=True, exist_ok=True)
     (work / "input.cpp").write_bytes((root / "examples/add.cpp").read_bytes())
-    wasmtime = str(root / ".toolchains/wasmtime-v49.0.1-x86_64-linux/wasmtime")
+    wasmtime = str(root / ".toolchains/wasmtime-v50.0.0-x86_64-linux/wasmtime")
     marker = "clang-p3" if str(name) == "original" else "clang-wasm"
     compile_once(wasmtime, component, work, marker, False)  # Populate Wasmtime cache.
     warm_runs = [compile_once(wasmtime, component, work, marker, False)

@@ -41,10 +41,10 @@ url = "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/was
 sha256 = "b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4"
 
 [inputs.wasmtime]
-version = "49.0.4"
-archive = "wasmtime-v49.0.4-x86_64-linux.tar.xz"
-url = "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.4/wasmtime-v49.0.4-x86_64-linux.tar.xz"
-sha256 = "6561abd54bdf941b6519cce883e0857cc9bce94d92c65287ed838d895a27f5a9"
+version = "50.0.0"
+archive = "wasmtime-v50.0.0-x86_64-linux.tar.xz"
+url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-x86_64-linux.tar.xz"
+sha256 = "77c19ee0437991f9ac7837b9c269d9c7076744f85dad263fea5214cc2723c7ff"
 
 [inputs.wasm_tools]
 version = "1.262.0"

@@ -37,6 +37,10 @@ ROOT_FIELDS = {"schema", "kind", "identity", "version", "tool", "upstreamVersion
 # or a manifest supplied by the build. Repository and T3 paths remain forbidden.
 # Upstream upgrades must review these locations and update the matching hashes.
 PUBLIC_UPSTREAM_PAYLOADS = {
+    # Unchanged Zig source tests contain the public example /home/absolute/path.rc.
+    "zig/dist/lib/compiler/resinator/cli.zig": "009a7f9fa74436786c758bc232e94acda73d0a5cf160f03c36b4a0c76aea8f2a",
+    # Unchanged upstream path tests include /home/andy and /home/foo examples.
+    "zig/dist/lib/std/fs/path.zig": "fa05488f142bf45ee10cf6f5a75ba35c34fa99ff6fa8770f8b9fbe0db28ed91e",
     "wasm-tools/dist/wasm-tools.wasm": "3e7ec6561150ce3b885626033dff6162eabb5fc8226023f1f1afc0689de0db49",
     "assemblyscript/dist/binaryen.wasm": "265109799c6a9c7f27b961b213d6aef300550be8e8210c29a5709b4fd9b11605",
     "grain/dist/grainc.js": "0a85cf0120aafd873e41eb901a18090453010f8f819074b77c14e1c359cafd1e",
@@ -64,6 +68,16 @@ PUBLIC_UPSTREAM_STRINGS = {
         b"/home/runner/work/swift-toolchain-wasm/swift-toolchain-wasm/src/swift/lib/Demangling/Demangler.cpp\0",
     ),
 }
+
+
+def public_upstream_strings(relative):
+    values = PUBLIC_UPSTREAM_STRINGS.get(relative, ())
+    # Pinned Rust stdlib metadata includes this complete env::join_paths
+    # documentation example. The trailing byte is rustc's string delimiter.
+    if re.fullmatch(r'rust/dist/compiler/build/bootstrap/sysroot/lib/rustlib/'
+                    r'wasm32-(?:unknown-unknown|wasip1|wasip3)/lib/libstd-[0-9a-f]+\.(?:rmeta|rlib)', relative):
+        values += (b'/home/xyz/bin"));\xc1',)
+    return values
 
 
 def digest(path: Path) -> str:
@@ -280,8 +294,8 @@ def pack(document: dict, name: str, files: dict[str, Path], *, root: Path, outpu
     overlap = max(len(home_prefix), len(root_prefix), len(b".t3/projects/"), len(b"/Users/") + 255 + 1) - 1
     for relative, path in files.items():
         safe_path(relative)
-        public_strings = (PUBLIC_UPSTREAM_STRINGS.get(relative, ())
-                          + PUBLIC_UPSTREAM_STRINGS.get(native_sources.get(relative, ''), ()))
+        public_strings = (public_upstream_strings(relative)
+                          + public_upstream_strings(native_sources.get(relative, '')))
         lookahead = max([overlap, *(len(value) - 1 for value in public_strings)])
 
         def private_home(data, limit):
