@@ -32,19 +32,18 @@ def _load():
     functions = {}
     instances = {}
     for owner, name, count in EXPORTS:
-        # Prefer functions defined in the entry module, preserving their source
-        # spellings after WIT normalization. Authored interface classes remain
-        # available when no local top-level function supplies the export.
-        local = [value for key, value in namespace.items()
-                 if key.replace('_', '').lower() == name.replace('_', '').lower()
-                 and getattr(value, '__module__', None) == namespace['__name__']
-                 and callable(value)]
-        if len(local) > 1:
-            raise TypeError('ambiguous Python export: ' + name)
         implementation = namespace.get(owner)
-        if local:
-            function = local[0]
+        if program.get('entry') == '__wisp_inferred__':
+            # Infer only top-level functions, preserving their original spelling.
+            local = [value for key, value in namespace.items()
+                     if key.replace('_', '').lower() == name.replace('_', '').lower()
+                     and getattr(value, '__module__', None) == namespace['__name__']
+                     and callable(value)]
+            if len(local) > 1:
+                raise TypeError('ambiguous Python export: ' + name)
+            function = local[0] if local else namespace.get(name)
         elif implementation is not None and hasattr(implementation, name):
+            # Authored contracts retain interface-class precedence over helpers.
             if owner not in instances:
                 instances[owner] = implementation()
             function = getattr(instances[owner], name, None)

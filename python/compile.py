@@ -19,6 +19,7 @@ def main():
     parser.add_argument("--cache-dir", type=Path, default=Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "wisp/python")
     parser.add_argument("--entry", default="add", help="Python callable to expose through the fixed add export")
     parser.add_argument("--wit", type=Path, help="authored WIT contract with a provisioned runtime template")
+    parser.add_argument("--inferred", action="store_true", help="--wit was inferred from top-level Python functions")
     parser.add_argument("--world", help="world selected from --wit")
     parser.add_argument("--package-root", type=Path, help="root for local Python imports, requires --wit")
     parser.add_argument("--python-path", type=Path, action="append", default=[],
@@ -43,6 +44,8 @@ def main():
         from compile_contract import compile_contract
         compile_contract(args, source, output)
         return
+    if args.inferred:
+        raise ValueError("--inferred requires --wit")
     if args.package_root or args.python_path:
         raise ValueError("--package-root and --python-path require --wit")
     if args.world:

@@ -62,10 +62,10 @@ def compile_contract(args, source, output):
             packaged_source.write_bytes(payload)
         candidate = work / 'candidate.wasm'
         run(limited(guest_tools.guest_command(package / 'python-packager.wasm',
-                    package / 'template.component.wasm', packaged_source, '', candidate)))
+                    package / 'template.component.wasm', packaged_source, '__wisp_inferred__' if getattr(args, 'inferred', False) else '', candidate)))
         capabilities = ('inherit-network=n,allow-ip-name-lookup=n,tcp=n,udp=n,inherit-env=n,'
                         'inherit-stdin=n,inherit-stdout=n,inherit-stderr=n')
-        result = run(limited([str(guest_tools.runtime()), 'run', '-S', capabilities,
+        result = run(limited([str(guest_tools.runtime()), 'run', '-C', 'cache=y', '-S', capabilities,
                              '--invoke', CONTROL + '()', candidate]), capture=True, timeout=args.timeout).stdout.strip()
         if result != 'ok':
             raise ValueError('guest CPython rejected the program: ' + result)

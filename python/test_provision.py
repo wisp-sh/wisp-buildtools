@@ -33,3 +33,10 @@ class ProvisionTests(unittest.TestCase):
                 third = provision.template('contract-hash', {}, wit, 'library', root / 'cache')
                 self.assertNotEqual(first, third)
                 self.assertEqual(run.call_count, 2)
+
+                with patch.object(provision.platform, 'system', return_value='Darwin'):
+                    self.assertEqual(third, provision.template('contract-hash', {}, wit, 'library', root / 'cache'))
+                    (package / 'scripts/runtime_contract.py').write_text('another runtime')
+                    with self.assertRaisesRegex(ValueError, 'requires Linux x86_64'):
+                        provision.template('contract-hash', {}, wit, 'library', root / 'cache')
+                self.assertEqual(run.call_count, 2)

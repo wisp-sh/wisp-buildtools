@@ -48,7 +48,10 @@ async/decorated/generic functions and variadic/keyword-only parameters fail.
 `infer.py ENTRY.py` prints a complete inferred WIT document. It packages the
 source bytes into `dist/inference.component.wasm` using the WASI packager and
 invokes guest `infer()`. It does not execute application code during inference.
-Wisp uses this tool before normal source packaging.
+Wisp uses this tool before normal source packaging. Outside Wisp, pass the
+resulting WIT to `compile.py --wit ... --world library --inferred` to select
+top-level functions. Authored contracts keep interface-class precedence over
+same-named helpers.
 
 ## Automatic contract templates
 
@@ -67,6 +70,8 @@ manifest and `toolchain.lock.json`. The WASI export-projection helper is built
 once at package bootstrap, so template creation needs no Cargo installation.
 Provisioning scratch is disk-backed under the cache and removed on completion.
 The first API build needs substantially more memory and disk than reuse.
+Automatic creation currently requires Linux x86_64; other compatible hosts can
+reuse matching preprovisioned templates.
 
 Application builds then use the WASI source packager, guest CPython `compile`
 and `exec`, WASI export projection and WASI wasm-tools validation. The receipt's
@@ -155,8 +160,8 @@ python3 python/verify_inferred.py
 
 Unit tests use host doubles for guest behavior. `verify_inferred.py` exercises
 guest inference, automatic provisioning, cache reuse, rich calls and failure
-atomicity. New guest artifacts and this end-to-end path have not yet been
-validated on the resource-constrained development host.
+atomicity. The guest path is checked on Linux x86_64, including a build with no external
+compiler tools on `PATH`. Runtime Components retain their WASI host requirements.
 
 The legacy scalar path remains `compile.py source.py -o output.wasm` without
 `--wit`. It exports `add(s32, s32) -> s32`; `--entry` chooses the two-argument

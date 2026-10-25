@@ -65,12 +65,12 @@ class ContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'resources'):
             contract(value, 'library')
 
-    def runtime(self, source_text):
+    def runtime(self, source_text, inferred=False):
         namespace = {}
         world = types.ModuleType('wit_world')
         exports = types.ModuleType('wit_world.exports')
         imports = types.ModuleType('wit_world.imports')
-        source = types.SimpleNamespace(get=lambda: json.dumps({'source': source_text}))
+        source = types.SimpleNamespace(get=lambda: json.dumps({'source': source_text, 'entry': '__wisp_inferred__' if inferred else ''}))
         imports.source = source
         world.exports = exports
         errors = types.ModuleType('componentize_py_types')
@@ -98,7 +98,7 @@ def total(values):
         self.assertEqual(42, runtime['_call']('Api', 'total', [20, 22]))
 
     def test_normalized_inferred_names_keep_the_original_python_function(self):
-        runtime, _ = self.runtime('def greetPerson(name): return name + "!"\ndef answer_(): return 42')
+        runtime, _ = self.runtime('def greetPerson(name): return name + "!"\ndef answer_(): return 42', inferred=True)
         runtime['EXPORTS'] = [('Api', 'greet_person', 1), ('Api', 'answer', 0)]
         self.assertEqual(runtime['_call']('Api', 'greet_person', 'x'), 'x!')
         self.assertEqual(runtime['_call']('Api', 'answer'), 42)
@@ -113,6 +113,17 @@ def total(values):
 ''')
         self.assertEqual('1', runtime['_call']('Api', 'greet', 'x'))
         self.assertEqual('2', runtime['_call']('Api', 'greet', 'x'))
+
+    def test_authored_classes_keep_precedence_and_inference_selects_top_level_functions(self):
+        source = '''def greet(name): return "global " + name
+def total(values): return sum(values)
+class Api:
+    def greet(self, name): return "class " + name
+'''
+        authored, _ = self.runtime(source)
+        inferred, _ = self.runtime(source, inferred=True)
+        self.assertEqual(authored['_call']('Api', 'greet', 'x'), 'class x')
+        self.assertEqual(inferred['_call']('Api', 'greet', 'x'), 'global x')
 
     def test_invalid_sources_fail_before_any_export_is_cached(self):
         sources = ['def broken(: pass', 'raise ValueError("broken")',

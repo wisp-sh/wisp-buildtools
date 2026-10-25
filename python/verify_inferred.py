@@ -66,7 +66,7 @@ def main():
         wit.write_text(inferred)
         output = work / 'library.wasm'
         cache = work / 'cache'
-        command = [sys.executable, ROOT / 'compile.py', source, '--wit', wit, '--world', 'library',
+        command = [sys.executable, ROOT / 'compile.py', source, '--wit', wit, '--world', 'library', '--inferred',
                    '--package-root', project, '--cache-dir', cache, '-o', output]
         receipt = json.loads(run(command, capture=True).stdout)
         for expression, expected in [
@@ -110,9 +110,18 @@ def main():
             raise ValueError('invalid initializer unexpectedly succeeded')
         if digest(output) != previous:
             raise ValueError('failed build replaced the previous output')
+        bad = work / 'bad.py'
+        bad.write_text('raise RuntimeError("inference must not execute source")\ndef missing(value) -> int: ...\n')
+        try:
+            run([sys.executable, ROOT / 'infer.py', bad], capture=True)
+        except subprocess.CalledProcessError as error:
+            if 'function missing parameter value: unsupported Python type <missing annotation>' not in error.stderr:
+                raise ValueError('guest inference did not name the missing annotation') from error
+        else:
+            raise ValueError('guest inference accepted a missing annotation')
         if not receipt['sourceBundle']['dependencies']['packages']:
             raise ValueError('dependency pins missing from receipt')
-    print('PASS guest inference, rich values, offline wheel, automatic provisioning, reuse, API/body changes and failure atomicity')
+    print('PASS guest inference, rich values, offline wheel, automatic provisioning, reuse, API/body changes failure atomicity and guest diagnostics')
 
 
 if __name__ == '__main__':

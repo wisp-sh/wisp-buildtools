@@ -49,7 +49,7 @@ def invoke(component: Path, expression: str, *, timeout=30) -> str:
     try:
         capabilities = ("inherit-network=n,allow-ip-name-lookup=n,tcp=n,udp=n,inherit-env=n,"
                         "inherit-stdin=n,inherit-stdout=n,inherit-stderr=n")
-        result = run([tool("wasmtime"), "run", "-O", "opt-level=0", "-C", "parallel-compilation=n", "-S", capabilities, "--invoke", expression, component],
+        result = run([tool("wasmtime"), "run", "-C", "cache=y", "-O", "opt-level=0", "-C", "parallel-compilation=n", "-S", capabilities, "--invoke", expression, component],
                      capture=True, timeout=timeout)
     except subprocess.CalledProcessError as error:
         raise ValueError(f"guest invocation failed: {error.stderr.strip() or error.stdout.strip()}") from error

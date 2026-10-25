@@ -3,6 +3,7 @@ import fcntl
 import hashlib
 import json
 from pathlib import Path
+import platform
 import sys
 
 from scripts.common import ROOT, digest, run
@@ -21,6 +22,9 @@ def template(key, exports, wit, world, cache_dir):
         fcntl.flock(lock, fcntl.LOCK_EX)
         destination = cache / key
         if not destination.is_dir():
+            if platform.system() != 'Linux' or platform.machine() not in ('x86_64', 'AMD64'):
+                raise ValueError('automatic Python runtime provisioning currently requires Linux x86_64; '
+                                 'install a matching preprovisioned contract template on this host')
             run([sys.executable, ROOT / 'bootstrap_contract.py', '--wit', wit, '--world', world,
                  '--cache-dir', cache, '--offline'], capture=True)
         return destination
