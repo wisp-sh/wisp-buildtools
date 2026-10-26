@@ -290,6 +290,10 @@ least `clang`, `go`, `rust`, `llvm` and `wasm-tools` in that release. Other
 compilers can be present; assembly selects these five and their shared-tool
 dependencies. The acquisition manifest uses schema 2 and records the release
 commit. The CLI's source acceptance installer also accepts this release format.
+Standard Linux bundles include native precompiled companions alongside the Wasm
+compilers. Runtime assembly accepts these Linux bundles and portable Wasm-only
+bundles, checking that each installed platform matches its manifest. Source
+acceptance deliberately requires Wasm-only bundles packaged with `--source-only`.
 
 Then dispatch **Release library build runtime** with a new tag and the public
 manifest URL and exact SHA-256 from each release. `tools/assemble_runtime.py`

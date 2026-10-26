@@ -27,8 +27,8 @@ def compiler_bundles(value):
             fail('invalid tool name')
         if entry['tool'] in by_tool:
             fail('duplicate compiler release bundle')
-        if entry.get('platform') != 'wasm32-wasi':
-            fail('library runtimes require Wasm compiler bundles')
+        if entry.get('platform') not in ('wasm32-wasi', 'linux-x86_64'):
+            fail('library runtimes require Linux x86_64 compatible compiler bundles')
         if not isinstance(entry.get('version'), str) or not re.fullmatch(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', entry['version']):
             fail('invalid compiler version')
         if type(entry.get('size')) is not int or not 0 < entry['size'] <= 2 * 1024**3:
@@ -82,7 +82,7 @@ def assemble(args):
         archive = download(entry['url'], entry['sha256'], work / (entry['tool'] + '.wisp.zip'), size=entry['size'])
         # Check declared identity before installation, even when the hash matches.
         record = json.loads(subprocess.check_output([cli, 'toolchain', 'validate', archive], text=True))
-        if record.get('tool') != entry['tool'] or record.get('version') != entry['version'] or record.get('platform') != 'wasm32-wasi':
+        if record.get('tool') != entry['tool'] or record.get('version') != entry['version'] or record.get('platform') != entry['platform']:
             fail('compiler bundle differs from its manifest identity')
         subprocess.run([cli, 'toolchain', 'install', archive, '--prefix', prepared / 'toolchains', '--sha256', entry['sha256']], check=True)
         archive.unlink()

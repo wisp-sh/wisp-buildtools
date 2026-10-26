@@ -64,22 +64,28 @@ class RuntimeTests(unittest.TestCase):
             {'tool': tool, 'platform': 'wasm32-wasi', 'version': '0.1.0', 'size': 10, 'requires': []}
             for tool in sorted(REQUIRED)]}
 
-    def test_assembly_requires_five_wasm_compilers_and_dependency_closure(self):
+    def test_assembly_requires_five_compatible_compilers_and_dependency_closure(self):
         value = self.manifest()
         self.assertEqual({entry['tool'] for entry in compiler_bundles(value)}, REQUIRED)
         value['bundles'][0]['requires'] = ['wisp:missing']
         with self.assertRaisesRegex(ValueError, 'missing'):
             compiler_bundles(value)
-        for mutation in ('missing', 'native', 'duplicate'):
+        for mutation in ('missing', 'other-platform', 'duplicate'):
             value = self.manifest()
             if mutation == 'missing':
                 value['bundles'].pop()
-            elif mutation == 'native':
-                value['bundles'][0]['platform'] = 'linux-x86_64'
+            elif mutation == 'other-platform':
+                value['bundles'][0]['platform'] = 'darwin-arm64'
             else:
                 value['bundles'].append(copy.deepcopy(value['bundles'][0]))
             with self.subTest(mutation=mutation), self.assertRaises(ValueError):
                 compiler_bundles(value)
+
+    def test_linux_releases_can_include_native_precompiled_companions(self):
+        value = self.manifest()
+        for entry in value['bundles']:
+            entry['platform'] = 'linux-x86_64'
+        self.assertEqual({entry['tool'] for entry in compiler_bundles(value)}, REQUIRED)
 
     def test_environment_paths_are_relocated_without_evaluating_shell(self):
         prefix = Path('/release/runtime')
