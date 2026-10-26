@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 import re
 import shlex
@@ -64,6 +65,22 @@ def compiler_environment(text, prefix):
     return exports
 
 
+def npm_environment(prepared, exports):
+    """Older native kits omitted the npm archives used to authenticate JCO."""
+    exports = dict(exports)
+    if 'WISP_NPM_CACHE' not in exports:
+        cache = prepared / 'npm-cache'
+        environment = dict(os.environ)
+        environment['PATH'] = str(prepared / 'node/bin') + os.pathsep + environment.get('PATH', '')
+        subprocess.run([prepared / 'node/bin/npm', 'ci', '--prefix', prepared / 'js',
+                        '--cache', cache, '--ignore-scripts', '--no-audit', '--no-fund'],
+                       env=environment, check=True)
+        if not (cache / '_cacache').is_dir():
+            fail('npm setup did not retain its authenticated archive cache')
+        exports['WISP_NPM_CACHE'] = 'npm-cache'
+    return exports
+
+
 def assemble(args):
     work = args.work.resolve()
     work.mkdir(parents=True, exist_ok=False)
@@ -77,6 +94,7 @@ def assemble(args):
     prepared.mkdir()
     extract_runtime(archive, prepared)
     archive.unlink()
+    native['env'] = npm_environment(prepared, native['env'])
     cli = prepared / 'bin/wisp'
     for entry in bundles:
         archive = download(entry['url'], entry['sha256'], work / (entry['tool'] + '.wisp.zip'), size=entry['size'])

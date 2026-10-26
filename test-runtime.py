@@ -9,9 +9,10 @@ import sys
 import tarfile
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / 'tools'))
-from assemble_runtime import REQUIRED, compiler_bundles, compiler_environment
+from assemble_runtime import REQUIRED, compiler_bundles, compiler_environment, npm_environment
 from package_runtime import package
 from runtime_format import extract_runtime
 
@@ -58,6 +59,32 @@ class RuntimeTests(unittest.TestCase):
             (prepared / 'escape').symlink_to(root / 'private')
             with self.assertRaisesRegex(ValueError, 'inside'):
                 package(prepared, root / 'runtime.tar.gz', {}, 'https://example.com/runtime.tar.gz')
+
+    def test_authenticated_npm_cache_survives_runtime_packaging_and_relocation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepared = self.prepared(root)
+            def install(argv, **kwargs):
+                self.assertIn('--ignore-scripts', argv)
+                cache = Path(argv[argv.index('--cache') + 1]) / '_cacache/content-v2/sha512/archive'
+                cache.parent.mkdir(parents=True)
+                cache.write_bytes(b'authenticated npm package archive')
+            with patch('assemble_runtime.subprocess.run', side_effect=install):
+                exports = npm_environment(prepared, {})
+            archive = root / 'runtime.tar.gz'
+            catalog = package(prepared, archive, exports, 'https://example.com/runtime.tar.gz')
+            installed = root / 'relocated'
+            installed.mkdir()
+            extract_runtime(archive, installed)
+            cache = installed / catalog['env']['WISP_NPM_CACHE']
+            self.assertEqual((cache / '_cacache/content-v2/sha512/archive').read_bytes(),
+                             b'authenticated npm package archive')
+
+    def test_native_kit_with_its_own_npm_cache_needs_no_extra_install(self):
+        with patch('assemble_runtime.subprocess.run') as install:
+            exports = {'WISP_NPM_CACHE': 'npm-cache'}
+            self.assertEqual(npm_environment(Path('/kit'), exports), exports)
+            install.assert_not_called()
 
     def manifest(self):
         return {'schema': 2, 'platform': 'linux-x86_64', 'bundles': [
