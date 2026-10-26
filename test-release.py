@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import runpy
 from pathlib import Path
 import tempfile
 import unittest
@@ -28,6 +29,52 @@ def write_bundle(directory: Path, tool: str, requires: list[str] = (), data: byt
 
 
 class ReleaseManifestTests(unittest.TestCase):
+    def test_collection_keeps_overlapping_dependency_triples_together(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in ("java", "kotlin", "jvm"):
+                artifact = root / f"{name}-linux-x86_64"
+                artifact.mkdir()
+                write_bundle(artifact, "jvm", data=f"jvm built by {name}".encode())
+            release.collect(root, root / "collected")
+            self.assertEqual((root / "collected/jvm.wisp.zip").read_bytes(), b"jvm built by jvm")
+            value = release.manifest(root / "collected", "wisp-sh/wisp-buildtools", "toolchains-1", COMMIT)
+            self.assertEqual(len(value["bundles"]), 1)
+
+    def test_collection_uses_a_complete_dependency_provider_without_its_own_job(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in ("kotlin", "java"):
+                artifact = root / f"{name}-linux-x86_64"
+                artifact.mkdir()
+                write_bundle(artifact, "jvm", data=name.encode())
+            release.collect(root, root / "collected")
+            self.assertEqual((root / "collected/jvm.wisp.zip").read_bytes(), b"java")
+            release.manifest(root / "collected", "wisp-sh/wisp-buildtools", "toolchains-1", COMMIT)
+
+    def test_collection_never_repairs_a_bad_selected_checksum_from_another_provider(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in ("java", "jvm"):
+                artifact = root / f"{name}-linux-x86_64"
+                artifact.mkdir()
+                write_bundle(artifact, "jvm", recorded="0" * 64 if name == "jvm" else None)
+            with self.assertRaisesRegex(SystemExit, "recorded SHA-256"):
+                release.collect(root, root / "collected")
+
+    def test_publication_resume_rejects_failed_builds_and_preserves_source_commit(self):
+        validate = runpy.run_path(str(ROOT / "tools/release-source.py"))["validate"]
+        run = {"path": ".github/workflows/build.yml", "event": "workflow_dispatch", "head_sha": COMMIT,
+               "head_repository": {"full_name": "wisp-sh/wisp-buildtools"}, "status": "completed", "conclusion": "failure"}
+        jobs = [{"name": name, "status": "completed", "conclusion": result} for name, result in
+                [("Select toolchains", "success"), ("Build jvm / jvm", "success"), ("Publish toolchain release", "failure")]]
+        self.assertEqual(validate(run, jobs, "wisp-sh/wisp-buildtools"), COMMIT)
+        jobs[1]["conclusion"] = "failure"
+        with self.assertRaisesRegex(ValueError, "must have passed"):
+            validate(run, jobs, "wisp-sh/wisp-buildtools")
+        with self.assertRaises(ValueError):
+            validate(run, jobs, "another/repository")
+
     def test_lists_every_bundle_with_its_exact_size_digest_and_release_url(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)

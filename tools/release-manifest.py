@@ -13,6 +13,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import shutil
 import sys
 
 REPOSITORY = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9_.-]{1,100}\Z")
@@ -28,6 +29,30 @@ def fail(message: str):
 def sha256(path: Path) -> str:
     with path.open("rb") as file:
         return hashlib.file_digest(file, "sha256").hexdigest()
+
+
+def collect(artifacts: Path, destination: Path) -> None:
+    """Keep each archive, inventory and checksum together when artifacts overlap.
+
+    A compiler artifact also contains its shared dependencies. Prefer a tool's
+    own artifact, then the first dependency provider in name order. Never merge
+    the individual files from independent builds of the same dependency.
+    """
+    candidates = {}
+    for archive in sorted(artifacts.glob("*-linux-x86_64/*.wisp.zip")):
+        tool = archive.name.removesuffix(".wisp.zip")
+        if not re.fullmatch(r"[a-z][a-z0-9-]*", tool):
+            fail("invalid toolchain archive name")
+        candidates.setdefault(tool, []).append(archive)
+    if not candidates:
+        fail("no toolchain artifacts to collect")
+    destination.mkdir(parents=True, exist_ok=False)
+    for tool, paths in sorted(candidates.items()):
+        archive = min(paths, key=lambda path: (path.parent.name != f"{tool}-linux-x86_64", str(path)))
+        # Authenticate the selected triple before copying any of its files.
+        bundle(archive.parent, archive, "wisp-sh/wisp-buildtools", "collection")
+        for name in (archive.name, f"{tool}.wisp.json", f"{tool}.wisp.zip.sha256"):
+            shutil.copyfile(archive.parent / name, destination / name)
 
 
 def bundle(directory: Path, archive: Path, repository: str, tag: str) -> dict:
@@ -76,11 +101,14 @@ def manifest(directory: Path, repository: str, tag: str, commit: str) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", type=Path, help="directory holding TOOL.wisp.zip, TOOL.wisp.json and TOOL.wisp.zip.sha256 files")
+    parser.add_argument("--artifacts", type=Path, help="collect separate downloaded artifact directories into the fresh directory first")
     parser.add_argument("--repository", required=True)
     parser.add_argument("--tag", required=True)
     parser.add_argument("--commit", required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    if args.artifacts:
+        collect(args.artifacts, args.directory)
     value = manifest(args.directory, args.repository, args.tag, args.commit)
     args.output.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
     print(f"{args.output.name} {sha256(args.output)} ({len(value['bundles'])} bundles)", file=sys.stderr)

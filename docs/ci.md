@@ -110,6 +110,15 @@ Wisp's approved library build pins this manifest by SHA-256 and installs each
 bundle with `wisp toolchain install BUNDLE --sha256 SHA256`. A new release
 changes the manifest digest, so consumers adopt it explicitly.
 
+If publication fails after the compilers passed, dispatch **Build all toolchains**
+again with the same `release_tag` and the original run's numeric ID in
+`artifacts_run_id`. This skips compilation, verifies the original workflow and
+all selected build results, and publishes its retained artifacts with the original
+source commit. Artifacts stay in separate directories during collection. A tool's
+own artifact takes precedence over copies bundled with its consumers; an archive,
+inventory and checksum always come from the same artifact. Expired artifacts
+require a new build.
+
 The default runner is `ubuntu-24.04`. Automatic builds have no explicit matrix
 concurrency cap; available GitHub runner capacity determines how many targets
 run at once. The manual workflow allows up to two targets in each of its LLVM
