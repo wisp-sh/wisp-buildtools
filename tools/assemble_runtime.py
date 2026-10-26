@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import shlex
+import shutil
 import subprocess
 
 from runtime_format import download, extract_runtime, fail, json_bytes, strict_json, validate_catalog
@@ -77,6 +78,7 @@ def npm_environment(prepared, exports):
                        env=environment, check=True)
         if not (cache / '_cacache').is_dir():
             fail('npm setup did not retain its authenticated archive cache')
+        shutil.rmtree(cache / '_logs', ignore_errors=True)
         exports['WISP_NPM_CACHE'] = 'npm-cache'
     return exports
 

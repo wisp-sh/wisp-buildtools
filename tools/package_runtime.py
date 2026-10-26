@@ -38,7 +38,7 @@ def package(prepared, destination, environment, url):
         fail("runtime environment points to a missing file or directory")
     # Validation before archive creation catches unsupported env keys and paths.
     validate_catalog({"schema": 1, "platform": "linux-x86_64", "runtime": {"url": url, "size": 1, "sha256": "0" * 64}, "cli": {"path": "bin/wisp"}, "env": environment})
-    with destination.open("xb") as output, gzip.GzipFile(filename="", mode="wb", fileobj=output, mtime=0) as compressed, tarfile.open(fileobj=compressed, mode="w", format=tarfile.PAX_FORMAT) as archive:
+    with destination.open("xb") as output, gzip.GzipFile(filename="", mode="wb", fileobj=output, mtime=0, compresslevel=6) as compressed, tarfile.open(fileobj=compressed, mode="w", format=tarfile.PAX_FORMAT) as archive:
         for path in paths:
             entry = tarfile.TarInfo(path.relative_to(prepared).as_posix())
             if path.is_dir():
