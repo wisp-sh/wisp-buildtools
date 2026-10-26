@@ -119,6 +119,12 @@ own artifact takes precedence over copies bundled with its consumers; an archive
 inventory and checksum always come from the same artifact. Expired artifacts
 require a new build.
 
+Before resuming publication from an older commit, create and push the release tag
+at that original source commit using your maintainer account. The workflow checks
+the tag's commit and requires that existing tag. GitHub's workflow token cannot
+create a tag for an old commit whose workflow files differ from the default
+branch. See [GitHub's release permissions](https://docs.github.com/en/rest/releases/releases#create-a-release).
+
 The default runner is `ubuntu-24.04`. Automatic builds have no explicit matrix
 concurrency cap; available GitHub runner capacity determines how many targets
 run at once. The manual workflow allows up to two targets in each of its LLVM

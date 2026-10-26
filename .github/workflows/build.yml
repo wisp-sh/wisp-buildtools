@@ -159,6 +159,7 @@ jobs:
       RELEASE_DIRECTORY: ${{ github.workspace }}/.ci/release
       ARTIFACTS_DIRECTORY: ${{ github.workspace }}/.ci/release-artifacts
       BUILD_RUN_ID: ${{ inputs.artifacts_run_id || github.run_id }}
+      RESUME_RUN_ID: ${{ inputs.artifacts_run_id }}
       SOURCE_SHA: ${{ github.sha }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -197,5 +198,12 @@ jobs:
             sha256sum toolchains-linux-x86_64.json ./*.wisp.zip
             echo '```'
           } > notes.md
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$SOURCE_SHA" --title "$TAG" --notes-file notes.md \
+          target=(--target "$SOURCE_SHA")
+          if [[ -n "$RESUME_RUN_ID" ]]; then
+            # GITHUB_TOKEN cannot create an old tag whose workflow files differ
+            # from main. A maintainer creates that tag; verify it before release.
+            test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)" = "$SOURCE_SHA"
+            target=(--verify-tag)
+          fi
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" "${target[@]}" --title "$TAG" --notes-file notes.md \
             toolchains-linux-x86_64.json ./*.wisp.zip ./*.wisp.json ./*.wisp.zip.sha256
