@@ -36,6 +36,18 @@ jobs:
       BUILD_JOBS: ${{ inputs.jobs }}
       PACKAGE_DIRECTORY: ${{ github.workspace }}/.ci/packages/${{ inputs.toolchain }}
     steps:
+      - name: Record JavaScript acceptance start
+        if: inputs.toolchain == 'javascript'
+        run: |
+          mkdir -p "$RUNNER_TEMP/wisp-javascript"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          path = Path(os.environ['RUNNER_TEMP']) / 'wisp-javascript/status.json'
+          path.write_text(json.dumps({'phase': 'setup', 'complete': False, 'passed': False,
+                                      'buildtoolsSha': os.environ['GITHUB_SHA'],
+                                      'runId': os.environ['GITHUB_RUN_ID']}) + '\n')
+          PY
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
@@ -188,12 +200,14 @@ jobs:
         with:
           name: javascript-acceptance-evidence
           path: |
+            ${{ runner.temp }}/wisp-javascript/status.json
             .ci/build.log
             .ci/test-javascript.log
             .ci/package.log
             .ci/javascript-installed/result.json
             .ci/javascript-installed/*/verification.json
             javascript/build/**/verification.json
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
       - name: Upload compiler package

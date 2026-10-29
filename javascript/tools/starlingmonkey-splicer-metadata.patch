@@ -22,3 +22,22 @@
              fs::write(out_dir.join("component.wasm"), result.wasm).with_context(|| {
                  format!(
                      "Failed to write output file: {}",
+--- a/crates/spidermonkey-embedding-splicer/src/bindgen.rs
++++ b/crates/spidermonkey-embedding-splicer/src/bindgen.rs
+@@ -245,7 +245,15 @@
+         }
+         let joined_bindings = specifier_list.join(",\n\t");
++        // Keep named imports and also accept the interface-object default
++        // imports used by Wisp's QuickJS adapter. Freestanding functions and
++        // resources already have a default export and must retain it.
++        let default_binding = if specifier_list.iter().any(|item| item.starts_with("default:")) {
++            String::new()
++        } else {
++            format!(",\n\tdefault: {{ {joined_bindings} }}")
++        };
+         import_wrappers.push((
+             specifier.to_string(),
+-            format!("defineBuiltinModule('{specifier}', {{\n\t{joined_bindings}\n}});"),
++            format!("defineBuiltinModule('{specifier}', {{\n\t{joined_bindings}{default_binding}\n}});"),
+         ));
+     }

@@ -100,6 +100,10 @@ export function add(a, b) {
 
 `examples/imports.ts` and `examples/imports.wit` provide the complete example. The verifier composes the resulting Component with a separate Wasm math provider and checks the arguments and result through the canonical ABI.
 
+StarlingMonkey accepts this interface-object default import as well as its
+upstream named and namespace imports. The Wasm binding generator adds the
+default object; application code does not need an engine-specific rewrite.
+
 URI imports such as `toolchain:` remain external for WIT binding. Every statically resolved JS/TS source module is bundled and hashed in the receipt. The guest computes each hash from the exact bytes it gives to esbuild, so later edits cannot change the recorded input identity. The source guest can read only the chosen module root and its temporary output directory. Set `--module-root` to a project directory that includes any needed package dependencies. Runtime filesystem module loading is unavailable.
 
 The receipt records esbuild's source inputs. Automatically discovered `tsconfig.json` files and package-resolution metadata are not included in that list, so it does not claim a complete build configuration closure.

@@ -73,7 +73,8 @@ def main() -> int:
         except Exception as error:
             checks.append({"name": name, "passed": False,
                            "milliseconds": round((time.monotonic() - start) * 1000), "error": str(error)})
-            raise
+            print(f"FAIL {name}: {error}", file=sys.stderr, flush=True)
+            return None
 
     def compile_component(source, wit, world, name, extra=()):
         output = directory / f"{name}.wasm"
@@ -126,6 +127,8 @@ def main() -> int:
                 run([sys.executable, ROOT / "bootstrap.py", "--check", "--json"]).stdout))
         js = check("plain JS emits a stripped typed Component", lambda: compile_component(
             ROOT / "examples/add.js", ROOT / "examples/add.wit", "arithmetic", "add-js", ["--stub-wasi"])["artifact"])
+        if js is None:
+            raise ValueError("basic Component compilation failed; see recorded check")
         js_path = Path(js["path"])
 
         def numeric():
@@ -198,6 +201,16 @@ def main() -> int:
             run(wasm_tools.command("compose", component["path"], "-d", provider, "-o", composed))
             results = [invoke(composed, call) for call in ("add(20,22)", "add(-3.5,4.25)")]
             assert results == ["82", "-6.25"], results
+            if args.engine == "starlingmonkey":
+                source = directory / "named-imports.ts"
+                source.write_text('import {add as hostAdd} from "toolchain:javascript/host-math"; '
+                                  'import * as host from "toolchain:javascript/host-math"; '
+                                  'export function add(a:number,b:number) { return hostAdd(a,b)+host.add(a,b); }\n')
+                named = compile_component(source, ROOT / "examples/imports.wit", "imported-arithmetic",
+                                          "named-imports", ["--stub-wasi"])
+                named_composed = directory / "named-imports-composed.wasm"
+                run(wasm_tools.command("compose", named["path"], "-d", provider, "-o", named_composed))
+                assert invoke(named_composed, "add(20,22)") == "164"
             return {"provider": "3*a+b", "results": results, **component["artifact"]}
         check("typed WIT imports call a composed Wasm provider", imported)
 
@@ -350,7 +363,7 @@ def main() -> int:
             assert not log.exists(), log.read_text()
             return {"blocked": 11, "attempted": 0}
         check("native compiler and Node guards were never invoked", guards)
-        report["passed"] = True
+        report["passed"] = all(item["passed"] for item in checks)
     except Exception as error:
         report["error"] = str(error)
         print(f"verify: {error}", file=sys.stderr)
