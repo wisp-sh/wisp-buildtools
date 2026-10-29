@@ -21,12 +21,16 @@ working directory. It prints `42` and writes the same bytes to `output.bin`.
 "$WISP_BOOTSTRAP_WASMTIME" run -W exceptions=y --dir /path/to/data::/ check.wasm
 ```
 
-`WISP_OCAML_WASMTIME` selects the OCaml compiler host. It defaults to
+`WISP_WORKER` explicitly selects the Wisp worker for both compiler stages.
+Otherwise `WISP_OCAML_WASMTIME` selects the OCaml compiler host. It defaults to
 `WISP_BOOTSTRAP_WASMTIME`, then `WISP_WASMTIME`. Use the ordinary Wasmtime 50
 distribution with exception support. The current Wisp worker also enables exception instructions. Older minimal
 Wisp hosts need to be rebuilt before they can run this package. `WISP_WASMTIME` selects the Wisp host used for the
 shared LLVM C backend. Set `WISP_LLVM_TOOLCHAIN`, `WISP_LLVM` and
 `WISP_CLANG_RESOURCE_DIR` when the dependencies are installed elsewhere.
+Explicit host selections take precedence over an automatically discovered
+`wisp-worker` on `PATH`. The selected host must support modern Wasm exceptions;
+a minimal Wasmtime CLI built without its required GC support cannot enable them.
 
 ## Bootstrap
 

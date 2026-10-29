@@ -11,6 +11,22 @@ from compile import inputs
 
 
 class PublicContracts(unittest.TestCase):
+    def test_explicit_execution_host_precedes_path_worker(self):
+        import runner
+        hosts={'worker':'/tools/worker', 'ocaml-host':'/tools/ocaml-host',
+               'backend-host':'/tools/backend-host', 'wisp-worker':'/path/worker'}
+        with patch.dict('os.environ', {'WISP_OCAML_WASMTIME':'ocaml-host',
+                                      'WISP_WASMTIME':'backend-host'}, clear=True), \
+             patch.object(runner.shutil,'which',side_effect=hosts.get):
+            self.assertEqual(runner.runtime(),Path('/tools/ocaml-host'))
+            self.assertEqual(runner.runtime(backend=True),Path('/tools/backend-host'))
+            with patch.dict('os.environ',{'WISP_WORKER':'worker'}):
+                self.assertEqual(runner.runtime(),Path('/tools/worker'))
+                self.assertEqual(runner.runtime(backend=True),Path('/tools/worker'))
+        with patch.dict('os.environ', {}, clear=True), \
+             patch.object(runner.shutil,'which',side_effect=lambda name: '/path/worker' if name in ('wisp-worker','/path/worker') else None):
+            self.assertEqual(runner.runtime(),Path('/path/worker'))
+
     def test_rich_signature_and_private_implementation(self):
         api = Signature('''(* outer (* nested *) "*)" *)
             type mode = Quiet | VeryLoud
