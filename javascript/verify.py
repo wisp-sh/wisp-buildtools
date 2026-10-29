@@ -294,6 +294,17 @@ def main() -> int:
                 return {"settledMicrotasks": True, "asyncWit": False}
             check("Promise-returning exports settle microtasks", promises)
 
+            def wide_integers():
+                source = directory / "wide.js"
+                source.write_text("export function wide(value) { return value; } export function signed(value) { return value; }\n")
+                wit = directory / "wide.wit"
+                wit.write_text("package test:wide; world numbers { export wide: func(value:u64)->u64; export signed: func(value:s64)->s64; }\n")
+                component = compile_component(source, wit, "numbers", "wide", ["--stub-wasi"])
+                assert invoke(component["path"], "wide(18446744073709551615)") == "18446744073709551615"
+                assert invoke(component["path"], "signed(-9223372036854775808)") == "-9223372036854775808"
+                return {"u64Max": "18446744073709551615", "s64Min": "-9223372036854775808"}
+            check("StarlingMonkey BigInt bindings preserve 64-bit boundaries", wide_integers)
+
             def rejected_promise():
                 source = directory / "rejected-promise.js"
                 source.write_text("export async function add() { throw new Error('PROMISE_REJECTED'); }\n")
@@ -326,7 +337,13 @@ def main() -> int:
             assert first["receipt"]["javascriptSha256"] != second["receipt"]["javascriptSha256"]
             (project / "broken.ts").write_text('const value: number = "wrong";\n')
             rejects(source, ROOT / "examples/add.wit", "arithmetic", "dependency-invalid", r"2322", ["--typecheck"])
-            return {"offlineNpm": True, "tsconfig": True, "dependencyEdit": [43, 44], "projectErrorRejected": True}
+            (project / "broken.ts").write_text('const value: number = 1;\n')
+            (project / "tsconfig.json").write_text(json.dumps({"compilerOptions": {
+                "strict": True, "target": "ES2022"}, "files": ["broken.ts"]}))
+            rejects(source, ROOT / "examples/add.wit", "arithmetic", "excluded-entrypoint",
+                    r"entrypoint is excluded", ["--typecheck"])
+            return {"offlineNpm": True, "tsconfig": True, "dependencyEdit": [43, 44],
+                    "projectErrorRejected": True, "excludedEntrypointRejected": True}
         check("offline npm modules, tsconfig and changed dependency bytes", dependency_project)
 
         def guards():

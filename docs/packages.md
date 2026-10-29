@@ -155,7 +155,7 @@ external to the adapter bundle.
 python3 build.py validate dist/packages/javascript.wisp.zip
 wisp toolchain validate dist/packages/javascript.wisp.zip
 python3 build.py install dist/packages/javascript.wisp.zip \
-  --prefix /tmp/wisp-javascript
+  --prefix build/installed-javascript
 ```
 
 Keep required bundles alongside the selected bundle, for example

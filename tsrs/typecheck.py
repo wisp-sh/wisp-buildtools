@@ -38,6 +38,7 @@ def check_project(module_root, source, *, module=None):
                       and 'node_modules' not in Path(name).parts]
         if not any(name.endswith(('.ts', '.tsx', '.mts', '.cts')) for name in files):
             raise ValueError('--typecheck requires TypeScript files in the module root')
+    arguments.append("--listFiles")
     start = time.perf_counter()
     with compileEngine(module or HERE / 'dist/tsrs.wasm') as compiled:
         result = runRequest(compiled, {'cwd': '/project', 'args': arguments, 'files': files,
@@ -46,10 +47,15 @@ def check_project(module_root, source, *, module=None):
         import json
         raise ValueError('tsrs typecheck failed (exit ' + str(result['exitCode']) + '):\n' +
                          result['stdout'] + result['stderr'] + json.dumps(result['diagnostics'], ensure_ascii=False))
+    checked_files = result['stdout'].splitlines()
+    entry = '/project/' + source.relative_to(root).as_posix()
+    if entry not in checked_files:
+        raise ValueError('typecheck entrypoint is excluded by tsconfig: ' + str(source))
     return {'enabled': True, 'passed': True, 'compiler': 'tsrs@' + manifest['version'],
             'moduleSha256': manifest['files']['tsrs.wasm']['sha256'],
             'typescriptVersion': manifest['typescriptVersion'],
             'host': 'Wasmtime Python 50.0.1', 'inputs': inputs, 'arguments': arguments,
+            'checkedFiles': checked_files,
             'recipe': {name: hashlib.sha256((HERE / name).read_bytes()).hexdigest()
                        for name in ['typecheck.py', 'wasmtime_host.py', 'bootstrap.py']},
             'milliseconds': round((time.perf_counter() - start) * 1000, 3),

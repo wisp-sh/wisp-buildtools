@@ -110,7 +110,8 @@ python3 javascript/compile.py javascript/examples/typecheck/pass/add.ts \
 Checking defaults off. A root `tsconfig.json` controls the project when present.
 Otherwise the adapter checks TypeScript files under the root with strict ES2022
 and bundler-resolution defaults; `node_modules` supplies dependencies rather
-than additional root files. All inputs must be under `--module-root`. No-emit
+than additional root files. The selected entrypoint must appear in the checker's `--listFiles` output; a tsconfig that excludes it is rejected.
+All inputs must be under `--module-root`. No-emit
 checking runs before esbuild, and differing bundled/checked input hashes reject
 publication. Receipts record the option, compiler and TypeScript versions,
 arguments, checked hashes and elapsed time.
