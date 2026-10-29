@@ -1,0 +1,112 @@
+name: Release library build runtime
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: New immutable runtime release tag
+        required: true
+        type: string
+      native_manifest_url:
+        description: Public CLI kit manifest URL from wisp's release workflow
+        required: true
+        type: string
+      native_manifest_sha256:
+        description: SHA-256 of the exact CLI kit manifest
+        required: true
+        type: string
+      compiler_manifest_url:
+        description: Public toolchains-linux-x86_64.json release URL
+        required: true
+        type: string
+      compiler_manifest_sha256:
+        description: SHA-256 of the exact compiler manifest
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: library-runtime-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ inputs.tag }}
+      NATIVE_URL: ${{ inputs.native_manifest_url }}
+      NATIVE_SHA256: ${{ inputs.native_manifest_sha256 }}
+      COMPILER_URL: ${{ inputs.compiler_manifest_url }}
+      COMPILER_SHA256: ${{ inputs.compiler_manifest_sha256 }}
+      CARGO_BUILD_JOBS: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Recover disk on the disposable hosted runner
+        if: runner.environment == 'github-hosted'
+        run: sudo rm -rf -- /usr/share/dotnet /usr/local/lib/android /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+      - name: Check tag and assembly capacity
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]]
+          free -h
+          df -h .
+          df -i .
+          findmnt -T "$RUNNER_TEMP"
+          python3 -c 'import shutil; assert shutil.disk_usage(".").free >= 30 * 1024**3, "runtime assembly requires 30 GiB free disk"'
+          echo "TMPDIR=$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - name: Assemble and verify the pinned releases
+        run: |
+          python3 tools/assemble_runtime.py \
+            --native-manifest-url "$NATIVE_URL" --native-manifest-sha256 "$NATIVE_SHA256" \
+            --compiler-manifest-url "$COMPILER_URL" --compiler-manifest-sha256 "$COMPILER_SHA256" \
+            --work "$RUNNER_TEMP/assembly" --archive "$RUNNER_TEMP/runtime-linux-x86_64.tar.gz" \
+            --manifest "$RUNNER_TEMP/runtime-linux-x86_64.json" \
+            --url "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/runtime-linux-x86_64.tar.gz"
+      - name: Verify the published archive layout in a fresh prefix
+        run: |
+          python3 - <<'PY'
+          import os, sys
+          from pathlib import Path
+          sys.path.insert(0, 'tools')
+          from runtime_format import extract_runtime
+          root = Path(os.environ['RUNNER_TEMP'])
+          installed = root / 'relocated-runtime'
+          installed.mkdir()
+          extract_runtime(root / 'runtime-linux-x86_64.tar.gz', installed)
+          PY
+          "$RUNNER_TEMP/relocated-runtime/bin/wisp" toolchain doctor --prefix "$RUNNER_TEMP/relocated-runtime/toolchains" > "$RUNNER_TEMP/doctor.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads((Path(os.environ['RUNNER_TEMP']) / 'doctor.json').read_text())
+          assert report['valid'] and report['hosts']['available'] and report['adapter']['available'], report
+          PY
+      - name: Compile and package a C library with the relocated runtime
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])
+          installed = root / 'relocated-runtime'
+          manifest = json.loads((root / 'runtime-linux-x86_64.json').read_text())
+          env = dict(os.environ, CARGO_BUILD_JOBS='1', CARGO_INCREMENTAL='0')
+          env['PATH'] = os.pathsep.join(str(installed / path) for path in ('bin', 'rust/bin', 'node/bin', 'go/bin', 'js/node_modules/.bin')) + os.pathsep + env['PATH']
+          env.update({key: str(installed / path) for key, path in manifest['env'].items()})
+          cli = installed / 'bin/wisp'
+          output = root / 'smoke-c-release'
+          subprocess.run([cli, 'build', installed / 'share/wisp/smoke-c', '--out', output], env=env, check=True)
+          subprocess.run([cli, 'library', 'validate', output], env=env, check=True)
+          PY
+      - name: Publish the runtime and manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd "$RUNNER_TEMP"
+          sha256sum runtime-linux-x86_64.json runtime-linux-x86_64.tar.gz > runtime-SHA256SUMS
+          cat runtime-SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "$TAG" --notes-file runtime-SHA256SUMS \
+            runtime-linux-x86_64.json runtime-linux-x86_64.tar.gz runtime-SHA256SUMS

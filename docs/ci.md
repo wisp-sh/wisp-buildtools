@@ -93,6 +93,38 @@ shared private evidence repository. Uploading workflow artifacts does not publis
 a GitHub release. The reported download size measures the Wisp bundle itself, before
 GitHub wraps the uploaded files in its artifact download.
 
+### Publishing a release
+
+Give **Build all toolchains** a `release_tag`, such as `toolchains-2026.10.26`,
+to publish its bundles. After every selected target builds, tests and validates,
+a final job collects the uploaded bundles and runs
+[`tools/release-manifest.py`](../tools/release-manifest.py). It writes
+`toolchains-linux-x86_64.json` listing each bundle's tool, package version,
+platform, shared-tool requirements, release URL, size and SHA-256, and refuses a
+bundle whose bytes differ from its recorded digest or whose shared dependency is
+missing from the release. The job then creates the GitHub release with the
+manifest, every `.wisp.zip` bundle, its inventory and its digest file. Nothing
+is published when any target fails.
+
+Wisp's approved library build pins this manifest by SHA-256 and installs each
+bundle with `wisp toolchain install BUNDLE --sha256 SHA256`. A new release
+changes the manifest digest, so consumers adopt it explicitly.
+
+If publication fails after the compilers passed, dispatch **Build all toolchains**
+again with the same `release_tag` and the original run's numeric ID in
+`artifacts_run_id`. This skips compilation, verifies the original workflow and
+all selected build results, and publishes its retained artifacts with the original
+source commit. Artifacts stay in separate directories during collection. A tool's
+own artifact takes precedence over copies bundled with its consumers; an archive,
+inventory and checksum always come from the same artifact. Expired artifacts
+require a new build.
+
+Before resuming publication from an older commit, create and push the release tag
+at that original source commit using your maintainer account. The workflow checks
+the tag's commit and requires that existing tag. GitHub's workflow token cannot
+create a tag for an old commit whose workflow files differ from the default
+branch. See [GitHub's release permissions](https://docs.github.com/en/rest/releases/releases#create-a-release).
+
 The default runner is `ubuntu-24.04`. Automatic builds have no explicit matrix
 concurrency cap; available GitHub runner capacity determines how many targets
 run at once. The manual workflow allows up to two targets in each of its LLVM
@@ -242,3 +274,45 @@ GitHub Actions syntax and limits follow the official
 [workflow reference](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax).
 Actions are pinned to commit SHAs. Workflow lint uses the upstream
 [actionlint release](https://github.com/rhysd/actionlint/releases/tag/v1.7.12).
+
+### Publishing a library build runtime
+
+The compiler release and CLI release are separate inputs. The CLI repository's
+**Release Linux CLI kit** workflow publishes `wisp-linux-x86_64.json` and its
+archive with matching CLI and worker binaries, prebuilt execution hosts, the
+Preview 1 adapter, native Rust, Node and Go, locked npm tooling, the upstream
+binding generator, and Cargo dependency caches. Its tool versions come from the
+CLI repository. The kit includes an authored C library used by runtime release
+verification.
+
+Run **Build all toolchains** with a new `release_tag`. The runtime requires at
+least `clang`, `go`, `rust`, `llvm` and `wasm-tools` in that release. Other
+compilers can be present; assembly selects these five and their shared-tool
+dependencies. The acquisition manifest uses schema 2 and records the release
+commit. The CLI's source acceptance installer also accepts this release format.
+Standard Linux bundles include native precompiled companions alongside the Wasm
+compilers. Runtime assembly accepts these Linux bundles and portable Wasm-only
+bundles, checking that each installed platform matches its manifest. Source
+acceptance deliberately requires Wasm-only bundles packaged with `--source-only`.
+
+Then dispatch **Release library build runtime** with a new tag and the public
+manifest URL and exact SHA-256 from each release. `tools/assemble_runtime.py`
+authenticates both manifests, downloads and checks their assets, installs each
+Wasm compiler through the CLI, and runs `toolchain doctor`. It never compiles a
+compiler. `tools/package_runtime.py` creates the combined archive and
+`runtime-linux-x86_64.json`. Each asset must fit GitHub's 2 GiB release asset
+limit; expanded runtime contents are limited to 24 GiB. Use a disposable builder
+with at least 30 GiB free disk and one build worker for the native CLI kit.
+
+Before publishing, the workflow extracts the archive at a different prefix,
+checks compiler inventories and execution hosts, and builds and validates the
+shipped C library's generated packages. A failure stops publication. Tags must
+be new; neither release workflow replaces existing release assets.
+
+To adopt a runtime, copy its public manifest URL and exact SHA-256 into
+`wisp-server/scripts/ci/runtime.lock.json`, then commit it in the approved action.
+Update the reusable workflow's action references and the server's approved
+workflow SHA for that commit. Consumers never select runtime inputs through
+workflow inputs or server environment variables. Until the first runtime is
+published, that pin remains explicitly unset and builds fail with an activation
+message.
