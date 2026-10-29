@@ -49,6 +49,8 @@ jobs:
           python3 test-llvm-ci.py
           python3 test-packages.py
           python3 test-workspace.py
+          python3 test-release.py
+          python3 test-runtime.py
           python3 tools/ci-prerequisites.py check
       - name: Check GitHub Actions workflows
         run: python3 tools/ci-prerequisites.py lint
