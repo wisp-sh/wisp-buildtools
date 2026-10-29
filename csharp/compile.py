@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build C# libraries and authored WIT Components using Wasm-hosted Roslyn."""
+"""Build C# libraries and inferred or authored WIT Components using Wasm-hosted Roslyn."""
 from __future__ import annotations
 import argparse
 import hashlib
@@ -25,7 +25,7 @@ def contract(document, world):
 
 
 def build(source, output, *, wit=None, world=None, timeout=300, entry=None, exports=(),
-          references=(), packages=(), package_dirs=(), project_root=None, library=False, assembly=None):
+          references=(), packages=(), package_dirs=(), project_root=None, library=False, assembly=None, discover=False):
     if not math.isfinite(timeout) or timeout <= 0:
         raise ValueError('timeout must be positive and finite')
     deadline = time.monotonic() + timeout
@@ -41,12 +41,13 @@ def build(source, output, *, wit=None, world=None, timeout=300, entry=None, expo
             raise ValueError('--export requires a unique wit-name=Namespace.Type.Method mapping')
         mappings[key] = value
     if library and (wit or world or entry or mappings): raise ValueError('--library cannot be combined with WIT or export selection')
-    if not library and wit is None: raise ValueError('Component builds require --wit')
+    if discover and (library or wit or world or mappings): raise ValueError('--discover cannot be combined with --library, WIT or export mappings')
+    if not wit and (world or mappings): raise ValueError('--world and --export require --wit')
     output = Path(output).absolute()
     if assembly is not None: inputs.main.name = assembly
     elif library and inputs.main.path is None: inputs.main.name = output.stem
     targets = [output, Path(str(output) + '.build.json')]
-    if not library: targets.append(Path(str(output) + '.wit'))
+    if not library and not discover: targets.append(Path(str(output) + '.wit'))
     if len({p.resolve() for p in targets}) != len(targets): raise ValueError('output paths must be distinct')
     if any(p.exists() or p.is_symlink() for p in targets): raise ValueError('output already exists; choose a new path')
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -82,7 +83,9 @@ def build(source, output, *, wit=None, world=None, timeout=300, entry=None, expo
             package_paths.extend(sorted(path.glob('*.nupkg')))
         if len(package_paths) > 64: raise ValueError('at most 64 offline NuGet packages are supported')
         available, package_records = extract_packages(package_paths, work / 'packages')
-        if not library:
+        wit_records = []
+        inferred_api = None
+        if not library and wit is not None:
             wit = Path(wit).absolute()
             captured = work / 'wit'; captured.mkdir()
             if wit.is_symlink(): raise ValueError('WIT input cannot be a symlink')
@@ -129,8 +132,8 @@ def build(source, output, *, wit=None, world=None, timeout=300, entry=None, expo
             return result
         for number, project in enumerate(inputs.order):
             is_main = project is inputs.main
-            mode = 'library' if library or not is_main else 'component'
-            candidate = work / ('application.wasm' if mode == 'component' else f'project-{number}.dll')
+            mode = 'library' if library or not is_main else 'discover' if discover or wit is None else 'component'
+            candidate = work / ('application.wasm' if mode == 'component' else 'api.txt' if mode == 'discover' else f'project-{number}.dll')
             dependency_files = [compiled[id(p)] for p in dependency_projects(project)]
             dependency_files += [reference_map[p] for p in project.references]
             dependency_files += [reference_map[Path(p).absolute()] for p in references]
@@ -153,15 +156,31 @@ def build(source, output, *, wit=None, world=None, timeout=300, entry=None, expo
                        'runtimeAssemblies': manifest['runtimeAssemblies'], 'mode': mode, 'entry': entry, 'exports': mappings,
                        'output': '/work/' + candidate.name, 'template': '/runtime/runtime-template.wasm',
                        'report': '/work/guest-report.json'}
+            def compile_request():
+                (work / 'request.json').write_text(json.dumps(request))
+                run(command(dist / 'compiler/dotnet.wasm', 'Compiler', '/work/request.json', mounts=[(dist / 'compiler', '/'),
+                    (work, '/work'), (work / 'managed', '/managed'), (work / 'references', '/references'), (dist, '/runtime')]),
+                    timeout=remaining(), cwd=dist / 'compiler', diagnostics=True)
+                return json.loads((work / 'guest-report.json').read_text())
             if mode == 'component': request.update(world=world, wit=document)
-            (work / 'request.json').write_text(json.dumps(request))
-            run(command(dist / 'compiler/dotnet.wasm', 'Compiler', '/work/request.json', mounts=[(dist / 'compiler', '/'),
-                (work, '/work'), (work / 'managed', '/managed'), (work / 'references', '/references'), (dist, '/runtime')]),
-                timeout=remaining(), cwd=dist / 'compiler', diagnostics=True)
+            report = compile_request()
+            if mode == 'discover':
+                inferred_api = report['api']
+                captured = work / 'inferred.wit'
+                captured.write_text('package wisp:csharp-inferred;\ninterface api {\n' + inferred_api + '}\nworld library { export api; }\n')
+                document = json.loads(wasm_tool('component', 'wit', captured, '--json', timeout=remaining()))
+                world = contract(document, None)
+                wit_records = [{'path': 'inferred.wit', 'sha256': digest(captured)}]
+                if discover:
+                    candidate = captured
+                else:
+                    candidate = work / 'application.wasm'
+                    request.update(mode='component', world=world, wit=document, output='/work/application.wasm')
+                    report = compile_request()
             if not candidate.is_file(): raise ValueError('Wasm compiler did not produce output')
-            report = json.loads((work / 'guest-report.json').read_text()); reports.append(report)
+            reports.append(report)
             compiled[id(project)] = candidate
-        if not library:
+        if not library and not discover:
             core = candidate; adapter = wasm_tools.preview1_adapter()
             def componentize(contract_path, selected_world, name):
                 embedded, component = work / (name + '.embedded.wasm'), work / (name + '.component.wasm')
@@ -178,22 +197,23 @@ def build(source, output, *, wit=None, world=None, timeout=300, entry=None, expo
             if candidate.stat().st_size > 64 * 1024 * 1024 or candidate.read_bytes()[:8] != COMPONENT:
                 raise ValueError('output must be a Component within the 64 MiB limit')
             (work / 'public.wit').write_text(wasm_tool('component', 'wit', candidate, timeout=remaining()))
-        receipt = {'schemaVersion': 2, 'toolchain': 'csharp', 'version': manifest['version'], 'mode': 'library' if library else 'component',
+        receipt = {'schemaVersion': 2, 'toolchain': 'csharp', 'version': manifest['version'], 'mode': 'library' if library else 'discover' if discover else 'component',
                    'sources': [{'path': p, **record} for p, record in sorted(inputs.records.items())],
                    'references': reference_records, 'packages': package_records, 'projects': reports,
                    'compilerManifestSha256': digest(dist / 'manifest.json'),
                    'sourceCompilationWasmHosted': True, 'fullyWasmHostedBuild': True,
-                   'stages': ['Roslyn in Mono WASI emits managed IL and typed WIT bindings',
+                   'stages': ['Roslyn in Mono WASI discovers the public API'] if discover else ['Roslyn in Mono WASI emits managed IL and typed WIT bindings',
                               'Wasm guest packages IL and canonical ABI exports into fixed Mono runtime',
                               'Wasm wasm-tools assembles and validates Component'] if not library else ['Roslyn in Mono WASI emits managed IL'],
                    'recipe': {p: digest(ROOT / p) for p in ['compile.py', 'project.py', 'toolchain.py']},
                    'output': {'sha256': digest(candidate), 'bytes': candidate.stat().st_size},
                    'limits': {'sourceBytes': 8 * 1024 * 1024, 'bundleBytes': 16 * 1024 * 1024, 'componentBytes': 64 * 1024 * 1024},
                    'runtimeInitialization': 'once per instance; no application AOT, native compilation or relinking'}
+        if inferred_api is not None: receipt['api'] = inferred_api
         if not library: receipt['wit'] = {'world': world, 'files': wit_records}
         (work / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
         publications = [(work / 'receipt.json', targets[1])]
-        if not library: publications.append((work / 'public.wit', targets[2]))
+        if not library and not discover: publications.append((work / 'public.wit', targets[2]))
         publications.append((candidate, output))
         published = []
         try:
@@ -217,6 +237,7 @@ def main():
     parser.add_argument('--package', type=Path, action='append', default=[], dest='packages', help='offline .nupkg with managed lib assemblies')
     parser.add_argument('--package-dir', type=Path, action='append', default=[], dest='package_dirs')
     parser.add_argument('--project-root', type=Path, help='boundary for source files and ProjectReference paths')
+    parser.add_argument('--discover', action='store_true', help='discover the public API in Wasm and emit WIT plus a source receipt')
     parser.add_argument('--library', action='store_true', help='emit a managed IL library instead of a Component')
     parser.add_argument('-o', '--out', '--output', dest='output', type=Path, required=True)
     parser.add_argument('--timeout', type=float, default=300)

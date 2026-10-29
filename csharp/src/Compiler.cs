@@ -82,6 +82,12 @@ internal static class Compiler
                     concurrentBuild: false, deterministic: true, nullableContextOptions: nullable, allowUnsafe: Enabled("unsafe"), checkOverflow: Enabled("checked"),
                     generalDiagnosticOption: Enabled("warningsAsErrors") ? ReportDiagnostic.Error : ReportDiagnostic.Default));
             if (Errors(compilation)) return 1;
+            if (request.GetProperty("mode").GetString() == "discover") {
+                string api = Discovery.Generate(compilation, request);
+                File.WriteAllText(request.GetProperty("output").GetString(), api);
+                File.WriteAllText(request.GetProperty("report").GetString(), JsonSerializer.Serialize(new { assembly = name, api }));
+                return 0;
+            }
             Bindings bindings = null;
             if (request.GetProperty("mode").GetString() == "component") {
                 bindings = new Bindings(request);

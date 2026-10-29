@@ -1179,7 +1179,7 @@
     "csharp": {
       "directory": "csharp",
       "description": "Wasm-hosted Roslyn with offline C# projects and managed WIT Component bindings",
-      "version": "roslyn-4.8.0-mono-8.0.0-bindings-v2",
+      "version": "roslyn-4.8.0-mono-8.0.0-bindings-v3",
       "sourceInputs": [
         "csharp/bootstrap.py",
         "csharp/compile.py",
@@ -1191,6 +1191,7 @@
         "csharp/toolchain.lock.json",
         "csharp/project.py",
         "csharp/src/Bindings.cs",
+        "csharp/src/Discovery.cs",
         "csharp/src/Canonical.cs",
         "csharp/src/WasmModule.cs",
         "csharp/test_project.py",

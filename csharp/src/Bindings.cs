@@ -91,7 +91,7 @@ internal sealed class Bindings
         }
         return id;
     }
-    private static IEnumerable<INamedTypeSymbol> PublicTypes(INamespaceOrTypeSymbol parent)
+    internal static IEnumerable<INamedTypeSymbol> PublicTypes(INamespaceOrTypeSymbol parent)
     {
         foreach (var member in parent.GetMembers()) {
             if (member is INamespaceSymbol ns) foreach (var type in PublicTypes(ns)) yield return type;
@@ -101,15 +101,15 @@ internal sealed class Bindings
             }
         }
     }
-    private static IEnumerable<ISymbol> Members(INamedTypeSymbol type)
+    internal static IEnumerable<ISymbol> Members(INamedTypeSymbol type)
     {
         for (var current = type; current != null; current = current.BaseType)
             foreach (var m in current.GetMembers()) if (!m.IsStatic && m.DeclaredAccessibility == Accessibility.Public && (m is IPropertySymbol p && !p.IsIndexer || m is IFieldSymbol)) yield return m;
     }
-    private static ITypeSymbol MemberType(ISymbol symbol) => symbol is IPropertySymbol p ? p.Type : ((IFieldSymbol)symbol).Type;
+    internal static ITypeSymbol MemberType(ISymbol symbol) => symbol is IPropertySymbol p ? p.Type : ((IFieldSymbol)symbol).Type;
     private static bool Writable(ISymbol symbol) => symbol is IPropertySymbol p ? p.SetMethod?.DeclaredAccessibility == Accessibility.Public : !((IFieldSymbol)symbol).IsReadOnly;
     private static bool IsWisp(INamedTypeSymbol type, string name, int arity) => type.Name == name && type.Arity == arity && type.ContainingNamespace.ToDisplayString() == "Wisp";
-    private static ulong EnumBits(IFieldSymbol field, INamedTypeSymbol type)
+    internal static ulong EnumBits(IFieldSymbol field, INamedTypeSymbol type)
     {
         ulong bits; try { bits = Convert.ToUInt64(field.ConstantValue); } catch (OverflowException) { bits = unchecked((ulong)Convert.ToInt64(field.ConstantValue)); }
         int width = type.EnumUnderlyingType.SpecialType == SpecialType.System_Byte || type.EnumUnderlyingType.SpecialType == SpecialType.System_SByte ? 8 :

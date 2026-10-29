@@ -14,7 +14,7 @@ if os.environ.get('WISP_WASM_TOOLS_TOOLCHAIN'):
     sys.path.insert(0, str(Path(os.environ['WISP_WASM_TOOLS_TOOLCHAIN']).resolve().parent))
 import wasm_tools
 
-SOURCES = ('bootstrap.py', 'src/Compiler.cs', 'src/Generate.cs', 'src/Canonical.cs', 'src/Bindings.cs', 'src/WasmModule.cs', 'src/runtime.c', 'toolchain.lock.json')
+SOURCES = ('bootstrap.py', 'src/Compiler.cs', 'src/Generate.cs', 'src/Canonical.cs', 'src/Bindings.cs', 'src/Discovery.cs', 'src/WasmModule.cs', 'src/runtime.c', 'toolchain.lock.json')
 CORE = b'\0asm\x01\0\0\0'
 COMPONENT = b'\0asm\x0d\0\x01\0'
 

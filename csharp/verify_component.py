@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Optional same-instance checks using Wasmtime's Python Component API (50.0.1)."""
+"""Same-instance checks using Wasmtime's Python Component API (50.0.1)."""
 import argparse
 import sys
 from pathlib import Path
 
 
-def verify(path):
+def verify(path, interface="example:csharp-library/api@1.0.0", inferred=False):
     import wasmtime
     from wasmtime.component import Component, Linker, Record
     config = wasmtime.Config(); config.parallel_compilation = False; config.cranelift_opt_level = 'none'
@@ -13,11 +13,11 @@ def verify(path):
     wasi = wasmtime.WasiConfig(); wasi.inherit_stderr(); store.set_wasi(wasi)
     component = Component.from_file(engine, str(path)); linker = Linker(engine); linker.add_wasip2()
     instance = linker.instantiate(store, component)
-    api = instance.get_export_index(store, 'example:csharp-library/api@1.0.0')
+    api = instance.get_export_index(store, interface)
     count = 0
     def call(name, *args):
         nonlocal count
-        index = name if name == 'add' else instance.get_export_index(store, name, api)
+        index = name if name == 'add' and not inferred else instance.get_export_index(store, name, api)
         function = instance.get_func(store, index)
         value = function(store, *args); function.post_return(store); count += 1
         return value
@@ -57,9 +57,11 @@ def verify(path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('component', type=Path)
+    parser.add_argument('--interface', default='example:csharp-library/api@1.0.0')
+    parser.add_argument('--inferred', action='store_true')
     parser.add_argument('--bindings', type=Path, help='directory containing the wasmtime Python package')
     args = parser.parse_args()
     if args.bindings: sys.path.insert(0, str(args.bindings))
-    print(f'{verify(args.component)} Component calls passed in one instance, with post-return')
+    print(f'{verify(args.component, args.interface, args.inferred)} Component calls passed in one instance, with post-return')
 
 if __name__ == '__main__': main()

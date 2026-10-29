@@ -39,7 +39,7 @@ def requirements(tool: str) -> list[str]:
     selected += {
         "go": ["go-1.27.2"],
         "grain": ["wasi-sdk-34"],
-        "csharp": ["wasi-sdk-34"],
+        "csharp": ["wasi-sdk-34", "wasmtime-python"],
         "ocaml": ["wasi-sdk-34"],
         "goose": ["wasi-sdk-34"],
         **{name: ["wasi-sdk-34"] for name in ("jvm", "teavm", "java", "kotlin")},
@@ -270,7 +270,7 @@ def install_for(tool: str) -> dict:
             expected_archive.unlink()
         if not expected_archive.exists():
             expected_archive.symlink_to(archive.resolve())
-    if tool in ("assemblyscript", "swift", "llvm-swift"):
+    if tool in ("assemblyscript", "swift", "llvm-swift", "csharp"):
         environment["WISP_WASMTIME_PYTHON"] = str(binaries["wasmtime-python"].parents[1])
     bootstrap = rust_bootstrap(tool)
     if bootstrap is not None:

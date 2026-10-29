@@ -1,8 +1,8 @@
 # C#
 
-Experimental C# library adapter. Roslyn 4.8.0 compiles C# to IL inside the .NET 8.0.0
+C# library adapter for bounded, offline projects. Roslyn 4.8.0 compiles C# to IL inside the .NET 8.0.0
 Mono WASI interpreter. The same Wasm guest embeds the emitted IL into a fixed
-Mono reactor; the shared Wasm `wasm-tools` guest assembles the authored WIT
+Mono reactor; the shared Wasm `wasm-tools` guest assembles the inferred or authored WIT
 Component. Application builds require Python and Wasmtime, with no native .NET
 compiler, NativeAOT, MSBuild execution or native application relinking.
 
@@ -127,8 +127,20 @@ ignores case and separators, so `echo-char` matches `EchoChar`. Overloads must
 resolve to one compatible method. `--entry Namespace.Type` restricts automatic
 matching. `--export api.greet=Namespace.Type.Method` maps an interface function
 explicitly; root names and full canonical interface names work too. By-reference
-parameters, generic entry methods and instance methods are rejected. There is
-no automatic C# contract inference.
+parameters, generic entry methods and instance methods are rejected. Omit `--wit` to infer an `api` interface from public static methods in the main
+assembly. `--entry` limits discovery to one type. Roslyn resolves aliases,
+conditional declarations, nullable annotations and referenced project types inside
+Wasm. Unsupported public signatures and normalized-name collisions fail the
+whole discovery. No overload is selected implicitly.
+
+`--discover -o api.wit` writes the inferred contract and a source receipt without
+emitting an application Component. Discovery supports the types in the table
+below. Public instance methods remain implementation code; public generic or
+by-reference static methods require an authored contract selecting other methods.
+Recursive records, `char` UTF-16 code units, `decimal`, tasks and arbitrary generic
+types cannot be inferred. Use `System.Text.Rune` for a WIT character. Enums with
+aliases or zero/composite flag constants need an authored contract that selects
+unambiguous cases.
 
 | WIT | C# |
 | --- | --- |
@@ -159,18 +171,16 @@ unsupported. Output globalization is invariant.
 Limits are 32 projects, 256 source files per project, 8 MiB total source, 128
 bundled assemblies including the application, 16 MiB combined IL, and a 64 MiB
 Component. Individual strings/list storage have a 32 MiB limit, lists at most
-262,144 elements, and output allocations at most 64 MiB per call. These are
-bounded experimental libraries, not general SDK workloads.
+262,144 elements, and output allocations at most 64 MiB per call. These limits describe library builds; arbitrary SDK workloads are unsupported.
 
 ## Verification and resources
 
 `verify.py` clears PATH before source builds. It checks scalar calls, collections,
 LINQ, compiler errors, managed exception traps, multiple files, project references,
-offline managed DLL/NuGet dependencies and typed interface calls. The optional
-`WISP_WASMTIME_PYTHON=/path/to/wasmtime-python-50.0.1` enables over 300 rich calls
+offline managed DLL/NuGet dependencies and typed interface calls. Acceptance requires pinned
+`WISP_WASMTIME_PYTHON=/path/to/wasmtime-python-50.0.1` and executes over 300 rich calls
 in one instance, including canonical post-return, nested allocations, Unicode,
-64-bit boundaries and indirect parameters. Without these bindings the report
-explicitly records that check as skipped. No Python Wasmtime package is needed
+64-bit boundaries and indirect parameters. Missing bindings fail acceptance. No Python Wasmtime package is needed
 for builds or CLI verification. `test_project.py` checks input boundaries,
 cycles, source selection and rejection of unsupported package/project actions.
 
@@ -183,3 +193,26 @@ or another tmpfs. Check RAM, swap, filesystems, inodes and competing jobs before
 running these commands. Optional `WISP_CSHARP_CACHE=/disk/path` selects a Wasmtime
 cache; without it, guest compilation caching is disabled. Remove only task-owned
 intermediates when finished.
+
+## Parity acceptance checklist
+
+The comparison baseline is Wisp's Go/C++/Rust source examples and installed
+compiler packages. C# uses the same toolchain admission and output packaging.
+
+| Workflow | Required evidence |
+| --- | --- |
+| Multiple source files and project modules | `verify.py` partial classes and `ProjectReference` fixtures |
+| Public API discovery | Wasm Roslyn discovers the rich project; unsupported signatures fail atomically |
+| Offline dependencies | Wasm-built DLL and locally supplied NuGet consumed with native tools absent |
+| Application compilation | Empty compiler PATH; receipts identify Roslyn, IL packaging and wasm-tools guests |
+| Typed bindings and repeated calls | Authored and inferred rich contracts, 300+ calls per instance with post-return |
+| Errors and invalidation | Syntax/signature errors, managed traps, changed helper produces a changed result |
+| Compiler packaging | Source-input hashes, immutable v3 bundle version and normal package validation |
+| Installed usage | Wisp acceptance installs C# plus wasm-tools into a fresh prefix and hides the recipe checkout |
+| Package consumers | Wisp acceptance builds the source release and executes generated consumers |
+
+Imports of other Components, resources, arbitrary variants and async exports
+remain unsupported. Offline managed project/DLL dependencies do not provide
+Component imports. Native SDK tools run only during compiler-package bootstrap.
+This checklist is an acceptance requirement, not a claim that a skipped CI job
+ran the compiler.

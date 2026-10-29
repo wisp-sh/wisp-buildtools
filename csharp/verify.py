@@ -29,7 +29,7 @@ def main():
         work = Path(directory)
         def compile_source(source, name, wit=ROOT / 'examples/add.wit', success=True, extra=()):
             output = work / (name + '.wasm')
-            result = subprocess.run([sys.executable, ROOT / 'compile.py', *([source] if isinstance(source, Path) else source), '--wit', wit,
+            result = subprocess.run([sys.executable, ROOT / 'compile.py', *([source] if isinstance(source, Path) else source), *(['--wit', wit] if wit is not None else []),
                                      '-o', output, *extra], env=environment, capture_output=True, text=True, timeout=300)
             if success and result.returncode:
                 raise ValueError(result.stdout + result.stderr)
@@ -103,7 +103,35 @@ def main():
             message = run([sys.executable, ROOT / 'verify_component.py', rich, '--bindings', bindings], timeout=120, env=environment)
             checks.append({'name': 'same-instance rich calls and post-return', 'output': message.strip()})
         else:
-            checks.append({'name': 'same-instance rich calls and post-return', 'skipped': 'set WISP_WASMTIME_PYTHON to Wasmtime Python 50.0.1 bindings'})
+            raise ValueError('same-instance acceptance requires pinned WISP_WASMTIME_PYTHON bindings')
+        inferred = compile_source(ROOT / 'examples/library/Api/Api.csproj', 'inferred-project', wit=None,
+            extra=['--project-root', ROOT / 'examples/library', '--entry', 'Example.Api'])
+        message = run([sys.executable, ROOT / 'verify_component.py', inferred, '--bindings', bindings,
+            '--interface', 'wisp:csharp-inferred/api', '--inferred'], timeout=120, env=environment)
+        checks.append({'name': 'inferred project same-instance rich calls', 'output': message.strip()})
+        discovery = work / 'discovered.wit'
+        run([sys.executable, ROOT / 'compile.py', ROOT / 'examples/library/Api/Api.csproj', '--project-root',
+            ROOT / 'examples/library', '--entry', 'Example.Api', '--discover', '-o', discovery], timeout=300, env=environment)
+        api = json.loads(Path(str(discovery) + '.build.json').read_text())['api']
+        if 'record %person' not in api or '%echo-u8: func(%value: u8)' not in api or 'option<string>' not in api:
+            raise ValueError('semantic discovery omitted or mistyped public exports')
+        checks.append({'name': 'discover project API without emitting an application'})
+        partial = work / 'Partial.cs'
+        for number, method in enumerate([
+            'public static T Generic<T>(T value) => value;',
+            'public static System.Threading.Tasks.Task<int> Async() => System.Threading.Tasks.Task.FromResult(1);',
+            'public static int Add(long a, long b) => 1;',
+            'public static int ByRef(ref int value) => value;',
+            'public static char Utf16(char value) => value;',
+        ]):
+            partial.write_text('public static class Api { public static int Add(int a,int b)=>a+b; ' + method + ' }')
+            compile_source(partial, 'unsupported-discovery-' + str(number), wit=None, success=False)
+        first, second = work / 'First.cs', work / 'Second.cs'
+        first.write_text('public static partial class Api { public static int Add(int a,int b)=>Sum(a,b); }')
+        second.write_text('public static partial class Api { private static int Sum(int a,int b)=>a+b; }')
+        invoke(compile_source([first, second], 'inferred-multiple-files', wit=None), 'add(20,22)', '42')
+        second.write_text('public static partial class Api { private static int Sum(int a,int b)=>a+b+1; }')
+        invoke(compile_source([first, second], 'changed-helper', wit=None), 'add(20,22)', '43')
         # Build a portable managed dependency in Wasm, then consume its DLL and a
         # locally packed offline NuGet equivalent. Neither path may run dotnet.
         dependency = work / 'Dependency.cs'

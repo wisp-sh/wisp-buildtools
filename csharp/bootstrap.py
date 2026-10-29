@@ -117,7 +117,7 @@ def build(args):
         shutil.copyfile(browser / 'runtimes/browser-wasm/lib/net8.0/System.Security.Cryptography.dll', managed / 'System.Security.Cryptography.dll')
         for name in ['Microsoft.CodeAnalysis.dll', 'Microsoft.CodeAnalysis.CSharp.dll']:
             shutil.copyfile(sdk / 'sdk/8.0.100/Roslyn/bincore' / name, managed / name)
-        csc(sdk, ['src/Compiler.cs', 'src/Bindings.cs', 'src/WasmModule.cs'], managed / 'Compiler.dll', refs + [support] + [managed / name for name in
+        csc(sdk, ['src/Compiler.cs', 'src/Bindings.cs', 'src/Discovery.cs', 'src/WasmModule.cs'], managed / 'Compiler.dll', refs + [support] + [managed / name for name in
             ['Microsoft.CodeAnalysis.dll', 'Microsoft.CodeAnalysis.CSharp.dll']], environment)
         shutil.copyfile(n / 'dotnet.wasm', dist / 'compiler/dotnet.wasm')
         shutil.copyfile(n / 'icudt.dat', dist / 'compiler/icudt.dat')
@@ -187,7 +187,7 @@ def build(args):
                                      compress_type=zipfile.ZIP_DEFLATED, compresslevel=6)
                     assemblies[name] = {'bytes': p.stat().st_size, 'sha256': digest(p)}
                 shutil.rmtree(directory)
-        manifest = {'schemaVersion': 1, 'toolchain': 'csharp', 'version': 'roslyn-4.8.0-mono-8.0.0-bindings-v2',
+        manifest = {'schemaVersion': 1, 'toolchain': 'csharp', 'version': 'roslyn-4.8.0-mono-8.0.0-bindings-v3',
                     'upstream': lock, 'sourceCompilationWasmHosted': True, 'fullyWasmHostedBuild': True,
                     'bootstrapInputs': {p: digest(ROOT / p) for p in SOURCES},
                     'bootstrapClangSha256': digest(clang),
