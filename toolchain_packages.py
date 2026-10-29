@@ -49,6 +49,8 @@ PUBLIC_UPSTREAM_PAYLOADS = {
     "grain/dist/stdlib/path.gr": "f658c337dde0f242d09d9047f15a4e7f100922ac6dba229021bb6d26100b924d",
     "javascript/.toolchains/runtimes/runtime-sync.wasm": "25703f010b80efb806f9c35daf9ee6524ad60320c9781b0bae4e234264f8dac5",
     "javascript/.toolchains/runtimes/runtime-opt-size-sync.wasm": "51bced91769e0a3cb8bc288d230675b03fca8f97b42723b9f9f1702e6903b6f7",
+    # Unmodified ComponentizeJS 0.23.0 runtime retains upstream Cargo/C++ build paths.
+    "javascript/.toolchains/starlingmonkey/runtime.wasm": "6094cd93d966f9bec9b01332db6e0eedbaf22f60b745c9f823f21e33cbd4d365",
     # Unchanged Temurin 23+37 image; XMLEntityManager contains /space/home/stax test paths.
     "jvm/dist/jdk/lib/modules": "8a476f72d26967ecdd3b02bede4a13306afd56cec2691a184e2c9f9eb4cd3452",
     "swift/dist/sysroot/swift/lib/swift_static/clang/lib/wasip1/libclang_rt.builtins-wasm32.a": "31ba1b372f2b7244c09424d0f33c51d1493675ace11d15dbc60152c9fb7c82b7",

@@ -33,3 +33,8 @@ exports that settle through microtasks are distinct from asynchronous WIT,
 network requests and timers. Node builtins and the DOM are unavailable. yaml
 retains its browser Buffer/process substitutions. Top-level initialization
 must be safe to snapshot and reuse across Component instances.
+
+The compiler bundle retains the unmodified, checksum-pinned ComponentizeJS
+runtime. Its upstream Cargo/C++ build paths are accepted only for that exact
+runtime file and SHA-256. Locally built splicer paths are remapped; the package
+scan still rejects local checkout paths and changed upstream payloads.
