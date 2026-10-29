@@ -29,8 +29,10 @@ needed for the optional application integration checks.
 | [zig](zig/README.md) | Zig Wasm frontend and hosted Clang/LLD backend |
 | [assemblyscript](assemblyscript/README.md) | AssemblyScript and Binaryen Wasm modules |
 | [nim](nim/README.md) | Nim WASI frontend and hosted Clang/LLD backend |
-| [javascript](javascript/README.md) | JavaScript and TypeScript Components using QuickJS and esbuild Wasm |
+| [javascript](javascript/README.md) | JavaScript and TypeScript with QuickJS or explicit StarlingMonkey, Wasm esbuild and tsrs checking |
 | [python](python/README.md) | CPython WASI source compilation and Component packaging |
+| [tsrs](tsrs/README.md) | Shared WASIp1 TypeScript checker with isolated filesystem callbacks |
+| [wizer](wizer/README.md) | Adapter for normal Wizer in the approved native Wasmtime host |
 | [wasm-tools](wasm-tools/README.md) | Shared WASIp1 WIT and Component assembly tools |
 
 ## Getting started

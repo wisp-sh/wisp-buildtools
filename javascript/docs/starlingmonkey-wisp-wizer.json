@@ -1,0 +1,180 @@
+{
+  "nativeSnapshotHostApproved": true,
+  "scope": "Authored-WIT arithmetic and no-I/O Promise exports on Wisp source host",
+  "results": {
+    "sync": {
+      "snapshot": {
+        "schemaVersion": 1,
+        "tool": "wizer@50.0.0",
+        "nativeSnapshotHostApproved": true,
+        "snapshotExecution": "native Wizer host",
+        "applicationInitialization": "Wasm inside Wasmtime",
+        "fullyWasmHostedBuild": false,
+        "host": {
+          "kind": "wisp-source-host",
+          "version": "50.0.0",
+          "binarySha256": "14026ac1ef087f0a027bffd679ddbaa7b5400f7167bff1a0d7dc56e2d1cbfaaa",
+          "source": {
+            "source": {
+              "version": "50.0.0",
+              "rustVersion": "1.99.0",
+              "url": "https://static.crates.io/crates/wasmtime-cli/wasmtime-cli-50.0.0.crate",
+              "sha256": "685bfee58e320da926959286d544d7043e5328ad28aa59bca4d306b978bb7b1b",
+              "features": [
+                "run",
+                "cranelift",
+                "component-model-async",
+                "cache",
+                "parallel-compilation",
+                "wat",
+                "threads",
+                "stack-switching",
+                "wizer"
+              ]
+            },
+            "patchSha256": "b89bdb3b9841e12c230fd54068d7beb87791e1e7bab20425f618eaa9f6938480",
+            "cargoLockSha256": "8e20e98d6c1fb2d924e0241db98ec4217c34a836285ebdfab4c99545e7ab1d66"
+          },
+          "cargoLockSha256": "8e20e98d6c1fb2d924e0241db98ec4217c34a836285ebdfab4c99545e7ab1d66"
+        },
+        "initFunc": "componentize.wizer",
+        "input": {
+          "sha256": "8a0706c7ec0941fa5ae7187e623b5e7db2d48d2de0100229c0aabdda84139cae",
+          "bytes": 10520499
+        },
+        "output": {
+          "sha256": "87461605ebbe6c597330942d48c0f1395639185b2da2da3afb4a976c9ace7066",
+          "bytes": 11970386
+        },
+        "preopens": [
+          {
+            "guest": "/",
+            "host": "$WISP_NATIVE_SPIKE/sync"
+          }
+        ],
+        "environment": {
+          "DEBUG": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+          "EXPORT0_ARGS": "b6cf4d1a7ce9a77a06f163fb45d92f8f7a4fc8e070f7d595eb3c98316df6ce5d",
+          "EXPORT0_NAME": "5c32d2c3ab8fde9449a1b02ccb45f58df95bc03f948fc3ab683e8662fb7d62cd",
+          "EXPORT0_RET": "6a3e2f9684f5186de9658cac3ee8a9af4dac01e72341f0223460fbc1532c8697",
+          "EXPORT0_RETSIZE": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+          "EXPORT_CNT": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+          "FEATURE_CLOCKS": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+          "IMPORT_CNT": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+          "SOURCE_NAME": "eea420b4f9f6808fb1d58a757fbbf439ee6b46ef0e0845749a63b2ddd8606186"
+        },
+        "stdinSha256": "d944db31f953a47778d65681673eaa1fdc29cc0a580469baaff42b157fe2761e",
+        "keepInit": false,
+        "renames": [],
+        "limits": {
+          "seconds": 180,
+          "fuel": 5000000000,
+          "memoryBytes": 1073741824,
+          "network": false
+        },
+        "milliseconds": 23714.438,
+        "recipe": {
+          "host.py": "70b50ff1fb3ea881c4aef5b36c1546be552ff72038d5e2e1aefe8cc1a0037b6c",
+          "snapshot.py": "cc88bc440696e144c3cc19c2926dd3bc593dbf8cd3686daf2572f8a782b72b30",
+          "toolchain.lock.json": "1c9c96c96136fe17f1aee845ef8cf15cb123b5bab6f2e5700a61f7740372dceb"
+        }
+      },
+      "sourceSha256": "5bbef192843e8c8d016638a8f59ae6a1a7ba21ebadd48cb271c6e3be348ee8c9",
+      "initializerSha256": "2dc3cd75bc579885755e49c0c2329dad5a32aac39bdde9ba725e8a8a8c4b4db3",
+      "componentBytes": 11953418,
+      "componentSha256": "b3836f3efbeedcc1f91e4f875c163b15e502ec27ecb060a9d53999c06819815a",
+      "checkInit": 0,
+      "exitCode": 0,
+      "stdout": "42\n",
+      "stderr": "",
+      "coldProcessSeconds": 17.275065388530493
+    },
+    "async": {
+      "snapshot": {
+        "schemaVersion": 1,
+        "tool": "wizer@50.0.0",
+        "nativeSnapshotHostApproved": true,
+        "snapshotExecution": "native Wizer host",
+        "applicationInitialization": "Wasm inside Wasmtime",
+        "fullyWasmHostedBuild": false,
+        "host": {
+          "kind": "wisp-source-host",
+          "version": "50.0.0",
+          "binarySha256": "14026ac1ef087f0a027bffd679ddbaa7b5400f7167bff1a0d7dc56e2d1cbfaaa",
+          "source": {
+            "source": {
+              "version": "50.0.0",
+              "rustVersion": "1.99.0",
+              "url": "https://static.crates.io/crates/wasmtime-cli/wasmtime-cli-50.0.0.crate",
+              "sha256": "685bfee58e320da926959286d544d7043e5328ad28aa59bca4d306b978bb7b1b",
+              "features": [
+                "run",
+                "cranelift",
+                "component-model-async",
+                "cache",
+                "parallel-compilation",
+                "wat",
+                "threads",
+                "stack-switching",
+                "wizer"
+              ]
+            },
+            "patchSha256": "b89bdb3b9841e12c230fd54068d7beb87791e1e7bab20425f618eaa9f6938480",
+            "cargoLockSha256": "8e20e98d6c1fb2d924e0241db98ec4217c34a836285ebdfab4c99545e7ab1d66"
+          },
+          "cargoLockSha256": "8e20e98d6c1fb2d924e0241db98ec4217c34a836285ebdfab4c99545e7ab1d66"
+        },
+        "initFunc": "componentize.wizer",
+        "input": {
+          "sha256": "8a0706c7ec0941fa5ae7187e623b5e7db2d48d2de0100229c0aabdda84139cae",
+          "bytes": 10520499
+        },
+        "output": {
+          "sha256": "5bbde5fae3c930ab8069738fb01c0cdcab35c7ac381d112b07fe5c7183d69d43",
+          "bytes": 11972261
+        },
+        "preopens": [
+          {
+            "guest": "/",
+            "host": "$WISP_NATIVE_SPIKE/async"
+          }
+        ],
+        "environment": {
+          "DEBUG": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+          "EXPORT0_ARGS": "b6cf4d1a7ce9a77a06f163fb45d92f8f7a4fc8e070f7d595eb3c98316df6ce5d",
+          "EXPORT0_NAME": "5c32d2c3ab8fde9449a1b02ccb45f58df95bc03f948fc3ab683e8662fb7d62cd",
+          "EXPORT0_RET": "6a3e2f9684f5186de9658cac3ee8a9af4dac01e72341f0223460fbc1532c8697",
+          "EXPORT0_RETSIZE": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+          "EXPORT_CNT": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+          "FEATURE_CLOCKS": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+          "IMPORT_CNT": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+          "SOURCE_NAME": "eea420b4f9f6808fb1d58a757fbbf439ee6b46ef0e0845749a63b2ddd8606186"
+        },
+        "stdinSha256": "d944db31f953a47778d65681673eaa1fdc29cc0a580469baaff42b157fe2761e",
+        "keepInit": false,
+        "renames": [],
+        "limits": {
+          "seconds": 180,
+          "fuel": 5000000000,
+          "memoryBytes": 1073741824,
+          "network": false
+        },
+        "milliseconds": 25591.666,
+        "recipe": {
+          "host.py": "70b50ff1fb3ea881c4aef5b36c1546be552ff72038d5e2e1aefe8cc1a0037b6c",
+          "snapshot.py": "cc88bc440696e144c3cc19c2926dd3bc593dbf8cd3686daf2572f8a782b72b30",
+          "toolchain.lock.json": "1c9c96c96136fe17f1aee845ef8cf15cb123b5bab6f2e5700a61f7740372dceb"
+        }
+      },
+      "sourceSha256": "69ea364cf66410ff6b10192d811b33912726443e423b820d0ce2aec68adb27d0",
+      "initializerSha256": "2dc3cd75bc579885755e49c0c2329dad5a32aac39bdde9ba725e8a8a8c4b4db3",
+      "componentBytes": 11955293,
+      "componentSha256": "3034475934fc2a141d2a750378dc2140c49d01da6ec3231cb0bcf1749ff78299",
+      "checkInit": 0,
+      "exitCode": 0,
+      "stdout": "42\n",
+      "stderr": "",
+      "coldProcessSeconds": 17.979734553024173
+    }
+  }
+}

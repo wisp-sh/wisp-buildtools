@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "version": "0.18.0-ts7.1.0-dev.20260929",
+  "typescriptVersion": "7.1.0-dev.20260929",
+  "release": {
+    "url": "https://registry.npmjs.org/@tsrs/wasm/-/wasm-0.18.0-ts7.1.0-dev.20260929.tgz",
+    "sha256": "1da9cdc22e449630abe450870700d0dc3e7e04ce8b1b61bd3eb8920b7355aab9",
+    "bytes": 2901453,
+    "integrity": "sha512-1Wv0GU3OIsY1x37cUykxrDLTeCWb81lWS/BCuw2ZfYcB6E7cno3mgfZvOA/3uV1hKs6fBN94LEntmMjULNaRTw=="
+  },
+  "files": {
+    "tsrs.wasm": {
+      "sha256": "bb070f1416dccc5956d177f527b81534a86032efd4d94898dfc20aae1a5c4d18",
+      "bytes": 9766093
+    },
+    "LICENSE": {
+      "sha256": "a7d00bfd54525bc694b6e32f64c7ebcf5e6b7ae3657be5cc12767bce74654a47",
+      "bytes": 9197
+    },
+    "NOTICE.txt": {
+      "sha256": "1a4f42d83bf205aaf1b474e1a8c133cc5365003a188ba5f257d8aa4741355118",
+      "bytes": 47053
+    },
+    "core.js": {
+      "sha256": "472773c405275a52e68b1471bf13d7f637471cdd389ed7b3f6dd387d7257af72",
+      "bytes": 13571
+    }
+  },
+  "nativeBootstrap": {
+    "rustc": {
+      "sha256": "f3834d26669b03f6855fa54bd2381443123e860167bc0c7a8dd137e5cf6e5e4f",
+      "version": "rustc 1.99.0 (b940084d7 2026-09-28)"
+    },
+    "cargo": {
+      "sha256": "e951141cc55a6cd7b9876d187bd30a3720e6086b99413af95e3b8de1cdd72f14",
+      "version": "cargo 1.99.0 (5f94df478 2026-08-27)"
+    }
+  }
+}
