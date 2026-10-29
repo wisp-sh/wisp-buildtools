@@ -290,6 +290,20 @@ class ContainerTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "build-machine path"):
                     self.package()
 
+    def test_python_bootstrap_optimizer_approval_requires_exact_upstream_bytes(self):
+        relative = 'python/dist/provision/wasm-opt'
+        lock = json.loads((ROOT / 'python/toolchain.lock.json').read_text())
+        self.assertEqual(packages.PUBLIC_UPSTREAM_PAYLOADS[relative], lock['tools']['wasm-opt']['sha256'])
+        path = self.root / relative
+        path.parent.mkdir(parents=True)
+        self.document['tools']['compiler']['package']['include'].append(relative)
+        upstream_path = b'/home/buildozer/aports/main/gcc/src/build/x86_64-alpine-linux-musl/libstdc++-v3/include/bits/basic_string.h'
+        for payload in (b'\x7fELF' + upstream_path, b'\x7fELF' + upstream_path + b'\0/home/developer/private.cc'):
+            with self.subTest(payload=payload):
+                path.write_bytes(payload)
+                with self.assertRaisesRegex(ValueError, 'build-machine path'):
+                    self.package()
+
     def test_personal_home_paths_still_block_publication(self):
         path = self.root / "compiler/dist/compiler.wasm"
         for builder in ["/home/luap", "/Users/luap", "/home/runner"]:
