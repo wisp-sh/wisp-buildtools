@@ -28,7 +28,7 @@ requirements with an exact package version:
 | Zig | Clang, which requires LLVM |
 | Rust | LLVM 24 linked into its WASIp3 compiler Component |
 | Swift | llvm-swift, the backend profile bound to its compiler and linker images; wasm-tools for Components |
-| JavaScript / TypeScript | wasm-tools; optional tsrs for `--typecheck` |
+| JavaScript / TypeScript | wasm-tools, tsrs, wizer; checking and StarlingMonkey selection remain explicit |
 | Python | wasm-tools |
 | Grain | wasm-tools |
 | Java, Kotlin | jvm and teavm |
@@ -159,7 +159,7 @@ python3 build.py install dist/packages/javascript.wisp.zip \
 ```
 
 Keep required bundles alongside the selected bundle, for example
-`wasm-tools.wisp.zip` beside `javascript.wisp.zip`. Installation resolves that
+`wasm-tools.wisp.zip`, `tsrs.wisp.zip` and `wizer.wisp.zip` beside `javascript.wisp.zip`. Installation resolves that
 local dependency graph, checks exact identities and versions, verifies every
 payload, and writes one installation atomically into a new prefix. Pass several bundle paths to install multiple tools into the same prefix. Shared
 providers are installed once, including when several dependency paths reach them.

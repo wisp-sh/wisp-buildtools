@@ -1,6 +1,6 @@
 # JavaScript and TypeScript to Wasm Components
 
-This toolchain accepts JavaScript or TypeScript source and an authored WIT contract. It emits a typed WebAssembly Component containing QuickJS and the bundled application source. JavaScript executes as QuickJS bytecode inside Wasm.
+This toolchain accepts JavaScript or TypeScript source and an authored WIT contract. It emits a typed WebAssembly Component using QuickJS by default or the explicit StarlingMonkey engine. Both execute JavaScript inside Wasm.
 
 QuickJS compiler stages run in Wasm. esbuild parses and bundles source in a WASIp1 guest; a Rust WASIp1 guest generates WIT bindings and links the Component; upstream wasm-tools validates, strips and inspects it in WASIp1. Python handles files and starts the Wasmtime host. Neither source builds nor generated applications require Node, npm, JCO, native esbuild or a native componentizer.
 
@@ -82,7 +82,7 @@ independently of TypeScript annotations. See [esbuild's TypeScript caveats](http
 
 The componentizer guest uses `wit-dylib` and `wit-component` to generate bindings and link the upstream `componentize-qjs@0.4.5` runtime. It embeds the JavaScript source and generates initialization code. Wasm-tools then strips custom sections, validates the binary and extracts its WIT, also inside Wasm. Receipts report `sourceCompilerWasmHosted: true`, `fullyWasmHostedBuild: true`, and `nodeRequired: false`.
 
-This build does not use Wizer snapshots. QuickJS parses and evaluates the source once when each Component instance initializes. A validation instance does the same during the build, so initialization failures reject publication. The final Component contains source and the engine, rather than a snapshot of initialized memory. JavaScript functions are interpreted by QuickJS, not compiled into individual Wasm functions.
+The QuickJS path does not use Wizer snapshots. QuickJS parses and evaluates the source once when each Component instance initializes. A validation instance does the same during the build, so initialization failures reject publication. The final Component contains source and the engine, rather than a snapshot of initialized memory. JavaScript functions are interpreted by QuickJS, not compiled into individual Wasm functions.
 
 Python orchestration and the Wasmtime host remain native executables. "Fully Wasm hosted" refers to the compiler, binding generation, linking and inspection stages. Native Rust and Go rebuild those compiler guests only during bootstrap. The upstream QuickJS runtime is a checksummed prebuilt Wasm artifact from the pinned source crate.
 
@@ -106,26 +106,22 @@ The receipt records esbuild's source inputs. Automatically discovered `tsconfig.
 
 ## Limits and verification
 
-This toolchain targets synchronous ES module libraries. It provides neither Node builtins nor a browser DOM. Bundling an npm package does not make dependencies on those APIs work. Async Component APIs and promises are outside the tested contract.
+This toolchain targets synchronous ES module libraries. It provides neither Node builtins nor a browser DOM. Bundling an npm package does not make dependencies on those APIs work. Async WIT is outside the contract. The StarlingMonkey suite checks Promise exports that settle through microtasks and rejected Promises.
 
-Build validation supplies trapping authored-import stubs, so call those imports from exported functions rather than top-level initialization. At runtime, initialization happens once per instance and state persists between calls. Upstream maps 64-bit WIT integers to JavaScript numbers; the verifier covers `f64` and `u32`, not integers beyond JavaScript's exact range.
+Initialization has no authored import provider, so call those imports from exported functions. State persists between calls on each Component instance. QuickJS maps 64-bit WIT integers to JavaScript numbers; this adapter does not promise exact 64-bit integer semantics on that engine. StarlingMonkey uses the upstream canonical bindings and their BigInt representation.
 
-`verify.py` compiles and executes JS, TS, local modules, typed imports, lists, records, Unicode strings and WIT results. It composes a Wasm harness that calls the same instance twice, checks initialization failures and atomic error handling, verifies caller-relative paths, and blocks Node/native compiler commands throughout. When tsrs is installed, it also checks a valid TypeScript project and rejects
-a project with diagnostic 2322 before esbuild. It explicitly reports those
-optional checks as skipped when the package is absent. It writes `build/verify/verification.json` with exact results, output sizes and hashes.
+`verify.py` compiles and executes JS, TS, local modules, typed imports, lists, records, Unicode strings and WIT results. It composes a Wasm harness that calls the same instance twice, checks initialization failures and atomic error handling, verifies caller-relative paths, and blocks Node/native compiler commands throughout. The suite requires tsrs, checks valid TypeScript projects and rejects
+diagnostic 2322 before esbuild. It also checks offline npm modules, tsconfig
+project errors and changed dependency bytes. It writes `build/verify/verification.json` with exact results, output sizes and hashes.
 
 The workspace invokes `bootstrap.py`, `compile.py SOURCE -o OUTPUT --wit PATH --world NAME`, and `verify.py`. This directory emits Components directly; the parent workspace handles Wisp project integration.
 
-## StarlingMonkey investigation
+## Historical StarlingMonkey probes
 
-The [StarlingMonkey spike](docs/starlingmonkey.md) records a no-go migration
-decision. Its checksummed prebuilt runtime runs without snapshots as a CLI
-Component. The WASIp1 splicer builds, but authored-WIT exports trap when the
-stock pipeline skips Wizer. A cold library initializer or Wasm-hosted snapshotter
-is still needed. QuickJS remains the default engine and
-the runtime limits above still apply.
-
-The follow-up [`wizer` host adapter](../wizer/README.md) uses the explicitly
-approved normal native Wizer capability. Its StarlingMonkey probe now passes
-both synchronous and no-I/O Promise-returning authored-WIT arithmetic exports.
-The full engine migration gates remain separate; QuickJS is still the default.
+The [dated spike report](docs/starlingmonkey.md) records the original
+snapshot-free failures and the later approved native-Wizer arithmetic probes.
+The native-Wizer approval supersedes the original no-go restriction. The
+current adapter implements the explicit engine path and the
+[parity checklist](docs/parity.md) defines its broader acceptance gates.
+QuickJS remains the default; adding the engine option does not by itself prove
+a completed default-engine migration.
