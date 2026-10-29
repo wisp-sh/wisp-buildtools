@@ -40,7 +40,7 @@
       "target": "wasm32-wasip1",
       "targetInstalled": true
     },
-    "metadataPatchSha256": "9cac9901b957271fe57474d2c20df3a64d5d2153868517010397d06113a05bda"
+    "metadataPatchSha256": "184dfad741496ca605696577ead3e7cecdf44812771f2d251c206a19ea404384"
   },
   "benchmarkHost": {
     "version": "50.0.0",

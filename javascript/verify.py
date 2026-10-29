@@ -99,7 +99,10 @@ def main() -> int:
         return {"path": output, "receipt": receipt, "wit": wit_text, "artifact": artifact}
 
     def invoke(path, expression):
-        return run([runtime, "run", "-C", "cache=y", "--invoke", expression, path]).stdout.strip()
+        try:
+            return run([runtime, "run", "-C", "cache=y", "--invoke", expression, path]).stdout.strip()
+        except ValueError as error:
+            raise ValueError(f"{expression}: {error}") from error
 
     def rejects(source, wit, world, name, pattern, extra=()):
         output = directory / f"{name}.wasm"
@@ -309,22 +312,65 @@ def main() -> int:
 
             def wide_integers():
                 source = directory / "wide.js"
-                source.write_text("export function wide(value) { return value; } export function signed(value) { return value; }\n")
+                source.write_text('''import host from "test:wide/host";
+export function wide(value) { return value; }
+export function signed(value) {
+  if (value >= 0n) throw new Error('signed argument lost its sign');
+  return value + 1n;
+}
+export function viaUnsigned(value) { return host.echoUnsigned(value); }
+export function viaSigned(value) { return signed(host.echoSigned(value)); }
+export function echoRecord(value) { return value; }
+''')
                 wit = directory / "wide.wit"
-                wit.write_text("package test:wide; world numbers { export wide: func(value:u64)->u64; export signed: func(value:s64)->s64; }\n")
-                component = compile_component(source, wit, "numbers", "wide", ["--stub-wasi"])
-                assert invoke(component["path"], "wide(18446744073709551615)") == "18446744073709551615"
-                assert invoke(component["path"], "signed(-9223372036854775808)") == "-9223372036854775808"
-                return {"u64Max": "18446744073709551615", "s64Min": "-9223372036854775808"}
+                wit.write_text('''package test:wide;
+interface host { echo-unsigned: func(value:u64)->u64; echo-signed: func(value:s64)->s64; }
+interface types { record pair { unsigned: u64, signed: s64 } }
+world numbers {
+  import host;
+  use types.{pair};
+  export wide: func(value:u64)->u64;
+  export signed: func(value:s64)->s64;
+  export via-unsigned: func(value:u64)->u64;
+  export via-signed: func(value:s64)->s64;
+  export echo-record: func(value:pair)->pair;
+}
+''')
+                component = compile_component(source, wit, "numbers", "wide")
+                provider = wat("wide-host", '''(component
+                  (core module $m (func (export "echo") (param i64) (result i64) local.get 0))
+                  (core instance $m (instantiate $m))
+                  (func $unsigned (param "value" u64) (result u64) (canon lift (core func $m "echo")))
+                  (func $signed (param "value" s64) (result s64) (canon lift (core func $m "echo")))
+                  (instance $host (export "echo-unsigned" (func $unsigned)) (export "echo-signed" (func $signed)))
+                  (export "test:wide/host" (instance $host)))''')
+                composed = directory / "wide-composed.wasm"
+                run(wasm_tools.command("compose", component["path"], "-d", provider, "-o", composed))
+                values = {
+                    "wide(18446744073709551615)": "18446744073709551615",
+                    "wide(0)": "0",
+                    "signed(-9223372036854775808)": "-9223372036854775807",
+                    "via-unsigned(18446744073709551615)": "18446744073709551615",
+                    "via-signed(-9223372036854775808)": "-9223372036854775807",
+                }
+                for expression, expected in values.items():
+                    actual = invoke(composed, expression)
+                    assert actual == expected, (expression, actual, expected)
+                record = invoke(composed, "echo-record({unsigned:18446744073709551615,signed:-9223372036854775808})")
+                assert "18446744073709551615" in record and "-9223372036854775808" in record, record
+                return {"calls": values, "record": record, "coreProvider": "i64 identity"}
             check("StarlingMonkey BigInt bindings preserve 64-bit boundaries", wide_integers)
 
             def rejected_promise():
                 source = directory / "rejected-promise.js"
                 source.write_text("export async function add() { throw new Error('PROMISE_REJECTED'); }\n")
-                component = compile_component(source, ROOT / "examples/add.wit", "arithmetic", "rejected-promise", ["--stub-wasi"])
+                component = compile_component(source, ROOT / "examples/add.wit", "arithmetic", "rejected-promise")
                 result = run([runtime, "run", "--invoke", "add(20,22)", component["path"]], success=False)
                 assert result.returncode and "PROMISE_REJECTED" in result.stderr, result.stderr
-                return {"rejectionTraps": True}
+                pure = compile_component(source, ROOT / "examples/add.wit", "arithmetic", "rejected-promise-pure", ["--stub-wasi"])
+                result = run([runtime, "run", "--invoke", "add(20,22)", pure["path"]], success=False)
+                assert result.returncode and "wasm trap" in result.stderr, result.stderr
+                return {"rejectionTraps": True, "diagnosticWithStdio": True, "pureWorldHasNoStderr": True}
             check("rejected Promise produces an invocation error", rejected_promise)
 
         def dependency_project():

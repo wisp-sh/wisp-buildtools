@@ -114,6 +114,13 @@ This toolchain targets synchronous ES module libraries. It provides neither Node
 
 Initialization has no authored import provider, so call those imports from exported functions. State persists between calls on each Component instance. QuickJS maps 64-bit WIT integers to JavaScript numbers; this adapter does not promise exact 64-bit integer semantics on that engine. StarlingMonkey uses the upstream canonical bindings and their BigInt representation.
 
+The StarlingMonkey binding generator normalizes the pinned embedding's
+unsigned Core i64 bit patterns at the JavaScript boundary, preserving signed
+and unsigned WIT BigInt values. Unhandled exceptions and rejected Promises
+trap. Keep WASI stdio enabled to retain their diagnostic text; `--stub-wasi`
+removes stderr along with the other WASI capabilities. Typed WIT `result`
+errors remain ordinary return values in either mode.
+
 `verify.py` compiles and executes JS, TS, local modules, typed imports, lists, records, Unicode strings and WIT results. It composes a Wasm harness that calls the same instance twice, checks initialization failures and atomic error handling, verifies caller-relative paths, and blocks Node/native compiler commands throughout. The suite requires tsrs, checks valid TypeScript projects and rejects
 diagnostic 2322 before esbuild. It also checks offline npm modules, tsconfig
 project errors and changed dependency bytes. It writes `build/verify/verification.json` with exact results, output sizes and hashes.
