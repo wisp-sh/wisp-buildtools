@@ -1061,14 +1061,18 @@
         "ocaml/backend.py",
         "ocaml/src/wasi-runtime.patch",
         "ocaml/src/command.c",
-        "ocaml/src/reactor.c"
+        "ocaml/src/reactor.c",
+        "ocaml/contracts.py",
+        "ocaml/bindings.py"
       ],
       "dependencies": [
-        "nim"
+        "nim",
+        "wasm-tools"
       ],
       "runtimeDependencies": [
         "llvm",
-        "clang"
+        "clang",
+        "wasm-tools"
       ],
       "bootstrapRequirements": [
         "Python 3.12+",
@@ -1086,6 +1090,16 @@
         }
       ],
       "test": [
+        {
+          "argv": [
+            "{python}",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "{root}/ocaml/tests"
+          ]
+        },
         {
           "argv": [
             "{python}",
@@ -1108,7 +1122,9 @@
           "ocaml/toolchain.lock.json",
           "ocaml/examples",
           "ocaml/dist",
-          "ocaml/licenses"
+          "ocaml/licenses",
+          "ocaml/contracts.py",
+          "ocaml/bindings.py"
         ],
         "optional": []
       }

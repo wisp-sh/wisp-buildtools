@@ -54,3 +54,48 @@ WASI command and a receipt with compiler and source hashes. For application
 archives and C stubs, `runner.py` and `backend.py` expose the same stages to
 package recipes. The sibling `wisp-pkgs/cpdf` recipe builds CPDF and CamlPDF
 2.9.2 this way.
+
+## Public libraries
+
+```sh
+python3 compile.py examples/library/support.ml examples/library/library.ml \
+  --component -o /path/to/new/library.wasm
+```
+
+The last implementation's `.mli` declares the public functions and types.
+The adapter derives a WIT interface, registers OCaml callbacks and generates
+canonical ABI C bindings. Both application compilers and Component assembly run
+in Wasm. Install the shared `wasm-tools` package as well as `llvm` and `clang`.
+The command mode and the `runner.py`/`backend.py` API used by CPDF remain available.
+
+Pass multiple sources in dependency order. Adjacent `.mli` files are added before
+their implementations. `--project-root` includes local and vendored source modules
+in the hash inventory. No `.cmi` or `.cmo` files are written to the source project.
+`--infer` prints the public declarations and source hashes without executing
+application code. Wisp uses that result to create its package's WIT interface.
+`--wit` and `--world` select an authored contract, which must match the `.mli`.
+`--entry-module` selects another top-level implementation module.
+
+Public values include `int`, `int32`, `int64`, `float`, `bool`, UTF-8 `string`,
+`bytes`, immutable records, constant variants, lists, options and results.
+OCaml `int` is signed 31-bit on this runtime; its WIT `s32` input is range checked.
+Use `int32` for the full `s32` range. `bytes` carries arbitrary binary data.
+A sole `unit` parameter becomes no parameters; `unit` results have no value.
+Type aliases are supported, except unit aliases. Public polymorphic, recursive,
+abstract, mutable-record, labelled, optional, higher-order or payload-variant
+APIs are rejected. WIT imports, resources and asynchronous APIs are unsupported.
+Dune, PPX and opam resolution are not provided; vendor ordinary modules locally.
+
+The runtime initializes once per instance. Bindings root callback values across
+GC and free canonical result buffers during post-return. Returned `Error` values
+remain recoverable. Uncaught exceptions trap the instance. Signature text is
+limited to 64 KiB, source snapshots to 32 MiB/4,096 files, and generated result
+allocations to 16 MiB per call. Existing output and receipt files are preserved
+when a build fails or an output path already exists.
+
+`verify.py` retains command/file-I/O regression checks and compiles the rich
+library example. Wisp's `ocaml-source-acceptance.yml` adds fresh package
+installation, npm/Rust consumers, repeated calls with full GC, source
+invalidation and a CPDF/CamlPDF rebuild. Those runs use the changed installed
+adapter and verify the reused compiler payload hashes. No native application
+compiler fallback is allowed.
