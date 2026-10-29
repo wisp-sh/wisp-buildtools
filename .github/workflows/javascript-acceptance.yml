@@ -1,0 +1,13 @@
+name: JavaScript and TypeScript compiler acceptance
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compiler:
+    uses: ./.github/workflows/toolchain.yml
+    with:
+      toolchain: javascript
+      runner: '["ubuntu-24.04"]'
+      jobs: 1
+      timeout: 180

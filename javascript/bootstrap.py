@@ -67,7 +67,7 @@ def rebuild(args):
                  f"--remap-path-prefix={standard_sources}=/rustc/{commit}/library"]
     # Cargo splits RUSTFLAGS on whitespace. Keep each remap intact when a
     # checkout, Cargo home, or Rust installation directory contains spaces.
-    env = {**os.environ, "CARGO_TARGET_DIR": str(target), "CARGO_BUILD_JOBS": "2",
+    env = {**os.environ, "CARGO_TARGET_DIR": str(target), "CARGO_BUILD_JOBS": "1",
            "CARGO_ENCODED_RUSTFLAGS": "\x1f".join(rustflags)}
     env.pop("RUSTFLAGS", None)
     command = ["cargo", "build", "--manifest-path", guest / "Cargo.toml", "--release",
@@ -117,6 +117,14 @@ def main():
                 if args.check:
                     raise
                 rebuild(args)
+        starling_command = [sys.executable, ROOT / "starlingmonkey_bootstrap.py"]
+        if args.check:
+            starling_command.append("--check")
+        if args.rebuild:
+            starling_command.append("--rebuild")
+        if args.offline:
+            starling_command.append("--offline")
+        run(starling_command, stdout=subprocess.DEVNULL if args.json else None)
         shared_command = [sys.executable, ROOT.parent / "wasm-tools/bootstrap.py"]
         if args.check:
             shared_command.append("--check")

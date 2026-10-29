@@ -41,7 +41,7 @@ jobs:
           python3 build.py plan all --json > build-plan.json
           python3 test-build.py
           python3 test-cwasm.py
-          python3 javascript/test_bootstrap.py
+          python3 -m unittest discover -s javascript -p 'test_*.py'
           python3 -m unittest discover -s python -p 'test_*.py'
           python3 test-ci.py
           python3 test-ci-package.py

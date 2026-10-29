@@ -314,6 +314,20 @@ class ContainerTests(unittest.TestCase):
                     with self.assertRaisesRegex(ValueError, "build-machine path"):
                         self.package()
 
+    def test_starlingmonkey_runtime_approval_requires_the_exact_pinned_image(self):
+        relative = "javascript/.toolchains/starlingmonkey/runtime.wasm"
+        lock = json.loads((ROOT / "javascript/checksums/starlingmonkey.json").read_text())
+        self.assertEqual(packages.PUBLIC_UPSTREAM_PAYLOADS[relative], lock["runtime"]["sha256"])
+        path = self.root / relative
+        path.parent.mkdir(parents=True)
+        self.document["tools"]["compiler"]["package"]["include"].append(relative)
+        upstream = b"/home/runner/work/ComponentizeJS/ComponentizeJS/StarlingMonkey/crates/rust-url/src/lib.rs\0"
+        # Neither the filename nor a matching upstream path approves changed bytes.
+        for payload in (CORE + upstream, CORE + upstream + b"/home/runner/private/source.cpp\0"):
+            path.write_bytes(payload)
+            with self.subTest(payload=payload), self.assertRaisesRegex(ValueError, "build-machine path"):
+                self.package()
+
     def test_composed_and_split_upstream_strings_have_narrow_exceptions(self):
         for relative, strings in packages.PUBLIC_UPSTREAM_STRINGS.items():
             path = self.root / relative

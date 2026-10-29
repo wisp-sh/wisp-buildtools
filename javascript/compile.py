@@ -85,8 +85,11 @@ def main():
     parser.add_argument("source", type=Path)
     parser.add_argument("--wit", type=Path, help="WIT file/directory, default adjacent source.wit")
     parser.add_argument("--world")
+    parser.add_argument("--engine", choices=("quickjs", "starlingmonkey"), default="quickjs")
     parser.add_argument("-o", "--out", "--output", required=True, type=Path)
     parser.add_argument("--module-root", type=Path)
+    parser.add_argument("--typecheck", action="store_true",
+                        help="run the optional tsrs package over the module root before esbuild")
     parser.add_argument("--emit-js", type=Path)
     parser.add_argument("--stub-wasi", action="store_true",
                         help="remove WASI imports using zero clocks/seed for startup and traps for other operations")
@@ -124,25 +127,47 @@ def main():
     with tempfile.TemporaryDirectory(prefix=".javascript-compile-", dir=output.parent) as temporary:
         work = Path(temporary)
         captured_wit = capture_wit(wit, work / "wit-inputs")
+        typecheck = {"enabled": False}
+        if args.typecheck:
+            checked = subprocess.run([sys.executable, str(Path(os.environ.get("WISP_TSRS_TOOLCHAIN", ROOT.parent / "tsrs")) / "typecheck.py"),
+                                      "--module-root", str(module_root), "--source", str(source),
+                                      "--output", str(work / "typecheck.json")],
+                                     text=True, capture_output=True, timeout=args.timeout,
+                                     env={**os.environ, "RAYON_NUM_THREADS": "1"})
+            if checked.returncode:
+                raise ValueError((checked.stderr or checked.stdout).strip())
+            typecheck = json.loads((work / "typecheck.json").read_text())
         bundled = bundle(source, module_root, work, esbuild_wasm=tool_path("esbuild"),
                          wasmtime=wasmtime_path(), timeout=args.timeout)
+        if args.typecheck:
+            checked_inputs = {item["path"]: item["sha256"] for item in typecheck["inputs"]}
+            if any(checked_inputs.get(item["path"]) != item["sha256"] for item in bundled["inputs"]):
+                raise ValueError("source changed between type checking and bundling; rerun the build")
         input_paths = {Path(item["path"]) for item in bundled["inputs"]}
         if any(path in input_paths for path in resolved_targets):
             raise ValueError("output files must be distinct from bundled module inputs")
         js = bundled["js"]
         (work / "source.mjs").write_text(js, encoding="utf-8")
-        runtime_name = "runtime-opt-size-sync.wasm" if args.opt_size else "runtime-sync.wasm"
         candidate, validation = work / "candidate.wasm", work / "validate.wasm"
-        arguments = [tool_path("componentize"), "--wit", "/wit/" + wit.name if wit.is_file() else "/wit",
-                     "--source", "/work/source.mjs", "--runtime", "/runtime/" + runtime_name,
-                     "--output", "/work/candidate.wasm", "--validation-output", "/work/validate.wasm",
-                     "--keep-custom-sections"]
-        if args.world:
-            arguments += ["--world", args.world]
-        if args.stub_wasi:
-            arguments.append("--stub-wasi")
-        run_guest(arguments, mounts=[(work / "wit-inputs", "/wit"), (work, "/work"),
-                  (ROOT / ".toolchains/runtimes", "/runtime")], timeout=args.timeout)
+        engine_receipt = None
+        if args.engine == "starlingmonkey":
+            from starlingmonkey import compile_component
+            engine_receipt = compile_component(work, wit, args.world, stub_wasi=args.stub_wasi,
+                                               timeout=args.timeout, wasm_tool=wasm_tool,
+                                               adapter=wasm_tools.preview1_adapter())
+        else:
+            runtime_name = "runtime-opt-size-sync.wasm" if args.opt_size else "runtime-sync.wasm"
+            candidate, validation = work / "candidate.wasm", work / "validate.wasm"
+            arguments = [tool_path("componentize"), "--wit", "/wit/" + wit.name if wit.is_file() else "/wit",
+                         "--source", "/work/source.mjs", "--runtime", "/runtime/" + runtime_name,
+                         "--output", "/work/candidate.wasm", "--validation-output", "/work/validate.wasm",
+                         "--keep-custom-sections"]
+            if args.world:
+                arguments += ["--world", args.world]
+            if args.stub_wasi:
+                arguments.append("--stub-wasi")
+            run_guest(arguments, mounts=[(work / "wit-inputs", "/wit"), (work, "/work"),
+                      (ROOT / ".toolchains/runtimes", "/runtime")], timeout=args.timeout)
         unstripped_bytes = candidate.stat().st_size
         if not args.keep_custom_sections:
             stripped = work / "stripped.wasm"
@@ -153,13 +178,14 @@ def main():
         wasm_tool("validate", candidate)
         if candidate.read_bytes()[:8] != COMPONENT_HEADER:
             raise ValueError("compiler did not emit a WebAssembly Component")
-        # The validator invokes the same guarded initializer as an ordinary export.
-        # It supplies trapping authored-import stubs and receives no preopens.
-        initialized = subprocess.run([str(wasmtime_path()), "run", "-C", "cache=y", "-O", "opt-level=0", "-C", "parallel-compilation=n", "--invoke",
-                                      "wisp-validate()", str(validation)], text=True, capture_output=True,
-                                     timeout=args.timeout, env={**os.environ, "RAYON_NUM_THREADS": "2"})
-        if initialized.returncode:
-            raise ValueError("guest QuickJS initialization failed:\n" + (initialized.stderr or initialized.stdout).strip())
+        if args.engine == "quickjs":
+            # The validator invokes the same guarded initializer as an ordinary export.
+            # It supplies trapping authored-import stubs and receives no preopens.
+            initialized = subprocess.run([str(wasmtime_path()), "run", "-C", "cache=y", "-O", "opt-level=0", "-C", "parallel-compilation=n", "--invoke",
+                                          "wisp-validate()", str(validation)], text=True, capture_output=True,
+                                         timeout=args.timeout, env={**os.environ, "RAYON_NUM_THREADS": "1"})
+            if initialized.returncode:
+                raise ValueError("guest QuickJS initialization failed:\n" + (initialized.stderr or initialized.stdout).strip())
         actual_wit = wasm_tool("component", "wit", candidate)
         metadata = {
             "schemaVersion": 2, "toolchain": "javascript",
@@ -173,9 +199,12 @@ def main():
             "recipe": [{"path": str(path.relative_to(ROOT)), "sha256": digest(path)}
                        for path in [ROOT / "compile.py", ROOT / "toolchain.py", ROOT / "typescript.py"]],
             "bundleInputs": bundled["inputs"],
+            "typecheck": typecheck,
+            "engine": {"name": args.engine, "receipt": engine_receipt},
             "output": {"path": str(output), "bytes": candidate.stat().st_size, "sha256": digest(candidate),
                        "unstrippedBytes": unstripped_bytes, "maxBytes": args.max_bytes},
             "stages": {
+                "typecheck": typecheck["compiler"] + " in WASIp1" if args.typecheck else None,
                 "typescript": "esbuild@0.28.2 in WASIp1" if source.suffix.lower() in (".ts", ".mts", ".tsx") else None,
                 "bundling": bundled["compiler"],
                 "javascript": "QuickJS in Wasm, initialized once on the first exported call",
@@ -183,16 +212,35 @@ def main():
                 "linking": "wit-component Component linker in WASIp1",
                 "inspection": "upstream wasm-tools in WASIp1",
             },
-            "options": {"sync": True, "bundled": True, "stubWasi": args.stub_wasi,
+            "options": {"typecheck": args.typecheck, "sync": True, "bundled": True, "stubWasi": args.stub_wasi,
                         "optSize": args.opt_size, "stripped": not args.keep_custom_sections,
                         "runtimeInitHidden": True,
                         "wasiStubBehavior": "zero insecure seed and wall/monotonic time; other calls trap"
                                             if args.stub_wasi else None},
-            "sourceCompilerWasmHosted": True, "fullyWasmHostedBuild": True, "nodeRequired": False,
+            "sourceCompilerWasmHosted": True, "fullyWasmHostedBuild": args.engine == "quickjs", "nodeRequired": False,
+            "nativeSnapshotHostApproved": args.engine == "starlingmonkey",
             "initialization": "guarded guest initialization on first export call per Component instance; compile-time validation invokes the same initializer; no Wizer snapshot",
             "unbundledModuleClosureRecorded": True,
-            "limitations": ["No TypeScript type checking", "Synchronous WIT interfaces", "No Node.js builtins or DOM"],
+            "limitations": (["TypeScript type checking disabled"] if not args.typecheck else []) +
+                            ["Synchronous WIT interfaces", "No Node.js builtins or DOM"],
         }
+        if args.engine == "starlingmonkey":
+            metadata["stages"].update({
+                "javascript": "StarlingMonkey executes bundled JavaScript inside Wasm",
+                "bindings": "ComponentizeJS canonical ABI splicer in WASIp1",
+                "snapshot": "approved native Wizer captures Wasm initialization state",
+                "linking": "wasm-tools Component assembly in WASIp1",
+            })
+            metadata["initialization"] = "Wasm initialization captured by approved native Wizer; fresh snapshot per build"
+            metadata["recipe"] += [{"path": name, "sha256": digest(ROOT / name)}
+                                   for name in ("starlingmonkey.py", "starlingmonkey_bootstrap.py")]
+            metadata["options"]["wasiStubBehavior"] = (
+                "ComponentizeJS stubs disabled WASI features after snapshot initialization" if args.stub_wasi else None)
+            metadata["limitations"] = (["TypeScript type checking disabled"] if not args.typecheck else []) + [
+                "Synchronous WIT; Promise exports may settle through microtasks without I/O",
+                "No Node.js builtins or DOM; HTTP and async WIT are not enabled",
+                "Top-level initialization must be safe to snapshot and reuse",
+            ]
         staged = [candidate, work / "world.wit", work / "receipt.json"]
         staged[1].write_text(actual_wit)
         staged[2].write_text(json.dumps(metadata, indent=2) + "\n")

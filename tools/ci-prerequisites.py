@@ -20,7 +20,8 @@ import urllib.request
 ROOT = Path(__file__).resolve().parents[1]
 LOCK = json.loads((ROOT / "tools/ci-tools.lock.json").read_text())
 TOOLS = ("clang", "go", "grain", "ocaml", "goose", "llvm", "rust", "zig", "assemblyscript", "nim",
-         "javascript", "python", "wasm-tools", "swift", "llvm-swift", "jvm", "teavm", "java", "kotlin", "csharp")
+         "javascript", "python", "wasm-tools", "swift", "llvm-swift", "jvm", "teavm", "java", "kotlin",
+         "tsrs", "wizer", "csharp")
 SHARED_LLVM_CONSUMERS = ("clang", "llvm", "zig", "nim", "ocaml", "goose", "teavm", "java", "kotlin")
 SHARED_RUST_CONSUMERS = ("rust",)
 CACHE = ROOT / ".ci/downloads"
@@ -33,9 +34,9 @@ def digest(path: Path) -> str:
 
 
 def requirements(tool: str) -> list[str]:
-    # Python's reproducible snapshot bootstrap pins the exact stock 50 binary.
+    # Python's bootstrap and the Wizer host adapter pin the exact stock 50 binary.
     # All compiler execution uses the Wisp host from shared-hosts/wasmtime.lock.json.
-    selected = ["wasmtime"] if tool == "python" else []
+    selected = ["wasmtime"] if tool in ("python", "wizer", "javascript") else []
     selected += {
         "go": ["go-1.27.2"],
         "grain": ["wasi-sdk-34"],
@@ -45,10 +46,11 @@ def requirements(tool: str) -> list[str]:
         **{name: ["wasi-sdk-34"] for name in ("jvm", "teavm", "java", "kotlin")},
         "swift": ["binaryen", "wasmtime-python"],
         "llvm-swift": ["binaryen", "wasmtime-python"],
-        "javascript": ["go-1.27.2"],
+        "javascript": ["go-1.27.2", "wasmtime-python"],
         "python": ["wasm-tools", "wac", "binaryen"],
         "rust": ["binaryen", "wasi-sdk-34"],
         "assemblyscript": ["wasmtime-python"],
+        "tsrs": ["wasmtime-python"],
     }.get(tool, [])
     return selected
 
@@ -85,6 +87,9 @@ def check_lock() -> None:
             raise ValueError(f"CI and Python bootstrap hashes differ: {name}")
     if LOCK["downloads"]["binaryen"]["executableSha256"] != python_lock["tools"]["wasm-opt"]["sha256"]:
         raise ValueError("CI and Python wasm-opt hashes differ")
+    wizer_lock = json.loads((ROOT / 'wizer/toolchain.lock.json').read_text())
+    if LOCK['downloads']['wasmtime']['executableSha256'] != wizer_lock['hosts']['official-linux-x86_64']['sha256']:
+        raise ValueError('CI and Wizer execution host hashes differ')
     rust_lock = json.loads((ROOT / "rust/source-lock.json").read_text())
     if LOCK["downloads"]["wasi-sdk-34"]["sha256"] != rust_lock["wasi_sdk"]["sha256"]:
         raise ValueError("CI and Rust WASI SDK hashes differ")
@@ -250,6 +255,8 @@ def install_for(tool: str) -> dict:
     if tool == "python":
         environment.update({"WISP_BOOTSTRAP_WASM_TOOLS": str(binaries["wasm-tools"]),
                             "WISP_WAC": str(binaries["wac"])})
+    if tool in ("wizer", "javascript"):
+        environment["WISP_WIZER_WASMTIME"] = str(binaries["wasmtime"])
     if "binaryen" in binaries:
         environment["WISP_WASM_OPT"] = str(binaries["binaryen"])
     if tool in SHARED_RUST_CONSUMERS:
@@ -270,7 +277,7 @@ def install_for(tool: str) -> dict:
             expected_archive.unlink()
         if not expected_archive.exists():
             expected_archive.symlink_to(archive.resolve())
-    if tool in ("assemblyscript", "swift", "llvm-swift", "csharp"):
+    if tool in ("assemblyscript", "swift", "llvm-swift", "tsrs", "javascript", "csharp"):
         environment["WISP_WASMTIME_PYTHON"] = str(binaries["wasmtime-python"].parents[1])
     bootstrap = rust_bootstrap(tool)
     if bootstrap is not None:

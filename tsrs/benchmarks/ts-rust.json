@@ -1,0 +1,66 @@
+{
+  "moduleSha256": "a9e13fe32da82667107f2d9de92e04a5d1dd386e75eb18feb8352c9565ba13a6",
+  "moduleBytes": 18219437,
+  "host": "Wasmtime Python 50.0.1",
+  "project": "one strict TS file, noEmit, exported number constant",
+  "optLevel": "none",
+  "parallelCompilation": false,
+  "results": {
+    "wasm": {
+      "samples": [
+        {
+          "moduleLoadMs": 15062.677972950041,
+          "startupRequestMs": 16.283445060253143,
+          "typecheckRequestMs": 1403.4170461818576,
+          "loadAndTypecheckMs": 16466.0950191319
+        },
+        {
+          "moduleLoadMs": 14799.035839736462,
+          "startupRequestMs": 13.423753902316093,
+          "typecheckRequestMs": 524.8770834878087,
+          "loadAndTypecheckMs": 15323.91292322427
+        },
+        {
+          "moduleLoadMs": 14954.006127081811,
+          "startupRequestMs": 12.462304905056953,
+          "typecheckRequestMs": 536.219815723598,
+          "loadAndTypecheckMs": 15490.22594280541
+        }
+      ],
+      "median": {
+        "moduleLoadMs": 14954.006127081811,
+        "startupRequestMs": 13.423753902316093,
+        "typecheckRequestMs": 536.219815723598,
+        "loadAndTypecheckMs": 15490.22594280541
+      }
+    },
+    "precompiled": {
+      "samples": [
+        {
+          "moduleLoadMs": 79.19973600655794,
+          "startupRequestMs": 11.374163441359997,
+          "typecheckRequestMs": 560.7660207897425,
+          "loadAndTypecheckMs": 639.9657567963004
+        },
+        {
+          "moduleLoadMs": 82.99587294459343,
+          "startupRequestMs": 12.0936781167984,
+          "typecheckRequestMs": 1023.6968519166112,
+          "loadAndTypecheckMs": 1106.6927248612046
+        },
+        {
+          "moduleLoadMs": 113.00402227789164,
+          "startupRequestMs": 11.485421098768711,
+          "typecheckRequestMs": 514.033162035048,
+          "loadAndTypecheckMs": 627.0371843129396
+        }
+      ],
+      "median": {
+        "moduleLoadMs": 82.99587294459343,
+        "startupRequestMs": 11.485421098768711,
+        "typecheckRequestMs": 560.7660207897425,
+        "loadAndTypecheckMs": 639.9657567963004
+      }
+    }
+  }
+}

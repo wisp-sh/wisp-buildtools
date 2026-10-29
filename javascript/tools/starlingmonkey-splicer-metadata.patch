@@ -1,0 +1,121 @@
+--- a/crates/spidermonkey-embedding-splicer/src/bin/splicer.rs
++++ b/crates/spidermonkey-embedding-splicer/src/bin/splicer.rs
+@@ -127,6 +127,21 @@
+                 splice::splice_bindings(engine, features, None, wit_path_str, world_name, debug)
+                     .map_err(|e| anyhow::anyhow!(e))?;
+
++            // Preserve the canonical ABI computed by the guest. The host must
++            // never guess flattened signatures from source text or WIT names.
++            let core_type = |ty: &spidermonkey_embedding_splicer::wit::exports::local::spidermonkey_embedding_splicer::splicer::CoreTy| {
++                use spidermonkey_embedding_splicer::wit::exports::local::spidermonkey_embedding_splicer::splicer::CoreTy;
++                match ty { CoreTy::I32 => "i32", CoreTy::I64 => "i64", CoreTy::F32 => "f32", CoreTy::F64 => "f64" }
++            };
++            let exports: Vec<_> = result.exports.iter().map(|(name, f)| serde_json::json!({
++                "name": name, "params": f.params.iter().map(&core_type).collect::<Vec<_>>(),
++                "ret": f.ret.as_ref().map(&core_type), "retptr": f.retptr,
++                "retsize": f.retsize, "paramptr": f.paramptr,
++            })).collect();
++            fs::write(out_dir.join("bindings.json"), serde_json::to_vec_pretty(&serde_json::json!({
++                "schemaVersion": 1, "exports": exports, "imports": result.imports,
++            }))?)?;
++
+             fs::write(out_dir.join("component.wasm"), result.wasm).with_context(|| {
+                 format!(
+                     "Failed to write output file: {}",
+--- a/crates/spidermonkey-embedding-splicer/src/bindgen.rs
++++ b/crates/spidermonkey-embedding-splicer/src/bindgen.rs
+@@ -245,7 +245,15 @@
+         }
+         let joined_bindings = specifier_list.join(",\n\t");
++        // Keep named imports and also accept the interface-object default
++        // imports used by Wisp's QuickJS adapter. Freestanding functions and
++        // resources already have a default export and must retain it.
++        let default_binding = if specifier_list.iter().any(|item| item.starts_with("default:")) {
++            String::new()
++        } else {
++            format!(",\n\tdefault: {{ {joined_bindings} }}")
++        };
+         import_wrappers.push((
+             specifier.to_string(),
+-            format!("defineBuiltinModule('{specifier}', {{\n\t{joined_bindings}\n}});"),
++            format!("defineBuiltinModule('{specifier}', {{\n\t{joined_bindings}{default_binding}\n}});"),
+         ));
+     }
+@@ -891,4 +899,34 @@
+         uwriteln!(self.src, ") {{");
+
++        // The pinned embedding transports i64 as unsigned BigInt bit patterns.
++        // Canonical JS bindings expect signed Core i64, even when WIT uses u64.
++        // Normalize only the engine boundary, before lifting/after lowering.
++        let core_sig = self.resolve.wasm_signature(abi, func);
++        let is_i64 = |ty: &WasmType| matches!(ty, WasmType::I64 | WasmType::PointerOrI64);
++        if abi == AbiVariant::GuestImport {
++            for (index, ty) in core_sig.params.iter().enumerate() {
++                if is_i64(ty) {
++                    uwriteln!(self.src, "arg{index} = BigInt.asIntN(64, arg{index});");
++                }
++            }
++        }
++        let bridge_callee = if abi == AbiVariant::GuestExport {
++            let mut bridge = String::from("((...$wispCoreArgs) => { ");
++            for (index, ty) in core_sig.params.iter().enumerate() {
++                if is_i64(ty) {
++                    write!(bridge, "$wispCoreArgs[{index}] = BigInt.asUintN(64, $wispCoreArgs[{index}]); ").unwrap();
++                }
++            }
++            write!(bridge, "const $wispCoreResult = {callee}(...$wispCoreArgs); ").unwrap();
++            if core_sig.results.first().is_some_and(is_i64) {
++                bridge.push_str("return BigInt.asIntN(64, $wispCoreResult); })");
++            } else {
++                bridge.push_str("return $wispCoreResult; })");
++            }
++            bridge
++        } else {
++            callee.to_string()
++        };
++
+         let resource_map = self.create_resource_map(func);
+
+@@ -929,5 +967,5 @@
+             .block_storage(Vec::new())
+             .blocks(Vec::new())
+-            .callee(callee)
++            .callee(&bridge_callee)
+             .memory(&self.memory)
+             .realloc(&self.realloc)
+@@ -968,5 +1006,11 @@
+         );
+
+-        self.src.push_str(&f.src);
++        if abi == AbiVariant::GuestImport && core_sig.results.first().is_some_and(is_i64) {
++            self.src.push_str("return BigInt.asUintN(64, await (async () => {");
++            self.src.push_str(&f.src);
++            self.src.push_str("})());");
++        } else {
++            self.src.push_str(&f.src);
++        }
+         self.src.push_str("}");
+     }
+@@ -1107,13 +1151,13 @@
+     fn core_fn(&self, func: &Function, sig: &WasmSignature) -> CoreFn {
+         CoreFn {
+-            retsize: if sig.retptr {
+-                let mut retsize: u32 = 0;
+-                if let Some(ret_ty) = func.result {
+-                    retsize += self.sizes.size(&ret_ty).size_wasm32() as u32;
+-                }
+-                retsize
+-            } else {
+-                0
+-            },
++            // The embedding allocates storage even for a direct scalar return.
++            retsize: if sig.retptr {
++                func.result.map(|ty| self.sizes.size(&ty).size_wasm32() as u32).unwrap_or(0)
++            } else {
++                sig.results.first().map(|ty| match ty {
++                    WasmType::I64 | WasmType::F64 | WasmType::PointerOrI64 => 8,
++                    _ => 4,
++                }).unwrap_or(0)
++            },
+             retptr: sig.retptr,
+             paramptr: sig.indirect_params,
