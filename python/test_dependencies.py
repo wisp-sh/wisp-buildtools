@@ -116,6 +116,36 @@ class MetadataTests(unittest.TestCase):
     wheel = DependencyTests.wheel
     run_prepare = DependencyTests.run_prepare
 
+    def test_project_python_requirement_is_checked_without_dependencies(self):
+        project = self.project / 'pyproject.toml'
+        project.write_text('[project]\nrequires-python="<3.14"\n')
+        with self.assertRaisesRegex(ValueError, 'project excludes guest CPython'):
+            prepare(self.project, self.root / 'extracted')
+        project.write_text('[project]\nrequires-python=">=3.14,<3.15"\n')
+        roots, _ = prepare(self.project, self.root / 'extracted')
+        self.assertEqual(roots, [])
+
+    def test_dynamic_optional_dependencies_are_not_silently_ignored(self):
+        (self.project / 'pyproject.toml').write_text('[project]\ndynamic=["optional-dependencies"]\n')
+        with self.assertRaisesRegex(ValueError, 'dynamic Python dependencies'):
+            prepare(self.project, self.root / 'extracted')
+
+    def test_wheel_filename_version_must_match_lock_and_metadata(self):
+        wheel = self.wheel('one')
+        renamed = wheel.with_name('one-2.0-py3-none-any.whl')
+        wheel.rename(renamed)
+        self.packages[0]['path'] = renamed.name
+        with self.assertRaisesRegex(ValueError, 'filename name/version differs'):
+            self.run_prepare()
+
+    def test_wheel_filename_tags_must_match_metadata(self):
+        wheel = self.wheel('one')
+        renamed = wheel.with_name('one-1.2-cp314-none-any.whl')
+        wheel.rename(renamed)
+        self.packages[0]['path'] = renamed.name
+        with self.assertRaisesRegex(ValueError, 'metadata differs'):
+            self.run_prepare()
+
     def test_vendored_metadata_parser_matches_the_pinned_inventory(self):
         vendor = Path(__file__).parent / 'scripts/_vendor'
         manifest = json.loads((vendor / 'manifest.json').read_text())

@@ -9,11 +9,11 @@ from scripts.limits import MAX_PROGRAM_BYTES
 from scripts.source_bundle import collect, default_root
 
 
-def inputs(source, package_root=None, python_paths=(), dependency_root=None, *, work):
+def inputs(source, package_root=None, python_paths=(), dependency_root=None, *, work, excluded_paths=()):
     root = (package_root or default_root(source.resolve())).resolve()
     dependency_root = (dependency_root or root).resolve()
     dependencies, receipt = prepare(dependency_root, work / 'dependencies')
-    excluded = [dependency_root / 'out', *dependencies,
+    excluded = [dependency_root / 'out', work, *excluded_paths, *dependencies,
                 *(dependency_root / p for p in receipt['excludedPaths'])]
     program = collect(source, root, [*python_paths, *dependencies], excluded_paths=excluded)
     # Staging hashes refer to original files/wheels, never temporary extraction.

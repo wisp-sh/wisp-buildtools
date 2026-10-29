@@ -10,11 +10,12 @@ from scripts.analysis import analyze, inputs
 
 
 def infer_contract(source, *, declarations_only=False, package_root=None, dependency_root=None,
-                   python_paths=(), json_output=False, inputs_only=False):
+                   python_paths=(), json_output=False, inputs_only=False, excluded_paths=()):
     source = source.resolve(strict=True)
     with tempfile.TemporaryDirectory(prefix='.wisp-python-infer-', dir=source.parent) as directory:
         work = Path(directory)
-        program, dependencies, inventory, settings = inputs(source, package_root, python_paths, dependency_root, work=work)
+        program, dependencies, inventory, settings = inputs(source, package_root, python_paths, dependency_root,
+                                                          work=work, excluded_paths=excluded_paths)
         response = {} if inputs_only else analyze(program, work)
     response['inputs'] = inventory
     if inputs_only or json_output:
@@ -34,11 +35,14 @@ if __name__ == '__main__':
     parser.add_argument('--package-root', type=Path)
     parser.add_argument('--dependency-root', type=Path)
     parser.add_argument('--python-path', type=Path, action='append', default=[])
+    parser.add_argument('--exclude-path', type=Path, action='append', default=[],
+                        help='generated output or cache to omit from input discovery, repeatable')
     parser.add_argument('source', type=Path)
     args = parser.parse_args()
     try:
         print(infer_contract(args.source, declarations_only=args.declarations,
                             package_root=args.package_root, dependency_root=args.dependency_root,
-                            python_paths=args.python_path, json_output=args.analysis, inputs_only=args.inputs), end='')
+                            python_paths=args.python_path, json_output=args.analysis, inputs_only=args.inputs,
+                            excluded_paths=args.exclude_path), end='')
     except (ValueError, OSError) as error:
         raise SystemExit(str(error)) from error

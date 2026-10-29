@@ -22,6 +22,7 @@ from scripts._vendor.packaging.requirements import Requirement, InvalidRequireme
 from scripts._vendor.packaging.specifiers import SpecifierSet
 from scripts._vendor.packaging.version import Version
 from scripts._vendor.packaging.tags import parse_tag, compatible_tags
+from scripts._vendor.packaging.utils import parse_wheel_filename
 from scripts.limits import GUEST_ENVIRONMENT
 
 
@@ -56,8 +57,10 @@ def project_requirements(root, extras=()):
         inputs['pyproject.toml'] = digest(pyproject)
         document = tomllib.loads(pyproject.read_text())
         project = document.get('project', {})
-        if 'dependencies' in project.get('dynamic', []):
+        if {'dependencies', 'optional-dependencies'} & set(project.get('dynamic', [])):
             raise ValueError('dynamic Python dependencies require prebuilt, locked wheel metadata')
+        if project.get('requires-python') and not satisfies(GUEST_ENVIRONMENT['python_full_version'], project['requires-python']):
+            raise ValueError('Python project excludes guest CPython 3.14')
         settings = document.get('tool', {}).get('wisp', {}).get('python', {})
         extras = set(extras) | set(settings.get('extras', []))
         requested += [requirement(value) for value in project.get('dependencies', [])]
@@ -181,6 +184,9 @@ def prepare(root: Path, destination: Path, *, extras=(), environment=None):
         sources = {}
         dependencies = []
         if path.is_file() and path.suffix == '.whl':
+            wheel_name, wheel_version, _, filename_tags = parse_wheel_filename(path.name)
+            if normalized(wheel_name) != name or wheel_version != version:
+                raise ValueError('Python wheel filename name/version differs from lock: ' + name)
             if path.stat().st_size > MAX_ARCHIVE_BYTES or digest(path) != expected:
                 raise ValueError('Python wheel checksum mismatch or wheel exceeds 16 MiB: ' + name)
             inputs[package['path']] = expected
@@ -198,6 +204,8 @@ def prepare(root: Path, destination: Path, *, extras=(), environment=None):
                 parser = email.parser.Parser()
                 info = parser.parsestr(wheel.read(wheel_info[0]).decode())
                 tags = {tag for line in info.get_all('Tag', []) for tag in parse_tag(line)}
+                if tags != filename_tags or wheel_info[0].filename.rsplit('/', 1)[0] != metadata[0].filename.rsplit('/', 1)[0]:
+                    raise ValueError('Python wheel metadata differs from its filename or dist-info directory: ' + name)
                 compatible = set(compatible_tags(python_version=(3, 14), interpreter='cp314', platforms=['any']))
                 if info.get('Root-Is-Purelib', '').lower() != 'true' or not tags or any(tag.abi != 'none' or tag.platform != 'any' for tag in tags) or not tags & compatible:
                     raise ValueError('native Python extensions are unsupported; require a pure Python *-none-any wheel: ' + name)
@@ -227,6 +235,8 @@ def prepare(root: Path, destination: Path, *, extras=(), environment=None):
                         raise ValueError('Python wheel relocation collision: ' + str(relative))
                     sources[relative.as_posix()] = wheel.read(entry)
         elif path.is_dir():
+            if package.get('requires-python') and not satisfies(GUEST_ENVIRONMENT['python_full_version'], package['requires-python']):
+                raise ValueError('vendored Python dependency excludes guest CPython 3.14: ' + name)
             excluded.append(package['path'])
             files = package.get('files')
             if not isinstance(files, dict) or not files or len(files) > 8192:

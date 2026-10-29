@@ -51,7 +51,8 @@ def compile_contract(args, source, output):
         from scripts.provision import template
         work = Path(directory)
         program, dependency_details, inventory, settings = inputs(source, args.package_root,
-                args.python_path, getattr(args, 'dependency_root', None), work=work)
+                args.python_path, getattr(args, 'dependency_root', None), work=work,
+                excluded_paths=[output, args.cache_dir])
         analysis = analyze(program, work, metadata_only=not getattr(args, 'inferred', False))
         automatic = analysis['stdlib']
         strict = settings.get('preload-modules', [])

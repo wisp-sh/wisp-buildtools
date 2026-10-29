@@ -140,7 +140,9 @@ SHA-256-checked wheels or vendor directories:
 The requirement can use a range such as `example-package>=1,<2`; the lock still
 selects exactly one version and artifact per distribution. Every active
 transitive package must have a lock entry. Names, versions, `Requires-Python`,
-wheel tags and dependency constraints are checked. Only purelib `*-none-any`
+wheel filename and metadata identities, wheel tags and dependency constraints
+are checked. Project and vendor `requires-python` constraints also target guest
+CPython 3.14 rather than the orchestration host. Only purelib `*-none-any`
 wheels compatible with guest CPython 3.14 are accepted.
 
 The pinned, vendored `packaging` 26.2 parser supports markers, extras, prereleases,
@@ -176,7 +178,11 @@ facilities.
 
 Hidden files and common build directories are excluded. The dependency root's
 top-level `out/` is also excluded so previous Wisp outputs are not bundled as
-package data. Nested package directories named `out` remain available.
+package data. `compile.py` excludes its exact output, cache directory and scratch
+directory, including when they are inside the source root. Standalone inference
+accepts repeatable `--exclude-path` arguments for those generated paths. Other
+`.wasm` files remain package resources and count toward the source/data limit.
+Nested package directories named `out` remain available.
 
 ## Bootstrap and validation
 
