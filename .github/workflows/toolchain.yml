@@ -225,3 +225,15 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
+      - name: Upload C# compiler execution evidence
+        if: always() && inputs.toolchain == 'csharp'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: csharp-compiler-evidence
+          path: |
+            csharp/verification.json
+            .ci/test-csharp.log
+            .ci/build.log
+            .ci/package-validation-csharp.json
+          if-no-files-found: warn
+          retention-days: 7

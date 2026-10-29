@@ -7,11 +7,12 @@ from pathlib import Path
 # These files are consumed by component assembly, never instantiated as tools.
 SUPPORTED = {'clang', 'go', 'llvm', 'rust', 'zig', 'assemblyscript', 'nim', 'javascript',
              'python', 'wasm-tools', 'grain', 'swift', 'llvm-swift', 'jvm', 'teavm',
-             'java', 'kotlin', 'ocaml', 'goose', 'tsrs', 'wizer'}
+             'java', 'kotlin', 'ocaml', 'goose', 'tsrs', 'wizer', 'csharp'}
 
 DATA = {
     'wasm-tools/dist/wasi_snapshot_preview1.reactor.wasm',
     'python/dist/template.component.wasm',
+    'csharp/dist/runtime-template.wasm',
 }
 
 
@@ -38,6 +39,8 @@ def execution_profile(tool, relative):
         flags += ['-Wmax-wasm-stack=16777216']
     elif tool == 'jvm':
         flags += ['-Wall-proposals=y', '-Wexceptions=y']
+    elif tool == 'csharp':
+        flags += ['-Cparallel-compilation=n']
     return {'backend': 'cli', 'flags': flags}
 
 

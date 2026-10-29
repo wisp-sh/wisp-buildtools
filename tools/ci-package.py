@@ -26,7 +26,7 @@ def load_driver():
 
 def targets(toolchain):
     allowed = {'clang', 'go', 'rust', 'zig', 'nim', 'assemblyscript', 'javascript',
-               'python', 'grain', 'swift', 'java', 'kotlin'}
+               'python', 'grain', 'swift', 'java', 'kotlin', 'csharp'}
     if toolchain not in allowed:
         raise ValueError('unsupported package compiler: ' + toolchain)
     # Python's additional string reactor uses Clang runtime/bootstrap tooling.

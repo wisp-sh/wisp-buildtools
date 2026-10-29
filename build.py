@@ -373,6 +373,9 @@ def adapter_repackage(name: str, root: Path) -> dict | None:
 
 def verify_package_inputs(name: str, root: Path) -> None:
     """Keep each compiler's existing checksum contract when redistributing it."""
+    if name == "csharp":
+        run([sys.executable, root / "csharp/bootstrap.py", "--check"], root=root)
+        return
     if name in {"jvm", "teavm", "java", "kotlin"}:
         if adapter_repackage(name, root) is None:
             run([sys.executable, root / name / "bootstrap.py", "--check"], root=root)
