@@ -1751,6 +1751,76 @@
           "role": "adapter"
         }
       ]
+    },
+    "csharp": {
+      "include": [
+        "csharp/README.md",
+        "csharp/bootstrap.py",
+        "csharp/compile.py",
+        "csharp/project.py",
+        "csharp/toolchain.py",
+        "csharp/verify.py",
+        "csharp/verify_component.py",
+        "csharp/test_project.py",
+        "csharp/toolchain.lock.json",
+        "csharp/src",
+        "csharp/licenses",
+        "csharp/examples",
+        "csharp/dist"
+      ],
+      "optional": [],
+      "exclude": [],
+      "entrypoints": [
+        {
+          "name": "build",
+          "path": "csharp/compile.py",
+          "format": "host-script"
+        },
+        {
+          "name": "csharp",
+          "path": "csharp/dist/compiler/dotnet.wasm",
+          "format": "wasm-core"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "Wisp Wasmtime host",
+          "kind": "runtime-host",
+          "version": "50.0.0",
+          "included": false,
+          "note": "External Wasmtime CLI runs Mono WASI and the shared wasm-tools guest. Native .NET and WASI SDK are bootstrap-only."
+        }
+      ],
+      "roles": [
+        {
+          "pattern": "csharp/dist/compiler/*",
+          "role": "compiler"
+        },
+        {
+          "pattern": "csharp/dist/runtime-template.wasm",
+          "role": "runtime"
+        },
+        {
+          "pattern": "csharp/dist/assemblies.zip",
+          "role": "compiler"
+        },
+        {
+          "pattern": "*/licenses/*",
+          "role": "licenses"
+        },
+        {
+          "pattern": "*/manifest.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/toolchain.lock.json",
+          "role": "metadata"
+        },
+        {
+          "pattern": "*/README.md",
+          "role": "documentation"
+        }
+      ]
     }
   }
 }

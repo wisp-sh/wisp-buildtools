@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "artifacts": {
+    "dotnet-sdk": {
+      "version": "8.0.100",
+      "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/8.0.100/dotnet-sdk-8.0.100-linux-x64.tar.gz",
+      "bytes": 214395068,
+      "sha256": "550692ae3233e69692822b8be31bb01c5a2b60c3cfa59e9bfce8278b99f36211",
+      "upstreamSha512": "13905ea20191e70baeba50b0e9bbe5f752a7c34587878ee104744f9fb453bfe439994d38969722bdae7f60ee047d75dda8636f3ab62659450e9cd4024f38b2a5"
+    },
+    "mono-wasi": {
+      "version": "8.0.0",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.runtime.mono.wasi-wasm/8.0.0/microsoft.netcore.app.runtime.mono.wasi-wasm.8.0.0.nupkg",
+      "bytes": 23663712,
+      "sha256": "9a709fca6bf53c55e1d61b568d088ad0a6917be52d2adf2b9f5e74bff40d7199"
+    },
+    "wasi-sdk-pack": {
+      "version": "8.0.0",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.net.runtime.webassembly.wasi.sdk/8.0.0/microsoft.net.runtime.webassembly.wasi.sdk.8.0.0.nupkg",
+      "bytes": 7069208,
+      "sha256": "7809d246baf54a33b472ddd3c43f826f951dae3eb474d0fa2dbc50588a217b22"
+    },
+    "browser-crypto": {
+      "version": "8.0.0",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.runtime.mono.browser-wasm/8.0.0/microsoft.netcore.app.runtime.mono.browser-wasm.8.0.0.nupkg",
+      "bytes": 21967477,
+      "sha256": "793d75bd1555a5f411fc0de5d6cf523d78a00ef16bc120a676836aa5ed0c72f2"
+    },
+    "wasi-sdk": {
+      "version": "34.0",
+      "url": "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz",
+      "bytes": 192383077,
+      "sha256": "b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4"
+    }
+  },
+  "licenses": {
+    "wasi-sdk/libcxx-LICENSE.TXT": {
+      "version": "wasi-sdk-34.0",
+      "url": "https://raw.githubusercontent.com/llvm/llvm-project/895aa2c896ada719451be2e3673c83da8ddf1141/libcxx/LICENSE.TXT",
+      "sha256": "539dd7aed86e8a4f12cbdd0e6c50c189c7d74847e4fecc64ce2c6ee3a01da38b",
+      "bytes": 16703
+    },
+    "wasi-sdk/libcxxabi-LICENSE.TXT": {
+      "version": "wasi-sdk-34.0",
+      "url": "https://raw.githubusercontent.com/llvm/llvm-project/895aa2c896ada719451be2e3673c83da8ddf1141/libcxxabi/LICENSE.TXT",
+      "sha256": "e2b35be49f7284a45b7baca8fc7b3ab7440e7902392b2528a457816b5bb2a15c",
+      "bytes": 16706
+    },
+    "wasi-sdk/compiler-rt-LICENSE.TXT": {
+      "version": "wasi-sdk-34.0",
+      "url": "https://raw.githubusercontent.com/llvm/llvm-project/895aa2c896ada719451be2e3673c83da8ddf1141/compiler-rt/LICENSE.TXT",
+      "sha256": "1a8f1058753f1ba890de984e48f0242a3a5c29a6a8f2ed9fd813f36985387e8d",
+      "bytes": 16708
+    },
+    "wasi-sdk/wasi-libc/LICENSE": {
+      "version": "wasi-sdk-34.0",
+      "url": "https://raw.githubusercontent.com/WebAssembly/wasi-libc/2e6fb9d8ee0cdf9e431fbcabe8af3115de000a13/LICENSE",
+      "sha256": "2711a8b5a5cdfef0e639f96c1aca12ae23d7d64a02d0507f1bdf14d2b27bbc3a",
+      "bytes": 910
+    },
+    "wasi-sdk/wasi-libc/LICENSE-APACHE-LLVM": {
+      "version": "wasi-sdk-34.0",
+      "url": "https://raw.githubusercontent.com/WebAssembly/wasi-libc/2e6fb9d8ee0cdf9e431fbcabe8af3115de000a13/LICENSE-APACHE-LLVM",
+      "sha256": "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5",
+      "bytes": 12243
+    },
+    "wasi-sdk/wasi-libc/LICENSE-APACHE": {
+      "version": "wasi-sdk-34.0",
+      "url": "https://raw.githubusercontent.com/WebAssembly/wasi-libc/2e6fb9d8ee0cdf9e431fbcabe8af3115de000a13/LICENSE-APACHE",
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "bytes": 10847
+    },
+    "wasi-sdk/wasi-libc/LICENSE-MIT": {
+      "version": "wasi-sdk-34.0",
+      "url": "https://raw.githubusercontent.com/WebAssembly/wasi-libc/2e6fb9d8ee0cdf9e431fbcabe8af3115de000a13/LICENSE-MIT",
+      "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+      "bytes": 1023
+    },
+    "wasi-sdk/wasi-libc/libc-bottom-half/cloudlibc/LICENSE": {
+      "version": "wasi-sdk-34.0",
+      "url": "https://raw.githubusercontent.com/WebAssembly/wasi-libc/2e6fb9d8ee0cdf9e431fbcabe8af3115de000a13/libc-bottom-half/cloudlibc/LICENSE",
+      "sha256": "c8b789cf5a746611e6300a0cc7750dbf92b61912a709d04e639245f7290656d0",
+      "bytes": 1292
+    },
+    "wasi-sdk/wasi-libc/libc-top-half/musl/COPYRIGHT": {
+      "version": "wasi-sdk-34.0",
+      "url": "https://raw.githubusercontent.com/WebAssembly/wasi-libc/2e6fb9d8ee0cdf9e431fbcabe8af3115de000a13/libc-top-half/musl/COPYRIGHT",
+      "sha256": "b870108ec5e7790e9f9919064f1b9421d62d5f9b0e6c230c6adf7ea2da62e97b",
+      "bytes": 6196
+    },
+    "wasi-sdk/wasi-libc/fts/musl-fts/COPYING": {
+      "version": "wasi-sdk-34.0",
+      "url": "https://raw.githubusercontent.com/WebAssembly/wasi-libc/2e6fb9d8ee0cdf9e431fbcabe8af3115de000a13/fts/musl-fts/COPYING",
+      "sha256": "55af87e4017668f54467a3380e7ebbac5e672d8c763bfe95e6fc882a6fdc4046",
+      "bytes": 1514
+    }
+  }
+}

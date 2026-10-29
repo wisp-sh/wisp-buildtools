@@ -19,6 +19,9 @@
 /jvm/verification.json
 /kotlin/verification.json
 /python/verification.json
+/csharp/verification.json
+/csharp/dist/
+/wasm-tools/dist/
 /swift/verification.json
 /teavm/verification.json
 /zig/receipts/verification.json
