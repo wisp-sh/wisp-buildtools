@@ -428,10 +428,14 @@
       "description": "JavaScript and TypeScript Wasm compiler guests, without Node",
       "version": "componentize-qjs-0.4.5-esbuild-0.28.2",
       "dependencies": [
-        "wasm-tools"
+        "wasm-tools",
+        "tsrs",
+        "wizer"
       ],
       "runtimeDependencies": [
-        "wasm-tools"
+        "wasm-tools",
+        "tsrs",
+        "wizer"
       ],
       "bootstrapRequirements": [
         "Python 3.12+",
@@ -453,13 +457,26 @@
             "{python}",
             "{root}/javascript/verify.py"
           ]
+        },
+        {
+          "argv": [
+            "{python}",
+            "{root}/javascript/verify.py",
+            "--engine",
+            "starlingmonkey",
+            "--output-dir",
+            "{root}/javascript/build/verify-starlingmonkey"
+          ]
         }
       ],
       "artifacts": [
         "javascript/.toolchains/wasm/componentize.wasm",
         "javascript/.toolchains/wasm/esbuild.wasm",
         "javascript/.toolchains/runtimes/runtime-sync.wasm",
-        "javascript/.toolchains/runtimes/runtime-opt-size-sync.wasm"
+        "javascript/.toolchains/runtimes/runtime-opt-size-sync.wasm",
+        "javascript/.toolchains/starlingmonkey/splicer.wasm",
+        "javascript/.toolchains/starlingmonkey/runtime.wasm",
+        "javascript/.toolchains/starlingmonkey/manifest.json"
       ],
       "package": {
         "include": [
@@ -470,7 +487,10 @@
           "javascript/checksums",
           "javascript/.toolchains/wasm",
           "javascript/.toolchains/runtimes",
-          "javascript/examples"
+          "javascript/examples",
+          "javascript/starlingmonkey.py",
+          "javascript/starlingmonkey_bootstrap.py",
+          "javascript/.toolchains/starlingmonkey"
         ],
         "optional": [
           "javascript/LICENSE"
@@ -515,13 +535,20 @@
           "argv": [
             "{python}",
             "{root}/python/bootstrap_contract.py",
-            "--wit", "{root}/python/examples/library/library.wit",
-            "--world", "library",
-            "--preload-module", "html.parser",
-            "--preload-module", "xml.etree.ElementTree",
-            "--preload-module", "logging",
-            "--preload-module", "typing",
-            "--preload-module", "importlib"
+            "--wit",
+            "{root}/python/examples/library/library.wit",
+            "--world",
+            "library",
+            "--preload-module",
+            "html.parser",
+            "--preload-module",
+            "xml.etree.ElementTree",
+            "--preload-module",
+            "logging",
+            "--preload-module",
+            "typing",
+            "--preload-module",
+            "importlib"
           ]
         },
         {
@@ -541,15 +568,18 @@
           "argv": [
             "{python}",
             "{root}/python/bootstrap_contract.py",
-            "--wit", "{root}/python/examples/root/library.wit",
-            "--world", "library"
+            "--wit",
+            "{root}/python/examples/root/library.wit",
+            "--world",
+            "library"
           ]
         },
         {
           "argv": [
             "{python}",
             "{root}/python/verify_contract.py",
-            "--example", "root"
+            "--example",
+            "root"
           ]
         }
       ],

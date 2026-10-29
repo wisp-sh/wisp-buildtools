@@ -36,7 +36,7 @@ def digest(path: Path) -> str:
 def requirements(tool: str) -> list[str]:
     # Python's bootstrap and the Wizer host adapter pin the exact stock 50 binary.
     # All compiler execution uses the Wisp host from shared-hosts/wasmtime.lock.json.
-    selected = ["wasmtime"] if tool in ("python", "wizer") else []
+    selected = ["wasmtime"] if tool in ("python", "wizer", "javascript") else []
     selected += {
         "go": ["go-1.27.2"],
         "grain": ["wasi-sdk-34"],
@@ -45,7 +45,7 @@ def requirements(tool: str) -> list[str]:
         **{name: ["wasi-sdk-34"] for name in ("jvm", "teavm", "java", "kotlin")},
         "swift": ["binaryen", "wasmtime-python"],
         "llvm-swift": ["binaryen", "wasmtime-python"],
-        "javascript": ["go-1.27.2"],
+        "javascript": ["go-1.27.2", "wasmtime-python"],
         "python": ["wasm-tools", "wac", "binaryen"],
         "rust": ["binaryen", "wasi-sdk-34"],
         "assemblyscript": ["wasmtime-python"],
@@ -252,7 +252,7 @@ def install_for(tool: str) -> dict:
     if tool == "python":
         environment.update({"WISP_BOOTSTRAP_WASM_TOOLS": str(binaries["wasm-tools"]),
                             "WISP_WAC": str(binaries["wac"])})
-    if tool == "wizer":
+    if tool in ("wizer", "javascript"):
         environment["WISP_WIZER_WASMTIME"] = str(binaries["wasmtime"])
     if "binaryen" in binaries:
         environment["WISP_WASM_OPT"] = str(binaries["binaryen"])
@@ -274,7 +274,7 @@ def install_for(tool: str) -> dict:
             expected_archive.unlink()
         if not expected_archive.exists():
             expected_archive.symlink_to(archive.resolve())
-    if tool in ("assemblyscript", "swift", "llvm-swift", "tsrs"):
+    if tool in ("assemblyscript", "swift", "llvm-swift", "tsrs", "javascript"):
         environment["WISP_WASMTIME_PYTHON"] = str(binaries["wasmtime-python"].parents[1])
     bootstrap = rust_bootstrap(tool)
     if bootstrap is not None:

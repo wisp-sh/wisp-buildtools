@@ -1,0 +1,24 @@
+--- a/crates/spidermonkey-embedding-splicer/src/bin/splicer.rs
++++ b/crates/spidermonkey-embedding-splicer/src/bin/splicer.rs
+@@ -127,6 +127,21 @@
+                 splice::splice_bindings(engine, features, None, wit_path_str, world_name, debug)
+                     .map_err(|e| anyhow::anyhow!(e))?;
+ 
++            // Preserve the canonical ABI computed by the guest. The host must
++            // never guess flattened signatures from source text or WIT names.
++            let core_type = |ty: &spidermonkey_embedding_splicer::wit::exports::local::spidermonkey_embedding_splicer::splicer::CoreTy| {
++                use spidermonkey_embedding_splicer::wit::exports::local::spidermonkey_embedding_splicer::splicer::CoreTy;
++                match ty { CoreTy::I32 => "i32", CoreTy::I64 => "i64", CoreTy::F32 => "f32", CoreTy::F64 => "f64" }
++            };
++            let exports: Vec<_> = result.exports.iter().map(|(name, f)| serde_json::json!({
++                "name": name, "params": f.params.iter().map(&core_type).collect::<Vec<_>>(),
++                "ret": f.ret.as_ref().map(&core_type), "retptr": f.retptr,
++                "retsize": f.retsize, "paramptr": f.paramptr,
++            })).collect();
++            fs::write(out_dir.join("bindings.json"), serde_json::to_vec_pretty(&serde_json::json!({
++                "schemaVersion": 1, "exports": exports, "imports": result.imports,
++            }))?)?;
++
+             fs::write(out_dir.join("component.wasm"), result.wasm).with_context(|| {
+                 format!(
+                     "Failed to write output file: {}",

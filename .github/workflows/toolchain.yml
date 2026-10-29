@@ -179,6 +179,23 @@ jobs:
           done
           python3 build.py sizes "$PACKAGE_TARGET" --package-dir "$PACKAGE_DIRECTORY"
           cat "$PACKAGE_DIRECTORY/sizes.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Exercise installed JavaScript engines and TypeScript checker
+        if: inputs.toolchain == 'javascript'
+        run: python3 javascript/installed_acceptance.py --packages "$PACKAGE_DIRECTORY" --output .ci/javascript-installed
+      - name: Retain JavaScript acceptance evidence
+        if: always() && inputs.toolchain == 'javascript'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: javascript-acceptance-evidence
+          path: |
+            .ci/build.log
+            .ci/test-javascript.log
+            .ci/package.log
+            .ci/javascript-installed/result.json
+            .ci/javascript-installed/*/verification.json
+            javascript/build/**/verification.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Upload compiler package
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:

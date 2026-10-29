@@ -16,7 +16,7 @@ DATA = {
 
 
 def execution_profile(tool, relative):
-    if relative in DATA or relative.startswith('javascript/.toolchains/runtimes/'):
+    if relative in DATA or relative.startswith('javascript/.toolchains/runtimes/') or relative == 'javascript/.toolchains/starlingmonkey/runtime.wasm':
         return None
     if tool == 'wizer':
         return None  # Explicit native host capability; no compiler guest.

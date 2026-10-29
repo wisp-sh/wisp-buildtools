@@ -131,7 +131,7 @@ class BuildPlanTests(unittest.TestCase):
         manifest = builds.load_manifest()
         self.assertEqual(builds.dependency_order(manifest, ["nim"]), ["clang", "llvm", "nim"])
         self.assertEqual(builds.dependency_order(manifest, ["javascript", "python"]),
-                         ["wasm-tools", "javascript", "python"])
+                         ["wasm-tools", "tsrs", "wizer", "javascript", "python"])
 
     def test_cycle_is_rejected(self):
         manifest = {"tools": {"a": tool("a", dependencies=["b"]), "b": tool("b", dependencies=["a"])}}

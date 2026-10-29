@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "spike-only; QuickJS remains default",
+  "status": "explicit engine; QuickJS remains default",
   "componentizeJsVersion": "0.23.0",
   "release": {
     "url": "https://github.com/bytecodealliance/ComponentizeJS/releases/download/0.23.0/bytecodealliance-componentize-js-0.23.0.tgz",
@@ -39,7 +39,8 @@
       },
       "target": "wasm32-wasip1",
       "targetInstalled": true
-    }
+    },
+    "metadataPatchSha256": "6dbdac1cbab9ea25beb619f067d0dc73ae12c246bc33cd8c097aa0b229107119"
   },
   "benchmarkHost": {
     "version": "50.0.0",

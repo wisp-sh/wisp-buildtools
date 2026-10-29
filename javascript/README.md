@@ -2,7 +2,31 @@
 
 This toolchain accepts JavaScript or TypeScript source and an authored WIT contract. It emits a typed WebAssembly Component containing QuickJS and the bundled application source. JavaScript executes as QuickJS bytecode inside Wasm.
 
-All compiler stages run in Wasm. esbuild parses and bundles source in a WASIp1 guest; a Rust WASIp1 guest generates WIT bindings and links the Component; upstream wasm-tools validates, strips and inspects it in WASIp1. Python handles files and starts the Wasmtime host. Neither source builds nor generated applications require Node, npm, JCO, native esbuild or a native componentizer.
+QuickJS compiler stages run in Wasm. esbuild parses and bundles source in a WASIp1 guest; a Rust WASIp1 guest generates WIT bindings and links the Component; upstream wasm-tools validates, strips and inspects it in WASIp1. Python handles files and starts the Wasmtime host. Neither source builds nor generated applications require Node, npm, JCO, native esbuild or a native componentizer.
+
+## Select an engine
+
+QuickJS remains the default. Pass `--engine starlingmonkey` to use the pinned
+ComponentizeJS 0.23.0 runtime and Wasm binding splicer. The StarlingMonkey path
+uses the approved native Wizer host to snapshot initialization. Its receipt
+records `sourceCompilerWasmHosted: true`, `fullyWasmHostedBuild: false` and
+`nativeSnapshotHostApproved: true`. Native Rust only builds the splicer package.
+
+```sh
+python3 compile.py examples/add.ts --engine starlingmonkey --stub-wasi -o build/starlingmonkey.wasm
+```
+
+Install the JavaScript package closure, including `wasm-tools`, `tsrs` and
+`wizer`. For StarlingMonkey set `WISP_WIZER_WASMTIME` to the pinned official
+Wasmtime 50 host or the approved Wisp source host. `WISP_WASMTIME` continues to
+select the compiler execution host. The bundled Wasm splicer computes canonical
+ABI signatures for every export and import; Python does not infer them.
+
+Synchronous WIT is supported by this adapter. StarlingMonkey also accepts
+Promise-returning JavaScript exports that settle through microtasks. Async WIT,
+HTTP and timers are outside this engine option's current contract. Initialization
+runs with staged source and explicit environment values. Top-level code must be
+safe to snapshot and reuse. See the [parity acceptance checklist](docs/parity.md).
 
 ## Build and run
 

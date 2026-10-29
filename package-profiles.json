@@ -738,7 +738,10 @@
         "javascript/typescript.py",
         "javascript/checksums",
         "javascript/.toolchains/wasm",
-        "javascript/.toolchains/runtimes"
+        "javascript/.toolchains/runtimes",
+        "javascript/starlingmonkey.py",
+        "javascript/starlingmonkey_bootstrap.py",
+        "javascript/.toolchains/starlingmonkey"
       ],
       "optional": [],
       "exclude": [],
@@ -756,6 +759,11 @@
         {
           "name": "esbuild",
           "path": "javascript/.toolchains/wasm/esbuild.wasm",
+          "format": "wasm-core"
+        },
+        {
+          "name": "starlingmonkey-splicer",
+          "path": "javascript/.toolchains/starlingmonkey/splicer.wasm",
           "format": "wasm-core"
         }
       ],
@@ -835,6 +843,14 @@
         {
           "pattern": "wasm_tools.py",
           "role": "adapter"
+        },
+        {
+          "pattern": "javascript/.toolchains/starlingmonkey/runtime.wasm",
+          "role": "runtime"
+        },
+        {
+          "pattern": "javascript/.toolchains/starlingmonkey/splicer.wasm",
+          "role": "compiler"
         }
       ]
     },
@@ -1794,7 +1810,10 @@
         }
       ],
       "roles": [
-        {"pattern": "tsrs/dist/core.js", "role": "adapter"},
+        {
+          "pattern": "tsrs/dist/core.js",
+          "role": "adapter"
+        },
         {
           "pattern": "tsrs/dist/tsrs.wasm",
           "role": "compiler"
