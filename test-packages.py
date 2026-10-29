@@ -148,6 +148,55 @@ class ContainerTests(unittest.TestCase):
         for relative in public:
             self.assertIn("compiler/dist/" + relative, inventory)
 
+    def test_python_package_contains_inference_and_every_verified_runtime_input(self):
+        profile = packages.profile(ROOT, 'python')
+        (self.root / 'package-profiles.json').write_text(json.dumps({
+            'schema': 1, 'packageVersion': '0.1.0', 'tools': {'python': profile}}))
+        tool = fixture_tool('python')
+        tool['artifacts'] = ['python/dist/template.component.wasm']
+        self.document['tools']['python'] = tool
+        (self.root / 'cwasm.py').write_text('# loader\n')
+        # Copy the small orchestration sources, never a local compiler build.
+        for relative in profile['include']:
+            if relative.startswith('python/dist/'):
+                continue
+            original, destination = ROOT / relative, self.root / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            if original.is_dir():
+                shutil.copytree(original, destination, ignore=shutil.ignore_patterns('__pycache__'))
+            else:
+                shutil.copyfile(original, destination)
+        base = self.root / 'python/dist'
+        base.mkdir()
+        files = {
+            'template.component.wasm': COMPONENT,
+            'inference.component.wasm': COMPONENT,
+            'public-exports.wasm': CORE,
+            'python-packager.wasm': CORE,
+            'runtime.wit': b'package test:runtime;\n',
+            'runtime/app.py': b'# runtime\n',
+            'runtime/inference.py': b'# inference\n',
+            'licenses/LICENSE': b'fixture license\n',
+            'provision/componentize_py.whl': b'fixture wheel',
+            'provision/wasm-tools': b'\x7fELFfixture-bootstrap-tool',
+            'provision/wasm-opt': b'\x7fELFfixture-bootstrap-tool',
+            'provision/wac': b'\x7fELFfixture-bootstrap-tool',
+        }
+        for name, content in files.items():
+            destination = base / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(content)
+        manifest = {'sha256': {name: builds.digest(base / name) for name in files}}
+        (base / 'manifest.json').write_text(json.dumps(manifest))
+        record = builds.package_tool(self.document, 'python', root=self.root,
+                                     output_dir=self.output, source_only=True)
+        bundle = Path(record['archive'])
+        packages.validate(bundle)
+        inventory = packages.read_manifest(bundle)['archive']['inventory']
+        self.assertIn('python/infer.py', inventory)
+        for name, checksum in manifest['sha256'].items():
+            self.assertEqual(inventory['python/dist/' + name]['sha256'], checksum, name)
+
     def test_python_bootstrap_paths_are_portable_and_keep_integrity_hashes(self):
         (self.root / 'cwasm.py').write_text('# native loader\n')
         self.document["tools"]["python"] = fixture_tool("python")
