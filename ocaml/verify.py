@@ -39,9 +39,11 @@ def main():
             (guard / name).symlink_to(script)
         environment = dict(os.environ, PATH=str(guard) + os.pathsep + os.environ.get('PATH', ''),
                            WISP_NATIVE_TOOL_ATTEMPTS=str(attempts))
-        shutil.copy2(ROOT / 'examples/check.ml', work / 'check.ml')
+        project = work / 'command-source'
+        project.mkdir()
+        shutil.copy2(ROOT / 'examples/check.ml', project / 'check.ml')
         output = work / 'check.wasm'
-        subprocess.run([sys.executable, ROOT / 'compile.py', work / 'check.ml', '-o', output],
+        subprocess.run([sys.executable, ROOT / 'compile.py', project / 'check.ml', '-o', output],
                        env=environment, check=True)
         (work / 'input.bin').write_bytes(bytes([0, 255, 128, 1]))
         result = subprocess.run([runtime(), 'run', '-W', 'exceptions=y', '--dir', f'{work}::/', output],
