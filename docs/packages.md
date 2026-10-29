@@ -28,7 +28,7 @@ requirements with an exact package version:
 | Zig | Clang, which requires LLVM |
 | Rust | LLVM 24 linked into its WASIp3 compiler Component |
 | Swift | llvm-swift, the backend profile bound to its compiler and linker images; wasm-tools for Components |
-| JavaScript / TypeScript | wasm-tools |
+| JavaScript / TypeScript | wasm-tools, tsrs, wizer; checking and StarlingMonkey selection remain explicit |
 | Python | wasm-tools |
 | C# | wasm-tools |
 | Grain | wasm-tools |
@@ -132,6 +132,8 @@ The tested execution hosts currently run on Linux x86_64.
 | Clang, LLVM, Nim, Zig | Wisp Wasmtime 50.0.0 with WASI Preview 3 and external core-module imports. |
 | Rust | Wasmtime 50 with WASIp3 component support. |
 | AssemblyScript | External Wasmtime Python bindings 50.0.1 for compiler callbacks. |
+| wizer | External Wasmtime 50.0.0 with normal Wizer. Native snapshot capture is an explicitly approved host capability; application initialization stays in Wasm. |
+| tsrs | External Wasmtime Python bindings 50.0.1 for isolated `tsrs_host` filesystem callbacks. |
 | Go, JavaScript, Python, C#, wasm-tools | External Wasmtime 50.0.0. |
 | Grain | External Wasmtime 50.0.0; QuickJS, the Grain compiler and its backend execute inside Wasm. |
 | Swift | External Wasmtime Python bindings 50.0.1 for compiler/backend linking; the shared wasm-tools package uses the CLI host for Components. |
@@ -147,17 +149,23 @@ Python's snapshot bootstrap checks the official Wasmtime executable hash;
 `WISP_BOOTSTRAP_WASMTIME` selects that Wisp-owned host for the root build command.
 Normal source builds use `WISP_WASMTIME`.
 
+The optional `wizer` package selects `WISP_WIZER_WASMTIME` for normal Wizer in
+the native host. This explicitly approved capability executes initialization as
+Wasm, then captures and serializes the initialized state natively. Its receipts
+record the exception and never claim a fully Wasm-hosted build. The host stays
+external to the adapter bundle.
+
 ## Validate and install
 
 ```sh
 python3 build.py validate dist/packages/javascript.wisp.zip
 wisp toolchain validate dist/packages/javascript.wisp.zip
 python3 build.py install dist/packages/javascript.wisp.zip \
-  --prefix /tmp/wisp-javascript
+  --prefix build/installed-javascript
 ```
 
 Keep required bundles alongside the selected bundle, for example
-`wasm-tools.wisp.zip` beside `javascript.wisp.zip`. Installation resolves that
+`wasm-tools.wisp.zip`, `tsrs.wisp.zip` and `wizer.wisp.zip` beside `javascript.wisp.zip`. Installation resolves that
 local dependency graph, checks exact identities and versions, verifies every
 payload, and writes one installation atomically into a new prefix. Pass several bundle paths to install multiple tools into the same prefix. Shared
 providers are installed once, including when several dependency paths reach them.

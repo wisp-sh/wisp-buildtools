@@ -26,10 +26,14 @@ import wasm_tools
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--wasmtime", type=Path)
+    parser.add_argument("--engine", choices=("quickjs", "starlingmonkey"), default="quickjs")
+    parser.add_argument("--compiler-root", type=Path, default=ROOT, help="installed JavaScript package to exercise")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "build/verify")
     args = parser.parse_args()
     if args.wasmtime:
         os.environ["WISP_WASMTIME"] = str(args.wasmtime.resolve())
+    compiler_root = args.compiler_root.resolve()
+    engine_args = ["--engine", args.engine]
     runtime = wasmtime_path()
     os.environ["WISP_WASMTIME"] = str(runtime)
     directory = args.output_dir.resolve()
@@ -44,11 +48,11 @@ def main() -> int:
                            " >> " + shlex.quote(str(log)) + "\nexit 97\n")
         blocked.chmod(0o755)
     env = {**os.environ, "PATH": str(guard) + os.pathsep + os.environ.get("PATH", ""),
-           "RAYON_NUM_THREADS": "2", "TOKIO_WORKER_THREADS": "2"}
+           "RAYON_NUM_THREADS": "1", "TOKIO_WORKER_THREADS": "1"}
     os.environ["PATH"] = env["PATH"]
     checks, artifacts = [], []
     report = {"schemaVersion": 2, "passed": False, "checks": checks, "artifacts": artifacts,
-              "directory": str(directory), "fullyWasmHostedBuild": True, "nodeRequired": False,
+              "directory": str(directory), "engine": args.engine, "fullyWasmHostedBuild": args.engine == "quickjs", "nodeRequired": False,
               "wasmtime": {"path": str(runtime)}}
 
     def run(command, *, cwd=ROOT, success=True):
@@ -69,19 +73,23 @@ def main() -> int:
         except Exception as error:
             checks.append({"name": name, "passed": False,
                            "milliseconds": round((time.monotonic() - start) * 1000), "error": str(error)})
-            raise
+            print(f"FAIL {name}: {error}", file=sys.stderr, flush=True)
+            return None
 
     def compile_component(source, wit, world, name, extra=()):
         output = directory / f"{name}.wasm"
         for path in (output, Path(str(output) + ".wit"), Path(str(output) + ".build.json")):
             path.unlink(missing_ok=True)
-        run([sys.executable, ROOT / "compile.py", source, "--wit", wit, "--world", world, "-o", output, *extra])
+        run([sys.executable, compiler_root / "compile.py", *engine_args, source, "--wit", wit, "--world", world, "-o", output, *extra])
         assert output.read_bytes()[:8] == COMPONENT_HEADER
         receipt = json.loads(Path(str(output) + ".build.json").read_text())
         assert receipt["output"]["sha256"] == digest(output)
         assert receipt["output"]["bytes"] == output.stat().st_size < 16 * 1024 * 1024
         assert receipt["sourceCompilerWasmHosted"] is True
-        assert receipt["fullyWasmHostedBuild"] is True
+        assert receipt["fullyWasmHostedBuild"] is (args.engine == "quickjs")
+        assert receipt["engine"]["name"] == args.engine
+        if args.engine == "starlingmonkey":
+            assert receipt["engine"]["receipt"]["snapshot"]["nativeSnapshotHostApproved"] is True
         assert receipt["nodeRequired"] is False
         wit_text = Path(str(output) + ".wit").read_text()
         assert not re.search(r"export (init|wisp-validate):", wit_text)
@@ -91,14 +99,17 @@ def main() -> int:
         return {"path": output, "receipt": receipt, "wit": wit_text, "artifact": artifact}
 
     def invoke(path, expression):
-        return run([runtime, "run", "-C", "cache=y", "--invoke", expression, path]).stdout.strip()
+        try:
+            return run([runtime, "run", "-C", "cache=y", "--invoke", expression, path]).stdout.strip()
+        except ValueError as error:
+            raise ValueError(f"{expression}: {error}") from error
 
     def rejects(source, wit, world, name, pattern, extra=()):
         output = directory / f"{name}.wasm"
         targets = [output, Path(str(output) + ".wit"), Path(str(output) + ".build.json")]
         for target in targets:
             target.unlink(missing_ok=True)
-        result = run([sys.executable, ROOT / "compile.py", source, "--wit", wit, "--world", world,
+        result = run([sys.executable, compiler_root / "compile.py", *engine_args, source, "--wit", wit, "--world", world,
                       "-o", output, *extra], success=False)
         diagnostic = (result.stderr or result.stdout).strip()
         assert result.returncode, "invalid build succeeded"
@@ -113,11 +124,14 @@ def main() -> int:
         return output
 
     try:
-        report["dependencies"] = check("checksum-pinned Wasm compiler inputs", check_integrity)
-        check("bootstrap check uses no Node or native compiler", lambda: json.loads(
-            run([sys.executable, ROOT / "bootstrap.py", "--check", "--json"]).stdout))
+        report["dependencies"] = check("checksum-pinned Wasm compiler inputs", lambda: check_integrity(artifact_root=compiler_root))
+        if compiler_root == ROOT:
+            check("bootstrap check uses no Node or native compiler", lambda: json.loads(
+                run([sys.executable, ROOT / "bootstrap.py", "--check", "--json"]).stdout))
         js = check("plain JS emits a stripped typed Component", lambda: compile_component(
             ROOT / "examples/add.js", ROOT / "examples/add.wit", "arithmetic", "add-js", ["--stub-wasi"])["artifact"])
+        if js is None:
+            raise ValueError("basic Component compilation failed; see recorded check")
         js_path = Path(js["path"])
 
         def numeric():
@@ -135,6 +149,22 @@ def main() -> int:
             return component["artifact"]
         check("TypeScript and local imports compile inside esbuild WASI", typescript)
 
+        if (compiler_root.parent / "tsrs/dist/manifest.json").is_file():
+            def typechecked():
+                component = compile_component(ROOT / "examples/typecheck/pass/add.ts", ROOT / "examples/add.wit",
+                                              "arithmetic", "typecheck-pass", ["--typecheck", "--stub-wasi"])
+                assert component["receipt"]["typecheck"]["passed"] is True
+                assert component["receipt"]["options"]["typecheck"] is True
+                assert invoke(component["path"], "add(20,22)") == "42"
+                return component["artifact"]
+            check("optional tsrs typecheck accepts a valid project", typechecked)
+            check("optional tsrs typecheck rejects errors before bundling", lambda: rejects(
+                ROOT / "examples/typecheck/fail/add.ts", ROOT / "examples/add.wit", "arithmetic",
+                "typecheck-fail", r"tsrs typecheck failed.*2322", ["--typecheck", "--stub-wasi"]))
+
+        else:
+            raise ValueError("tsrs package missing; real TypeScript acceptance is mandatory")
+
         def input_digests():
             project = directory / "input-digests"
             project.mkdir(exist_ok=True)
@@ -151,7 +181,7 @@ def main() -> int:
 
             with patch.object(typescript_compiler.subprocess, "run", after_guest):
                 result = typescript_compiler.bundle(source, project, directory / "digest-output",
-                    esbuild_wasm=tool_path("esbuild"), wasmtime=runtime)
+                    esbuild_wasm=compiler_root / ".toolchains/wasm/esbuild.wasm", wasmtime=runtime)
             expected = hashlib.sha256(original.encode()).hexdigest()
             recorded = next(item["sha256"] for item in result["inputs"] if item["path"] == str(source))
             assert recorded == expected and recorded != digest(source)
@@ -174,6 +204,16 @@ def main() -> int:
             run(wasm_tools.command("compose", component["path"], "-d", provider, "-o", composed))
             results = [invoke(composed, call) for call in ("add(20,22)", "add(-3.5,4.25)")]
             assert results == ["82", "-6.25"], results
+            if args.engine == "starlingmonkey":
+                source = directory / "named-imports.ts"
+                source.write_text('import {add as hostAdd} from "toolchain:javascript/host-math"; '
+                                  'import * as host from "toolchain:javascript/host-math"; '
+                                  'export function add(a:number,b:number) { return hostAdd(a,b)+host.add(a,b); }\n')
+                named = compile_component(source, ROOT / "examples/imports.wit", "imported-arithmetic",
+                                          "named-imports", ["--stub-wasi"])
+                named_composed = directory / "named-imports-composed.wasm"
+                run(wasm_tools.command("compose", named["path"], "-d", provider, "-o", named_composed))
+                assert invoke(named_composed, "add(20,22)") == "164"
             return {"provider": "3*a+b", "results": results, **component["artifact"]}
         check("typed WIT imports call a composed Wasm provider", imported)
 
@@ -223,7 +263,7 @@ def main() -> int:
 
         initialization = directory / "initialization-error.js"
         initialization.write_text('throw new Error("INITIALIZATION_TEST"); export function add(a,b){return a+b}\n')
-        check("QuickJS guest initialization failures reject publication", lambda: rejects(
+        check("guest initialization failures reject publication", lambda: rejects(
             initialization, ROOT / "examples/add.wit", "arithmetic", "initialization-error", r"initialization.*failed|INITIALIZATION_TEST"))
         check("unknown WIT worlds reject publication", lambda: rejects(
             ROOT / "examples/add.js", ROOT / "examples/add.wit", "absent", "invalid-world", r"world.*absent|absent.*world"))
@@ -241,14 +281,14 @@ def main() -> int:
             shutil.copyfile(ROOT / "examples/add.wit", caller / "add.wit")
             for target in caller.glob("output.wasm*"):
                 target.unlink()
-            run([sys.executable, ROOT / "compile.py", "add.js", "-o", "output.wasm", "--stub-wasi"], cwd=caller)
+            run([sys.executable, compiler_root / "compile.py", *engine_args, "add.js", "-o", "output.wasm", "--stub-wasi"], cwd=caller)
             assert invoke(caller / "output.wasm", "add(20,22)") == "42"
             return {"source": "add.js", "output": "output.wasm", "adjacentWit": True}
         check("CLI resolves caller paths and adjacent WIT", caller_relative)
 
         def existing_output():
             before = digest(js_path)
-            result = run([sys.executable, ROOT / "compile.py", ROOT / "examples/add.js", "-o", js_path], success=False)
+            result = run([sys.executable, compiler_root / "compile.py", *engine_args, ROOT / "examples/add.js", "-o", js_path], success=False)
             assert result.returncode and "already exists" in result.stderr, result.stderr
             assert digest(js_path) == before
         check("existing artifacts are preserved", existing_output)
@@ -260,11 +300,116 @@ def main() -> int:
             return component["artifact"]
         check("default WASI Component executes without Node", default_wasi)
 
+        if args.engine == "starlingmonkey":
+            def promises():
+                source = directory / "promises.js"
+                source.write_text("export async function add(a,b) { return await Promise.resolve(a+b); }\n")
+                component = compile_component(source, ROOT / "examples/add.wit", "arithmetic", "promises", ["--stub-wasi"])
+                assert invoke(component["path"], "add(20,22)") == "42"
+                assert invoke(component["path"], "add(-3.5,4.25)") == "0.75"
+                return {"settledMicrotasks": True, "asyncWit": False}
+            check("Promise-returning exports settle microtasks", promises)
+
+            def wide_integers():
+                source = directory / "wide.js"
+                source.write_text('''import host from "test:wide/host";
+export function wide(value) { return value; }
+export function signed(value) {
+  if (value >= 0n) throw new Error('signed argument lost its sign');
+  return value + 1n;
+}
+export function viaUnsigned(value) { return host.echoUnsigned(value); }
+export function viaSigned(value) { return signed(host.echoSigned(value)); }
+export function echoRecord(value) { return value; }
+''')
+                wit = directory / "wide.wit"
+                wit.write_text('''package test:wide;
+interface host { echo-unsigned: func(value:u64)->u64; echo-signed: func(value:s64)->s64; }
+interface types { record pair { unsigned: u64, signed: s64 } }
+world numbers {
+  import host;
+  use types.{pair};
+  export wide: func(value:u64)->u64;
+  export signed: func(value:s64)->s64;
+  export via-unsigned: func(value:u64)->u64;
+  export via-signed: func(value:s64)->s64;
+  export echo-record: func(value:pair)->pair;
+}
+''')
+                component = compile_component(source, wit, "numbers", "wide")
+                provider = wat("wide-host", '''(component
+                  (core module $m (func (export "echo") (param i64) (result i64) local.get 0))
+                  (core instance $m (instantiate $m))
+                  (func $unsigned (param "value" u64) (result u64) (canon lift (core func $m "echo")))
+                  (func $signed (param "value" s64) (result s64) (canon lift (core func $m "echo")))
+                  (instance $host (export "echo-unsigned" (func $unsigned)) (export "echo-signed" (func $signed)))
+                  (export "test:wide/host" (instance $host)))''')
+                composed = directory / "wide-composed.wasm"
+                run(wasm_tools.command("compose", component["path"], "-d", provider, "-o", composed))
+                values = {
+                    "wide(18446744073709551615)": "18446744073709551615",
+                    "wide(0)": "0",
+                    "signed(-9223372036854775808)": "-9223372036854775807",
+                    "via-unsigned(18446744073709551615)": "18446744073709551615",
+                    "via-signed(-9223372036854775808)": "-9223372036854775807",
+                }
+                for expression, expected in values.items():
+                    actual = invoke(composed, expression)
+                    assert actual == expected, (expression, actual, expected)
+                record = invoke(composed, "echo-record({unsigned:18446744073709551615,signed:-9223372036854775808})")
+                assert "18446744073709551615" in record and "-9223372036854775808" in record, record
+                return {"calls": values, "record": record, "coreProvider": "i64 identity"}
+            check("StarlingMonkey BigInt bindings preserve 64-bit boundaries", wide_integers)
+
+            def rejected_promise():
+                source = directory / "rejected-promise.js"
+                source.write_text("export async function add() { throw new Error('PROMISE_REJECTED'); }\n")
+                component = compile_component(source, ROOT / "examples/add.wit", "arithmetic", "rejected-promise")
+                result = run([runtime, "run", "--invoke", "add(20,22)", component["path"]], success=False)
+                assert result.returncode and "PROMISE_REJECTED" in result.stderr, result.stderr
+                pure = compile_component(source, ROOT / "examples/add.wit", "arithmetic", "rejected-promise-pure", ["--stub-wasi"])
+                result = run([runtime, "run", "--invoke", "add(20,22)", pure["path"]], success=False)
+                assert result.returncode and "wasm trap" in result.stderr, result.stderr
+                return {"rejectionTraps": True, "diagnosticWithStdio": True, "pureWorldHasNoStderr": True}
+            check("rejected Promise produces an invocation error", rejected_promise)
+
+        def dependency_project():
+            project = directory / "dependency-project"
+            (project / "node_modules/offset").mkdir(parents=True, exist_ok=True)
+            (project / "tsconfig.json").write_text(json.dumps({"compilerOptions": {
+                "strict": True, "target": "ES2022", "module": "ESNext", "moduleResolution": "Bundler"},
+                "include": ["*.ts"]}))
+            (project / "node_modules/offset/package.json").write_text(json.dumps({
+                "name": "offset", "version": "1.0.0", "main": "index.js", "types": "index.d.ts"}))
+            (project / "node_modules/offset/index.d.ts").write_text("export const offset: number;\n")
+            dependency = project / "node_modules/offset/index.js"
+            dependency.write_text("export const offset = 1;\n")
+            source = project / "main.ts"
+            source.write_text('import {offset} from "offset"; export function add(a:number,b:number):number {return a+b+offset;}\n')
+            first = compile_component(source, ROOT / "examples/add.wit", "arithmetic", "dependency-first",
+                                      ["--typecheck", "--stub-wasi"])
+            assert invoke(first["path"], "add(20,22)") == "43"
+            dependency.write_text("export const offset = 2;\n")
+            second = compile_component(source, ROOT / "examples/add.wit", "arithmetic", "dependency-second",
+                                       ["--typecheck", "--stub-wasi"])
+            assert invoke(second["path"], "add(20,22)") == "44"
+            assert first["receipt"]["javascriptSha256"] != second["receipt"]["javascriptSha256"]
+            (project / "broken.ts").write_text('const value: number = "wrong";\n')
+            rejects(source, ROOT / "examples/add.wit", "arithmetic", "dependency-invalid", r"2322", ["--typecheck"])
+            (project / "broken.ts").write_text('const value: number = 1;\n')
+            (project / "tsconfig.json").write_text(json.dumps({"compilerOptions": {
+                "strict": True, "target": "ES2022"}, "files": ["broken.ts"]}))
+            rejects(source, ROOT / "examples/add.wit", "arithmetic", "excluded-entrypoint",
+                    r"entrypoint is excluded", ["--typecheck"])
+            return {"offlineNpm": True, "tsconfig": True, "dependencyEdit": [43, 44],
+                    "projectErrorRejected": True, "excludedEntrypointRejected": True}
+        check("offline npm modules, tsconfig and changed dependency bytes", dependency_project)
+
         def guards():
             assert not log.exists(), log.read_text()
             return {"blocked": 11, "attempted": 0}
         check("native compiler and Node guards were never invoked", guards)
-        report["passed"] = True
+        report["passed"] = all(item["passed"] for item in checks)
     except Exception as error:
         report["error"] = str(error)
         print(f"verify: {error}", file=sys.stderr)

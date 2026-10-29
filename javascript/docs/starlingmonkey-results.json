@@ -1,0 +1,500 @@
+{
+  "decision": "no-go",
+  "scope": "cold CLI runtime only; authored-WIT library adapter not implemented",
+  "runtimeBytes": 10520737,
+  "runtimeSha256": "6094cd93d966f9bec9b01332db6e0eedbaf22f60b745c9f823f21e33cbd4d365",
+  "componentBytes": 10576712,
+  "componentSha256": "8a688d356787bfd414983ce87c3375462451048f505e4960d96ab2ba2d917910",
+  "snapshot": false,
+  "sourceCompilerWasmHosted": true,
+  "hostSha256": "f95e5beba6d176b447c2939607bae968ea47f87b156ddf559762f1bb3c00e9b7",
+  "flags": [
+    "-Ccache=n",
+    "-Oopt-level=0",
+    "-Cparallel-compilation=n",
+    "-Shttp"
+  ],
+  "timings": [
+    {
+      "seconds": 14.643241205252707,
+      "exitCode": 0,
+      "stdout": "{\"URL\":\"function\",\"TextEncoder\":\"function\",\"fetch\":\"function\",\"crypto\":\"object\",\"Buffer\":\"undefined\",\"process\":\"undefined\"}\n",
+      "stderr": ""
+    },
+    {
+      "seconds": 14.308072486892343,
+      "exitCode": 0,
+      "stdout": "{\"URL\":\"function\",\"TextEncoder\":\"function\",\"fetch\":\"function\",\"crypto\":\"object\",\"Buffer\":\"undefined\",\"process\":\"undefined\"}\n",
+      "stderr": ""
+    },
+    {
+      "seconds": 14.47678822092712,
+      "exitCode": 0,
+      "stdout": "{\"URL\":\"function\",\"TextEncoder\":\"function\",\"fetch\":\"function\",\"crypto\":\"object\",\"Buffer\":\"undefined\",\"process\":\"undefined\"}\n",
+      "stderr": ""
+    }
+  ],
+  "recipes": {
+    "yaml": {
+      "sourceSha256": "fe0cb0ba9d4b69a1dc19fc34a0baf7de49bbe80673a9f87de6f3e571bb1ab221",
+      "remainingWorkarounds": [
+        "browser-buffer.ts: Buffer=null; StarlingMonkey has no Node Buffer",
+        "browser-process.ts: env and emitWarning; StarlingMonkey has no Node process",
+        "browser-target.patch: four Node import substitutions retained"
+      ],
+      "removedWorkarounds": [],
+      "checks": 7,
+      "bundleInputs": [
+        {
+          "path": "$SPIKE/yaml/check.ts",
+          "sha256": "6a970c4fef8df418b0b2fe6b8da4e7d3ded8b5d1edfe6e1e245368514e2152ff"
+        },
+        {
+          "path": "$SPIKE/yaml/entry.ts",
+          "sha256": "850c6fed972da06176aee8abb76c1c35a8b59d9bb6b4fafea948e6054c1d547d"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/browser-buffer.ts",
+          "sha256": "26b3b2709c83ce41ec16bfe9d4ede7527b35c6e9f2640072526fb0d763a12b73"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/browser-process.ts",
+          "sha256": "9d3bc8f14b323dead67b42ef44142aaa1e14c0aa199b8c37d27b94a465b02deb"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/compose/compose-collection.ts",
+          "sha256": "6e65bd47fa4c39e589b7322ed3369dc68428d8cfe778e5b0865d0853cb1fa8b8"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/compose/compose-doc.ts",
+          "sha256": "437b289476b5256b2f9eb64a9ea40bd96056a6e241830ec0eead67398d7f4ef6"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/compose/compose-node.ts",
+          "sha256": "8f02ff534eb2fd682bb3ec70940c26f9cfdd5f08837652732d9a9955b46a3890"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/compose/compose-scalar.ts",
+          "sha256": "4b56cf46cf950088125ecbd07f2f1ce857305f426f1d6479a51a5f871f322cb6"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/compose/composer.ts",
+          "sha256": "a45829d7fedb761391e53023b3b6f10c0bbaecdb960ab338beb62754340a407a"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/compose/resolve-block-map.ts",
+          "sha256": "db8f068e7c0f5bb74cb80a558a83e7df5ea91e584641fd7a335aa008eace300e"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/compose/resolve-block-scalar.ts",
+          "sha256": "51a9c85a5dd88d3ee45d41c88d76b9cfd24d457f06a0915295463d84e32dff40"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/compose/resolve-block-seq.ts",
+          "sha256": "f658695faafb6f07e7edbb348426495ef5f4f3c8c9a7b1fb85b6c8e10ceaacce"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/compose/resolve-end.ts",
+          "sha256": "9b3e56640d624adeb3df4b2d6aa569ff541ee3d4902208d53d348414beb8e494"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/compose/resolve-flow-collection.ts",
+          "sha256": "2e9dad30c4e2d39f4c2e0797be62801448c73e02f9480396e6a99d9b9cafbb15"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/compose/resolve-flow-scalar.ts",
+          "sha256": "7ae4b9706cb495137dbc95a45811c4a387b81adb0600e72b6e7a7d8aece9789a"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/compose/resolve-props.ts",
+          "sha256": "fa9f959f21e63eab0151467c46868fd1b49c080f1e2b2991eaec6de389a5da71"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/compose/util-contains-newline.ts",
+          "sha256": "babc11ad4aec28e2feca6e45a9d1d610f5647950e62376acb528b3fc5de42d0b"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/compose/util-empty-scalar-position.ts",
+          "sha256": "99430353fe064b5e524dc3b6a73cce5579a1ccfb6723adbe7b9e87612be752fb"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/compose/util-flow-indent-check.ts",
+          "sha256": "36e44d522d81899fc29e5c2fd464b1fcca5c5419f37e13a37e6361f80c7e81c8"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/compose/util-map-includes.ts",
+          "sha256": "11279d57e3fcbd347eacc6ee4627e80f9782e10e65d3a1607d964610e489a5a4"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/doc/Document.ts",
+          "sha256": "64b2d388c9d7970a96903afb371900f4546ada1702d904393f2f18c09c74d934"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/doc/anchors.ts",
+          "sha256": "e994e66a5059e8db978b8e0e4fc81a4585b6c1fc80d86c00a93ff61bc004eae0"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/doc/applyReviver.ts",
+          "sha256": "071a33e5e931cc56f08c4166bc10e487ce693fc0a7854f13d8b146a9d85ab1dd"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/doc/createNode.ts",
+          "sha256": "c5bbc871c3ea9c0ed0a1d7e028634a8c2a2fcabbb28f01bd1f9a33db637593b7"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/doc/directives.ts",
+          "sha256": "3b7b3567e01ce07938a3f943be2d7a735fd8a14669997dc5bf02eb1d79142da8"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/errors.ts",
+          "sha256": "49013abc3623a86bfa1597dd65021bf91ac503438a8caf4720562f943d1c2a22"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/index.ts",
+          "sha256": "198a152f6a2be41c4f3b44436bb91003ee9f4d97c668aa439b94bd1d3729b576"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/log.ts",
+          "sha256": "ae3d84b0761a47bbe03e1ca14087a4a57120f2f264b59f3b1a854783e803ffd9"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/nodes/Alias.ts",
+          "sha256": "0e4a37ecbe6bb8462163f63b4084708c0171a7344d88d8095fae53197add80d0"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/nodes/Collection.ts",
+          "sha256": "3271285b9c9984d834b4893c374cb1e4ce24b2e69e2e8eaa510ed137c262e1cc"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/nodes/Node.ts",
+          "sha256": "2ee85c90a44bc672a4646a6f692c55ac36132214c03b6ec8a6dde88d9c47b585"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/nodes/Pair.ts",
+          "sha256": "e55e44f6e804e41bf3221784facf4b4ae79647ac7d76a760dd636525ae629e1f"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/nodes/Scalar.ts",
+          "sha256": "6cd0c84d14cb9a753fe35b982c17a084f4f482c17e411a4cb6d32cb5435bed30"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/nodes/YAMLMap.ts",
+          "sha256": "b13535633f411c1a7d84155ac5274e386bea28333b454c1d9a06ec325d50cd05"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/nodes/YAMLSeq.ts",
+          "sha256": "4970e2678868cfbb782a07553c87e73ababb1bc1f52156d0efaf4b90bd87c02f"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/nodes/addPairToJSMap.ts",
+          "sha256": "ec8c69ec4965aa9ba93654eae613adf627b3a24399cb0cb3db568ad6375c11b4"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/nodes/identity.ts",
+          "sha256": "0580d865a51573f937d636de60d435d62a1433fdb3c854ac847e3ae1a25087fe"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/nodes/toJS.ts",
+          "sha256": "0ce25a01421d769ec9505be8a3e4d055ffa9ad86cf141412d61fc2d248fa6de1"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/parse/cst-scalar.ts",
+          "sha256": "197486d731f73820ea948772d03316f90351d1b94e7e5539380e3f15ee09f165"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/parse/cst-stringify.ts",
+          "sha256": "8307375dc102377a65e33a3828bc547366b40ec9718ba8c27da2061bd6b5893a"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/parse/cst-visit.ts",
+          "sha256": "8ca68ffc11e50bfb7431d67bb427e1b66e2eec1015e5447cff865ac626307a72"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/parse/cst.ts",
+          "sha256": "064b5e0505d2fe275b1d022efbdd71d6a6c288886599f70475eb57dfdcfe3b92"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/parse/lexer.ts",
+          "sha256": "e72cbb3206bcad0efec49e748a90687a9b2911c67cfb811c449507e511905768"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/parse/line-counter.ts",
+          "sha256": "92a263741d979b380866221832a0a56d760013555acafa89e9638b48a461dcd6"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/parse/parser.ts",
+          "sha256": "6ab383158b00e77443cf37dfa75470270be9ec6acfb9849f1d8af37a3c45bc3b"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/public-api.ts",
+          "sha256": "87e27fb32d343dcfc0d3e15db285f1fb8e327eb76347ccf80841a86d971a0d96"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/Schema.ts",
+          "sha256": "889d5f53295605c74bfc8e7382b0365f5d9d043beb6cc0033f83c9820e82e727"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/common/map.ts",
+          "sha256": "144488c89b7290c84132ba277a9446cd67bd2adf44fcfd1bbd7b67b7b8d2c64d"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/common/null.ts",
+          "sha256": "d355f26c649494f41f8d3bdd5df0f07919a74c40fd09148a8902e0dc28df886b"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/common/seq.ts",
+          "sha256": "8825a0d2413ae94cc4edd9974f836f68aac0e3334e1c7f4fbc924436002038f9"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/common/string.ts",
+          "sha256": "f13e48c18a349c683710332b4dd3682c8654eb2202d509146f0829908ef8a468"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/core/bool.ts",
+          "sha256": "c45f336deffc644b0794d664a19029e12c9c0734bc11c727801e95f2654742d3"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/core/float.ts",
+          "sha256": "f35d682e60aadff5eeeb2e74eb04dfcd58664cb91cdfa33e4afa383a6fda6948"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/core/int.ts",
+          "sha256": "594655a9e7fa5479443e1d54e535eb80689c76ffeb9d3872802ca8dce592589a"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/core/schema.ts",
+          "sha256": "9c591b9140a1cd49f7691689c4ebabc3424a0e827b188338c47486485a816c43"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/json/schema.ts",
+          "sha256": "999bdc60e9053d72fd9d9c490172f2427c7c0883a6ff0aa0eec6538b6acbe816"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/tags.ts",
+          "sha256": "40b798f80553a128a8adacb7fac16b859a845a389dcb4cb2a61a57d181bd1367"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/yaml-1.1/binary.ts",
+          "sha256": "8b9a715e1ab6d0c28dfdf72440edd7f0b9cce44010868edef0b5f241a47cc0e6"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/yaml-1.1/bool.ts",
+          "sha256": "93b044705523635b79b7de2b0e328df974349efc7ebab2e320850e788542a029"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/yaml-1.1/float.ts",
+          "sha256": "9750f79a43ba968245b983e2cb33b09904252ce6d424337210adb48d02f5ae67"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/yaml-1.1/int.ts",
+          "sha256": "5319ce6e9b7e70d8e71ba72afa8179e5d601b545c661db81eef1f1cd72c38f5c"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/yaml-1.1/merge.ts",
+          "sha256": "089088ebf6cf442eef08fc3ea8048c53adebb8be3c3b0a32b85a0c312f9f68d1"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/yaml-1.1/omap.ts",
+          "sha256": "79e0abbd2a7da9eac4bb0b6e60e9e200524edbd8c4d8a764c0bf29590abe7c88"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/yaml-1.1/pairs.ts",
+          "sha256": "aa8df5d3f7c755f74f09a6b422172ed3797bb1bf1ba0419f375393e267050607"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/yaml-1.1/schema.ts",
+          "sha256": "c7b100572c15a16d869088b73500ee27fe89415ce7fe073ea90131f4afc7fe0c"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/yaml-1.1/set.ts",
+          "sha256": "2327b5817d2779c3435708c73e1f59fd4fb532b0746650427d721bd5bd8d8276"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/schema/yaml-1.1/timestamp.ts",
+          "sha256": "cb8e05c34fbd300fb0bc3faa07a1a7c443e4ca3508a016a17eb3c236d4122195"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/stringify/foldFlowLines.ts",
+          "sha256": "20e2179a5bf3a3019b8bd40ad09a9b82f59c0a1c3da28464c53c5089c5c89096"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/stringify/stringify.ts",
+          "sha256": "57bbd99acfcd06232ad844a4c6a25b66537beb64589d0cb6b91e83bc3974a97c"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/stringify/stringifyCollection.ts",
+          "sha256": "a56121a0856218bce9e31c26802582eef6c642551bd6bf37f063efc8e25a54aa"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/stringify/stringifyComment.ts",
+          "sha256": "f5edadfa8d5203670e95ca59bab31372b8978fa2c462cb2b1a0c8c8738909299"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/stringify/stringifyDocument.ts",
+          "sha256": "0a7101dd863100b14b68819c7422ab7b83efa24a2998322105025d4de2cf7f0e"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/stringify/stringifyNumber.ts",
+          "sha256": "18a090e886b9a3878f89247862df8d2a4f7ab318a4a09175f4cf1475b9ce5740"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/stringify/stringifyPair.ts",
+          "sha256": "e751fe9cdec0a2d4df6e08c263cd7c7fa8096e5b679a1a371bce3988fb511a5f"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/stringify/stringifyString.ts",
+          "sha256": "badac28dac2f8df4cff74c9ad15a11a942f3312510efcf50dd1444959e26cd02"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/util.ts",
+          "sha256": "1c61d8968bb31b54394bf757875ab7c52ed345b605bef9f08c2b90f4ba20ebec"
+        },
+        {
+          "path": "$SPIKE/yaml/upstream/src/visit.ts",
+          "sha256": "5d96745276f8a761cf00e8f9aeaf1c4e9b60d004be21de979fcf58f45f13e508"
+        }
+      ],
+      "execution": {
+        "seconds": 13.535975843667984,
+        "exitCode": 0,
+        "stdout": "yaml: 7/7 recipe checks passed\n",
+        "stderr": ""
+      }
+    },
+    "markdown-it": {
+      "lockSha256": "dc34e0772eb30fb49312120a565e2337816da0f15c4998d0aa40dccbf648d492",
+      "remainingWorkarounds": [],
+      "removedWorkarounds": [
+        "QuickJS deferred-initialization compiler patch not used",
+        "QuickJS guest-inventory compiler patch not used"
+      ],
+      "checks": 6,
+      "bundleInputs": [
+        {
+          "path": "$SPIKE/markdown-it/check.ts",
+          "sha256": "a3bfcff2cfff6d94530ecba661ef7a2977ac731bda4b7f7d06873e7847d5c3cf"
+        },
+        {
+          "path": "$SPIKE/markdown-it/entry.ts",
+          "sha256": "682b770f0e9f28691c8463f00866515f4cdb45c7e3f8c5c5ad773ad7cf98b0e9"
+        },
+        {
+          "path": "$SPIKE/markdown-it/node_modules/entities/dist/decode-codepoint.js",
+          "sha256": "dddf76e72987697316e647f046b2755dafe16308fe83159969b3155e0ebf3beb"
+        },
+        {
+          "path": "$SPIKE/markdown-it/node_modules/entities/dist/decode.js",
+          "sha256": "6ce0048039ae0f9dab6e21dd1309661bcfe7e3beabfab1f15cdd61adb91e20b7"
+        },
+        {
+          "path": "$SPIKE/markdown-it/node_modules/entities/dist/encode.js",
+          "sha256": "af4b217937b364425a6303b2febfda0a2d1282b73e1d7a3e6381ac2072b7d0ea"
+        },
+        {
+          "path": "$SPIKE/markdown-it/node_modules/entities/dist/escape.js",
+          "sha256": "880426162e6e6a1c65cb67cca4824c529c37192b51b0571927a81d33074f7302"
+        },
+        {
+          "path": "$SPIKE/markdown-it/node_modules/entities/dist/generated/decode-data-html.js",
+          "sha256": "1ff1226550125bb8976dd032b2dcfc37ba311863dbf9ae69b4b16922f5a38ead"
+        },
+        {
+          "path": "$SPIKE/markdown-it/node_modules/entities/dist/generated/decode-data-xml.js",
+          "sha256": "e549a5fd573d540a4652c81fab6655f3418c34c1613a30ed245ca017d9a5b730"
+        },
+        {
+          "path": "$SPIKE/markdown-it/node_modules/entities/dist/generated/encode-html.js",
+          "sha256": "b5fcf3d4d73f5bd5f6a49c9c9da3cc6b824b2e2e5068f74c108649b1185d0a1c"
+        },
+        {
+          "path": "$SPIKE/markdown-it/node_modules/entities/dist/index.js",
+          "sha256": "4ce5bc47aa7a5f3958bc4d42e450d62156efdd043cbad6b7edbdf9604d85dc4f"
+        },
+        {
+          "path": "$SPIKE/markdown-it/node_modules/entities/dist/internal/bin-trie-flags.js",
+          "sha256": "8bb285f9ab41b9fd2525c83902c99b36e7c36da7cb7fa3be574d68f328183de5"
+        },
+        {
+          "path": "$SPIKE/markdown-it/node_modules/entities/dist/internal/decode-shared.js",
+          "sha256": "cd26388e8ec3fdc2c4b212883e9ae460a4fe6dd37d80d0dacffd6b0087171b6b"
+        },
+        {
+          "path": "$SPIKE/markdown-it/node_modules/linkify-it/build/index.mjs",
+          "sha256": "8b8112c2d772da15ebfff2506ac7a281bfa061f695ac7743c083ac54815385ac"
+        },
+        {
+          "path": "$SPIKE/markdown-it/node_modules/markdown-it/dist/markdown-it.mjs",
+          "sha256": "60dff81404169420bc0dae52e221c933ef48bd38a66eb9ca657c582621782047"
+        },
+        {
+          "path": "$SPIKE/markdown-it/node_modules/mdurl/index.mjs",
+          "sha256": "8ea430f1f8a107f529e2dac519d2f18e71ec9befe6f23f78bf6510cf86d3f9a0"
+        },
+        {
+          "path": "$SPIKE/markdown-it/node_modules/mdurl/lib/decode.mjs",
+          "sha256": "d91544cfb42b9639073f5fa0f576bf72ef6697e848005357c433cad036c2ef20"
+        },
+        {
+          "path": "$SPIKE/markdown-it/node_modules/mdurl/lib/encode.mjs",
+          "sha256": "0ae621933b548f880404841b251b0f4fc2c8446ded699e6812def217250ac15d"
+        },
+        {
+          "path": "$SPIKE/markdown-it/node_modules/mdurl/lib/format.mjs",
+          "sha256": "2410ec324b913a42c572e01ae49436e5fa4e2e5fbea15c08c92a6dea8bc5887d"
+        },
+        {
+          "path": "$SPIKE/markdown-it/node_modules/mdurl/lib/parse.mjs",
+          "sha256": "2a417b42e9ea8ee94fc77c596a34eb206d6c69823484e89d80bf1e7583d8f91d"
+        },
+        {
+          "path": "$SPIKE/markdown-it/node_modules/punycode.js/punycode.es6.js",
+          "sha256": "8969ae1b78644a33574be197d1a7a9c85b031092f1c1a657d865b7b3c1edd77e"
+        },
+        {
+          "path": "$SPIKE/markdown-it/node_modules/uc.micro/build/index.mjs",
+          "sha256": "3fdef99558860189fb25d930401847dccc1aafe3d10d4c4aec25fb02df0d0726"
+        }
+      ],
+      "execution": {
+        "seconds": 14.403266661800444,
+        "exitCode": 0,
+        "stdout": "markdown-it: 6/6 recipe checks passed\n",
+        "stderr": ""
+      }
+    }
+  },
+  "medianColdProcessSeconds": 14.47678822092712,
+  "asyncJavaScript": {
+    "seconds": 13.218160973861814,
+    "exitCode": 0,
+    "stdout": "async Promise settled: 42\n",
+    "stderr": ""
+  },
+  "maxChildrenRssKiB": 301076,
+  "apiProbe": {
+    "exitCode": 0,
+    "stdout": "{\"passed\":true,\"asyncModuleExport\":42,\"url\":true,\"encoding\":true,\"base64\":true,\"cryptoSubtle\":true,\"streams\":true,\"fetchGlobal\":true,\"timerGlobals\":true,\"nodeBuffer\":false,\"nodeProcess\":false,\"witAsyncExport\":\"not tested\"}\n",
+    "stderr": "",
+    "scope": "additional api-check.mjs probe, not timed"
+  },
+  "authoredWitNoSnapshot": {
+    "stubbed": {
+      "componentBytes": 10503709,
+      "seconds": 16.347240884788334,
+      "exitCode": 134,
+      "stdout": "",
+      "stderr": "Error: failed to run main module `$ROOT/build/starlingmonkey-spike/arithmetic/no-snapshot.component.wasm`\n\nCaused by:\n    0: error while executing at wasm backtrace:\n    0:   0x752f - <unknown>!random_get\n    1:   0x75b3 - <unknown>!<wasm function 81>\n    1: wasm trap: wasm `unreachable` instruction executed\n\n",
+      "snapshot": false
+    },
+    "unstubbed": {
+      "snapshot": false,
+      "stubbed": false,
+      "componentBytes": 10575483,
+      "seconds": 12.466792587190866,
+      "exitCode": 134,
+      "stdout": "",
+      "stderr": "uncaught exception: unknown (can't convert to string)\nRedirecting call to abort() to mozalloc_abort\n\nError: failed to run main module `$ROOT/build/starlingmonkey-spike/arithmetic/unstubbed-no-snapshot.component.wasm`\n\nCaused by:\n    0: error while executing at wasm backtrace:\n    0: 0x8c17e3 - <unknown>!<wasm function 12597>\n    1: 0x1af464 - <unknown>!<wasm function 4439>\n    2: 0x8d6cfb - <unknown>!add\n    1: wasm trap: wasm `unreachable` instruction executed\n\n"
+    }
+  },
+  "decisionReason": "Stock no-snapshot authored-WIT arithmetic export traps, including without feature stubbing; no supported Wasm-hosted snapshotter established."
+}

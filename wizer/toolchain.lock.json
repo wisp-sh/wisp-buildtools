@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "version": "50.0.0",
+  "kind": "native-host-capability",
+  "nativeSnapshotHostApproved": true,
+  "hosts": {
+    "official-linux-x86_64": {
+      "version": "50.0.0",
+      "sha256": "f95e5beba6d176b447c2939607bae968ea47f87b156ddf559762f1bb3c00e9b7",
+      "url": "https://github.com/bytecodealliance/wasmtime/releases/tag/v50.0.0"
+    }
+  },
+  "wispSourceHost": {
+    "source": {
+      "version": "50.0.0",
+      "rustVersion": "1.99.0",
+      "url": "https://static.crates.io/crates/wasmtime-cli/wasmtime-cli-50.0.0.crate",
+      "sha256": "685bfee58e320da926959286d544d7043e5328ad28aa59bca4d306b978bb7b1b",
+      "features": [
+        "run",
+        "cranelift",
+        "component-model-async",
+        "cache",
+        "parallel-compilation",
+        "wat",
+        "threads",
+        "stack-switching",
+        "wizer"
+      ]
+    },
+    "patchSha256": "b89bdb3b9841e12c230fd54068d7beb87791e1e7bab20425f618eaa9f6938480",
+    "cargoLockSha256": "8e20e98d6c1fb2d924e0241db98ec4217c34a836285ebdfab4c99545e7ab1d66"
+  },
+  "stageBoundary": "Native host captures and serializes state; application initialization executes as Wasm in Wasmtime."
+}

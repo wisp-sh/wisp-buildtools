@@ -36,6 +36,18 @@ jobs:
       BUILD_JOBS: ${{ inputs.jobs }}
       PACKAGE_DIRECTORY: ${{ github.workspace }}/.ci/packages/${{ inputs.toolchain }}
     steps:
+      - name: Record JavaScript acceptance start
+        if: inputs.toolchain == 'javascript'
+        run: |
+          mkdir -p "$RUNNER_TEMP/wisp-javascript"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          path = Path(os.environ['RUNNER_TEMP']) / 'wisp-javascript/status.json'
+          path.write_text(json.dumps({'phase': 'setup', 'complete': False, 'passed': False,
+                                      'buildtoolsSha': os.environ['GITHUB_SHA'],
+                                      'runId': os.environ['GITHUB_RUN_ID']}) + '\n')
+          PY
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
@@ -179,6 +191,25 @@ jobs:
           done
           python3 build.py sizes "$PACKAGE_TARGET" --package-dir "$PACKAGE_DIRECTORY"
           cat "$PACKAGE_DIRECTORY/sizes.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Exercise installed JavaScript engines and TypeScript checker
+        if: inputs.toolchain == 'javascript'
+        run: python3 javascript/installed_acceptance.py --packages "$PACKAGE_DIRECTORY" --output .ci/javascript-installed
+      - name: Retain JavaScript acceptance evidence
+        if: always() && inputs.toolchain == 'javascript'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: javascript-acceptance-evidence
+          path: |
+            ${{ runner.temp }}/wisp-javascript/status.json
+            .ci/build.log
+            .ci/test-javascript.log
+            .ci/package.log
+            .ci/javascript-installed/result.json
+            .ci/javascript-installed/*/verification.json
+            javascript/build/**/verification.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
       - name: Upload compiler package
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:

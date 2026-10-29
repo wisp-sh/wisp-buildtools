@@ -1,0 +1,30 @@
+{
+  "sourceCommit": "5f92808bc92bb97b06212153ab73d28d551c0b9b",
+  "sourceArchiveSha256": "f062ec3a9ce8996aca46ce26e465854cb8e9ec5b34aea2414b224deb5b4fc25f",
+  "cargoLockSha256": "7b62b92b3b5aa7643d2efcd16482effb8f076349de1290d10cf59c7d544560c5",
+  "profile": "pinned-source-opt1",
+  "module": {
+    "sha256": "dc49e6e19797bed27819d1d0ee3fe276afe7af6b8db808331e977ba987f1787c",
+    "bytes": 16174854
+  },
+  "bootstrapTools": [
+    {
+      "name": "rustc",
+      "version": "rustc 1.99.0 (b940084d7 2026-09-28)",
+      "sha256": "f3834d26669b03f6855fa54bd2381443123e860167bc0c7a8dd137e5cf6e5e4f"
+    },
+    {
+      "name": "cargo",
+      "version": "cargo 1.99.0 (5f94df478 2026-08-27)",
+      "sha256": "e951141cc55a6cd7b9876d187bd30a3720e6086b99413af95e3b8de1cdd72f14"
+    }
+  ],
+  "elapsedCargoBuild": "4m 02s",
+  "checks": [
+    "valid noEmit project passed",
+    "type error produced diagnostic 2322",
+    "valid request passed again with fresh instance",
+    "module contains no builder home, checkout or T3 project paths"
+  ],
+  "nativeToolsScope": "compiler package bootstrap only; application checking runs in Wasm"
+}

@@ -30,6 +30,15 @@ rust_builder = load_module("compiler_rust_source_builder", ROOT / "rust/scripts/
 
 
 class BootstrapVersionTests(unittest.TestCase):
+    def test_registered_toolchains_have_ci_prerequisite_plans(self):
+        tools = json.loads((ROOT / 'buildtools.json').read_text())['tools']
+        for tool in tools:
+            with self.subTest(tool=tool):
+                result = subprocess.run([sys.executable, str(ROOT / 'tools/ci-prerequisites.py'),
+                                         'plan', tool], text=True, capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(json.loads(result.stdout)['tool'], tool)
+
     def test_stock_bootstrap_cannot_drift_from_the_execution_host_version(self):
         lock = copy.deepcopy(prerequisites.LOCK)
         lock['downloads']['wasmtime']['executable'] = 'wasmtime-v0.0.0-x86_64-linux/wasmtime'
@@ -273,7 +282,23 @@ class ExecutionHostCacheTests(unittest.TestCase):
                 self.assertNotIn('wasmtime', report['downloads'])
                 self.assertEqual(report["executionHosts"][self.prefix(tool).name], {"cached": True})
 
-    def test_only_python_snapshot_bootstrap_installs_stock_wasmtime(self):
+    def test_tsrs_stages_python_host_without_rebuilding_the_compiler(self):
+        report = prerequisites.install_for('tsrs')
+        bindings = self.root / '.ci/toolchains/wasmtime-python'
+        self.assertEqual(set(report['downloads']), {'wasmtime-python'})
+        self.assertEqual(report['environment']['WISP_WASMTIME_PYTHON'], str(bindings))
+        self.assertIsNone(prerequisites.rust_bootstrap('tsrs'))
+        self.assertEqual(report['environment']['WISP_WASMTIME'], str(self.root / 'cwasm.py'))
+
+    def test_wizer_stages_its_pinned_native_snapshot_host(self):
+        report = prerequisites.install_for('wizer')
+        stock = self.root / '.ci/toolchains/wasmtime' / prerequisites.LOCK['downloads']['wasmtime']['executable']
+        self.assertEqual(set(report['downloads']), {'wasmtime'})
+        self.assertEqual(report['environment']['WISP_WIZER_WASMTIME'], str(stock))
+        self.assertEqual(report['environment']['WISP_BOOTSTRAP_WASMTIME'], str(stock))
+        self.assertEqual(report['environment']['WISP_WASMTIME'], str(self.root / 'cwasm.py'))
+
+    def test_python_snapshot_bootstrap_installs_stock_wasmtime(self):
         python = prerequisites.install_for('python')
         stock = self.root / '.ci/toolchains/wasmtime' / prerequisites.LOCK['downloads']['wasmtime']['executable']
         self.assertEqual(python['environment']['WISP_BOOTSTRAP_WASMTIME'], str(stock))
