@@ -37,6 +37,14 @@ on:
         type: choice
         default: '2'
         options: ['1', '2', '4', '8']
+      release_tag:
+        description: Publish the built bundles as a GitHub release with this tag, such as toolchains-2026.10.26. Leave empty to only upload artifacts.
+        type: string
+        default: ''
+      artifacts_run_id:
+        description: Republish verified artifacts from a completed Build all toolchains run without rebuilding. Leave empty to build.
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -44,6 +52,7 @@ permissions:
 jobs:
   select:
     name: Select toolchains
+    if: inputs.artifacts_run_id == ''
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -133,3 +142,68 @@ jobs:
       jobs: ${{ fromJSON(inputs.jobs) }}
       timeout: 360
       llvm-bootstrap: true
+
+  # Wisp's approved library build installs compilers from a release, pinned by
+  # the SHA-256 of its manifest. Only a complete, successful build publishes.
+  release:
+    name: Publish toolchain release
+    needs: [select, compilers, rust, llvm-bootstrap, llvm-compilers]
+    if: ${{ always() && inputs.release_tag != '' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: read
+    env:
+      TAG: ${{ inputs.release_tag }}
+      RELEASE_DIRECTORY: ${{ github.workspace }}/.ci/release
+      ARTIFACTS_DIRECTORY: ${{ github.workspace }}/.ci/release-artifacts
+      BUILD_RUN_ID: ${{ inputs.artifacts_run_id || github.run_id }}
+      RESUME_RUN_ID: ${{ inputs.artifacts_run_id }}
+      SOURCE_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Verify the completed source build when resuming publication
+        if: inputs.artifacts_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/release-source.py
+      - name: Collect the verified bundles from this run
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          pattern: '*-linux-x86_64'
+          path: ${{ env.ARTIFACTS_DIRECTORY }}
+          merge-multiple: false
+          run-id: ${{ env.BUILD_RUN_ID }}
+          github-token: ${{ github.token }}
+      - name: Write the acquisition manifest
+        run: |
+          [[ "$TAG" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || { echo "invalid release tag" >&2; exit 1; }
+          python3 tools/release-manifest.py "$RELEASE_DIRECTORY" --artifacts "$ARTIFACTS_DIRECTORY" --repository "$GITHUB_REPOSITORY" \
+            --tag "$TAG" --commit "$SOURCE_SHA" --output "$RELEASE_DIRECTORY/toolchains-linux-x86_64.json"
+          sha256sum "$RELEASE_DIRECTORY/toolchains-linux-x86_64.json" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd "$RELEASE_DIRECTORY"
+          {
+            echo "Compiler bundles built by run $BUILD_RUN_ID from $SOURCE_SHA."
+            echo
+            echo "Pin \`toolchains-linux-x86_64.json\` by SHA-256 and install each bundle with \`wisp toolchain install BUNDLE --sha256 SHA256\`."
+            echo
+            echo '```'
+            sha256sum toolchains-linux-x86_64.json ./*.wisp.zip
+            echo '```'
+          } > notes.md
+          target=(--target "$SOURCE_SHA")
+          if [[ -n "$RESUME_RUN_ID" ]]; then
+            # GITHUB_TOKEN cannot create an old tag whose workflow files differ
+            # from main. A maintainer creates that tag; verify it before release.
+            test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)" = "$SOURCE_SHA"
+            target=(--verify-tag)
+          fi
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" "${target[@]}" --title "$TAG" --notes-file notes.md \
+            toolchains-linux-x86_64.json ./*.wisp.zip ./*.wisp.json ./*.wisp.zip.sha256
