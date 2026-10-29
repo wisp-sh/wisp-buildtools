@@ -283,7 +283,7 @@ def infer_json(source):
             result = analyze(source)
         return json.dumps(result, ensure_ascii=True)
     except Exception as error:
-        return json.dumps({'error': str(error)}, ensure_ascii=True)
+        return json.dumps({'error': f'{type(error).__name__}: {error}'}, ensure_ascii=True)
 
 
 def infer(source):

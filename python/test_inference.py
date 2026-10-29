@@ -1,5 +1,6 @@
 """Host unit doubles for the guest parser, not application build execution."""
 import importlib.util
+import json
 from pathlib import Path
 import unittest
 
@@ -9,6 +10,15 @@ spec.loader.exec_module(guest)
 
 
 class InferenceTests(unittest.TestCase):
+    def test_dependency_syntax_diagnostic_preserves_exception_type_and_location(self):
+        request = {'schema': 2, 'entry': 'api', 'metadataOnly': True, 'modules': {
+            'api': ['import arithmetic\ndef total() -> int: return 42\n', '/__wisp__/api.py', False],
+            'arithmetic': ['def broken(: pass\n', '/__wisp__/arithmetic.py', False],
+        }}
+        response = json.loads(guest.infer_json(json.dumps(request)))
+        self.assertIn('SyntaxError:', response['error'])
+        self.assertIn('arithmetic.py, line 1', response['error'])
+
     def test_rich_types_aliases_and_results_without_executing_source(self):
         body = guest.infer('''from dataclasses import dataclass as record
 from enum import Enum
