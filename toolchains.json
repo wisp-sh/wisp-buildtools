@@ -72,6 +72,12 @@
       "build": "compile.py",
       "bootstrap": "bootstrap.py",
       "verify": "verify.py"
+    },
+    "csharp": {
+      "directory": "csharp",
+      "build": "compile.py",
+      "bootstrap": "bootstrap.py",
+      "verify": "verify.py"
     }
   }
 }

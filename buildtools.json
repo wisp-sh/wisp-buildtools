@@ -1191,6 +1191,81 @@
         ],
         "optional": []
       }
+    },
+    "csharp": {
+      "directory": "csharp",
+      "description": "Wasm-hosted Roslyn with offline C# projects and managed WIT Component bindings",
+      "version": "roslyn-4.8.0-mono-8.0.0-bindings-v3",
+      "sourceInputs": [
+        "csharp/bootstrap.py",
+        "csharp/compile.py",
+        "csharp/toolchain.py",
+        "csharp/verify.py",
+        "csharp/src/Compiler.cs",
+        "csharp/src/Generate.cs",
+        "csharp/src/runtime.c",
+        "csharp/toolchain.lock.json",
+        "csharp/project.py",
+        "csharp/src/Bindings.cs",
+        "csharp/src/Discovery.cs",
+        "csharp/src/Canonical.cs",
+        "csharp/src/WasmModule.cs",
+        "csharp/test_project.py",
+        "csharp/verify_component.py"
+      ],
+      "dependencies": [
+        "wasm-tools"
+      ],
+      "runtimeDependencies": [
+        "wasm-tools"
+      ],
+      "bootstrapRequirements": [
+        "Linux x86_64",
+        "Python 3.12+",
+        "Pinned .NET 8 SDK and Mono runtime packs, downloaded by bootstrap",
+        "WASI SDK 34, or WISP_CSHARP_WASI_SDK for an existing native bootstrap SDK",
+        "3 GiB bootstrap disk growth plus 5 GiB reserve; single-worker builds"
+      ],
+      "build": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/csharp/bootstrap.py"
+          ]
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/csharp/verify.py"
+          ]
+        }
+      ],
+      "artifacts": [
+        "csharp/dist/compiler/dotnet.wasm",
+        "csharp/dist/runtime-template.wasm",
+        "csharp/dist/assemblies.zip",
+        "csharp/dist/manifest.json"
+      ],
+      "package": {
+        "include": [
+          "csharp/README.md",
+          "csharp/bootstrap.py",
+          "csharp/compile.py",
+          "csharp/project.py",
+          "csharp/toolchain.py",
+          "csharp/verify.py",
+          "csharp/verify_component.py",
+          "csharp/test_project.py",
+          "csharp/toolchain.lock.json",
+          "csharp/src",
+          "csharp/licenses",
+          "csharp/examples",
+          "csharp/dist"
+        ],
+        "optional": []
+      }
     }
   }
 }
