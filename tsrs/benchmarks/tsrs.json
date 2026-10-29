@@ -1,0 +1,66 @@
+{
+  "moduleSha256": "bb070f1416dccc5956d177f527b81534a86032efd4d94898dfc20aae1a5c4d18",
+  "moduleBytes": 9766093,
+  "host": "Wasmtime Python 50.0.1",
+  "project": "one strict TS file, noEmit, exported number constant",
+  "optLevel": "none",
+  "parallelCompilation": false,
+  "results": {
+    "wasm": {
+      "samples": [
+        {
+          "moduleLoadMs": 7242.714153602719,
+          "startupRequestMs": 13.42389453202486,
+          "typecheckRequestMs": 347.95120917260647,
+          "loadAndTypecheckMs": 7590.665362775326
+        },
+        {
+          "moduleLoadMs": 7710.224162787199,
+          "startupRequestMs": 10.998901911079884,
+          "typecheckRequestMs": 349.90302100777626,
+          "loadAndTypecheckMs": 8060.127183794975
+        },
+        {
+          "moduleLoadMs": 7628.78814060241,
+          "startupRequestMs": 10.68803295493126,
+          "typecheckRequestMs": 343.99213176220655,
+          "loadAndTypecheckMs": 7972.780272364616
+        }
+      ],
+      "median": {
+        "moduleLoadMs": 7628.78814060241,
+        "startupRequestMs": 10.998901911079884,
+        "typecheckRequestMs": 347.95120917260647,
+        "loadAndTypecheckMs": 7972.780272364616
+      }
+    },
+    "precompiled": {
+      "samples": [
+        {
+          "moduleLoadMs": 67.51722656190395,
+          "startupRequestMs": 4.156732931733131,
+          "typecheckRequestMs": 336.3322475925088,
+          "loadAndTypecheckMs": 403.84947415441275
+        },
+        {
+          "moduleLoadMs": 69.97455563396215,
+          "startupRequestMs": 4.693192429840565,
+          "typecheckRequestMs": 323.9727495238185,
+          "loadAndTypecheckMs": 393.94730515778065
+        },
+        {
+          "moduleLoadMs": 70.83110231906176,
+          "startupRequestMs": 4.684251733124256,
+          "typecheckRequestMs": 344.50994059443474,
+          "loadAndTypecheckMs": 415.3410429134965
+        }
+      ],
+      "median": {
+        "moduleLoadMs": 69.97455563396215,
+        "startupRequestMs": 4.684251733124256,
+        "typecheckRequestMs": 336.3322475925088,
+        "loadAndTypecheckMs": 403.84947415441275
+      }
+    }
+  }
+}

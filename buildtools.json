@@ -428,10 +428,14 @@
       "description": "JavaScript and TypeScript Wasm compiler guests, without Node",
       "version": "componentize-qjs-0.4.5-esbuild-0.28.2",
       "dependencies": [
-        "wasm-tools"
+        "wasm-tools",
+        "tsrs",
+        "wizer"
       ],
       "runtimeDependencies": [
-        "wasm-tools"
+        "wasm-tools",
+        "tsrs",
+        "wizer"
       ],
       "bootstrapRequirements": [
         "Python 3.12+",
@@ -453,13 +457,26 @@
             "{python}",
             "{root}/javascript/verify.py"
           ]
+        },
+        {
+          "argv": [
+            "{python}",
+            "{root}/javascript/verify.py",
+            "--engine",
+            "starlingmonkey",
+            "--output-dir",
+            "{root}/javascript/build/verify-starlingmonkey"
+          ]
         }
       ],
       "artifacts": [
         "javascript/.toolchains/wasm/componentize.wasm",
         "javascript/.toolchains/wasm/esbuild.wasm",
         "javascript/.toolchains/runtimes/runtime-sync.wasm",
-        "javascript/.toolchains/runtimes/runtime-opt-size-sync.wasm"
+        "javascript/.toolchains/runtimes/runtime-opt-size-sync.wasm",
+        "javascript/.toolchains/starlingmonkey/splicer.wasm",
+        "javascript/.toolchains/starlingmonkey/runtime.wasm",
+        "javascript/.toolchains/starlingmonkey/manifest.json"
       ],
       "package": {
         "include": [
@@ -470,7 +487,10 @@
           "javascript/checksums",
           "javascript/.toolchains/wasm",
           "javascript/.toolchains/runtimes",
-          "javascript/examples"
+          "javascript/examples",
+          "javascript/starlingmonkey.py",
+          "javascript/starlingmonkey_bootstrap.py",
+          "javascript/.toolchains/starlingmonkey"
         ],
         "optional": [
           "javascript/LICENSE"
@@ -515,13 +535,20 @@
           "argv": [
             "{python}",
             "{root}/python/bootstrap_contract.py",
-            "--wit", "{root}/python/examples/library/library.wit",
-            "--world", "library",
-            "--preload-module", "html.parser",
-            "--preload-module", "xml.etree.ElementTree",
-            "--preload-module", "logging",
-            "--preload-module", "typing",
-            "--preload-module", "importlib"
+            "--wit",
+            "{root}/python/examples/library/library.wit",
+            "--world",
+            "library",
+            "--preload-module",
+            "html.parser",
+            "--preload-module",
+            "xml.etree.ElementTree",
+            "--preload-module",
+            "logging",
+            "--preload-module",
+            "typing",
+            "--preload-module",
+            "importlib"
           ]
         },
         {
@@ -541,15 +568,18 @@
           "argv": [
             "{python}",
             "{root}/python/bootstrap_contract.py",
-            "--wit", "{root}/python/examples/root/library.wit",
-            "--world", "library"
+            "--wit",
+            "{root}/python/examples/root/library.wit",
+            "--world",
+            "library"
           ]
         },
         {
           "argv": [
             "{python}",
             "{root}/python/verify_contract.py",
-            "--example", "root"
+            "--example",
+            "root"
           ]
         }
       ],
@@ -1188,6 +1218,127 @@
           "goose/toolchain.lock.json",
           "goose/examples",
           "goose/dist"
+        ],
+        "optional": []
+      }
+    },
+    "tsrs": {
+      "directory": "tsrs",
+      "description": "Shared tsrs WASIp1 TypeScript checker with isolated filesystem callbacks",
+      "version": "0.18.0-ts7.1.0-dev.20260929",
+      "dependencies": [],
+      "runtimeDependencies": [],
+      "bootstrapRequirements": [
+        "Python 3.12+",
+        "Wasmtime Python 50.0.1",
+        "Pinned upstream Wasm release; Rust 1.99.0 plus wasm32-wasip1 only for source rebuilds"
+      ],
+      "build": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/tsrs/bootstrap.py"
+          ]
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/tsrs/bootstrap.py",
+            "--check"
+          ]
+        },
+        {
+          "argv": [
+            "{python}",
+            "{root}/tsrs/test_wasmtime_host.py"
+          ]
+        },
+        {
+          "argv": [
+            "{python}",
+            "{root}/tsrs/verify.py"
+          ]
+        }
+      ],
+      "sourceInputs": [
+        "tsrs/source.json",
+        "tsrs/toolchain.lock.json",
+        "tsrs/bootstrap.py"
+      ],
+      "artifacts": [
+        "tsrs/dist/tsrs.wasm",
+        "tsrs/dist/manifest.json"
+      ],
+      "package": {
+        "include": [
+          "tsrs/README.md",
+          "tsrs/host-contract.md",
+          "tsrs/source.json",
+          "tsrs/toolchain.lock.json",
+          "tsrs/bootstrap.py",
+          "tsrs/wasmtime_host.py",
+          "tsrs/typecheck.py",
+          "tsrs/dist"
+        ],
+        "optional": []
+      }
+    },
+    "wizer": {
+      "directory": "wizer",
+      "description": "Pinned adapter for normal Wizer in the approved native Wasmtime host",
+      "version": "50.0.0",
+      "dependencies": [
+        "wasm-tools"
+      ],
+      "runtimeDependencies": [],
+      "bootstrapRequirements": [
+        "Python 3.12+",
+        "External Wasmtime 50.0.0 with Wizer; pinned official binary or Wisp source host receipt"
+      ],
+      "build": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/wizer/bootstrap.py"
+          ]
+        }
+      ],
+      "test": [
+        {
+          "argv": [
+            "{python}",
+            "{root}/wizer/bootstrap.py",
+            "--check"
+          ]
+        },
+        {
+          "argv": [
+            "{python}",
+            "{root}/wizer/verify.py"
+          ]
+        }
+      ],
+      "sourceInputs": [
+        "wizer/toolchain.lock.json",
+        "wizer/host.py",
+        "wizer/bootstrap.py",
+        "wizer/snapshot.py"
+      ],
+      "artifacts": [
+        "wizer/dist/manifest.json"
+      ],
+      "package": {
+        "include": [
+          "wizer/README.md",
+          "wizer/toolchain.lock.json",
+          "wizer/verification.json",
+          "wizer/host-verification.json",
+          "wizer/host.py",
+          "wizer/bootstrap.py",
+          "wizer/snapshot.py",
+          "wizer/dist"
         ],
         "optional": []
       }

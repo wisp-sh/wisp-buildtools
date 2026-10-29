@@ -1,0 +1,41 @@
+{
+  "version": "50.0.0",
+  "binarySha256": "14026ac1ef087f0a027bffd679ddbaa7b5400f7167bff1a0d7dc56e2d1cbfaaa",
+  "binaryBytes": 29421248,
+  "source": {
+    "features": [
+      "run",
+      "cranelift",
+      "component-model-async",
+      "cache",
+      "parallel-compilation",
+      "wat",
+      "threads",
+      "stack-switching",
+      "wizer"
+    ],
+    "rustVersion": "1.99.0",
+    "sha256": "685bfee58e320da926959286d544d7043e5328ad28aa59bca4d306b978bb7b1b",
+    "url": "https://static.crates.io/crates/wasmtime-cli/wasmtime-cli-50.0.0.crate",
+    "version": "50.0.0"
+  },
+  "patchSha256": "b89bdb3b9841e12c230fd54068d7beb87791e1e7bab20425f618eaa9f6938480",
+  "cargoLockSha256": "8e20e98d6c1fb2d924e0241db98ec4217c34a836285ebdfab4c99545e7ab1d66",
+  "smoke": {
+    "externalModuleImport": "wisp-test-provider",
+    "missingProviderRejected": true,
+    "value": 42,
+    "wizerSnapshot": {
+      "initializerRemoved": true,
+      "value": 42
+    }
+  },
+  "buildElapsed": "13m 40s",
+  "resources": {
+    "peakScopeBytes": 2046070784,
+    "minimumAvailableMemoryBytes": 11359698944,
+    "minimumFreeDiskBytes": 11494191104,
+    "stopReason": null,
+    "lastScopeState": "inactive"
+  }
+}
