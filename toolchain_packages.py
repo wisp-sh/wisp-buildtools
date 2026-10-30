@@ -53,6 +53,8 @@ PUBLIC_UPSTREAM_PAYLOADS = {
     "javascript/.toolchains/starlingmonkey/runtime.wasm": "6094cd93d966f9bec9b01332db6e0eedbaf22f60b745c9f823f21e33cbd4d365",
     # Unchanged Temurin 23+37 image; XMLEntityManager contains /space/home/stax test paths.
     "jvm/dist/jdk/lib/modules": "8a476f72d26967ecdd3b02bede4a13306afd56cec2691a184e2c9f9eb4cd3452",
+    # Pinned Binaryen 133 wasm-opt embeds Alpine libstdc++ /home/buildozer paths.
+    "python/dist/provision/wasm-opt": "8f25e9fd5db0fc5f210003aaa432922feb2e52d309e430def2f929e34da9466b",
     "swift/dist/sysroot/swift/lib/swift_static/clang/lib/wasip1/libclang_rt.builtins-wasm32.a": "31ba1b372f2b7244c09424d0f33c51d1493675ace11d15dbc60152c9fb7c82b7",
     "swift/dist/sysroot/swift/lib/swift_static/clang/lib/wasip1/libclang_rt.profile-wasm32.a": "bd9b5e65bc147cac106df2ef963bcf1924d12f7aa8430c610ad0e5a64943bbc6",
     "swift/dist/sysroot/swift/lib/swift_static/wasi/_Differentiation.swiftmodule/wasm32-unknown-wasip1.swiftmodule": "1e0aa705fa1b3fa8afd1373cdbefab810a5ba9ee778a85bb022f13614be2e30c",
@@ -82,7 +84,8 @@ PUBLIC_UPSTREAM_STRINGS = {
 
 def public_upstream_strings(relative):
     values = PUBLIC_UPSTREAM_STRINGS.get(relative, ())
-    if re.fullmatch(r'python/dist/contracts/[a-f0-9]{64}/template.component.wasm', relative):
+    if (relative == 'python/dist/inference.component.wasm'
+            or re.fullmatch(r'python/dist/contracts/[a-f0-9]{64}/template.component.wasm', relative)):
         values += PUBLIC_UPSTREAM_STRINGS['python/dist/template.component.wasm']
     # Pinned Rust stdlib metadata includes this complete env::join_paths
     # documentation example. The trailing byte is rustc's string delimiter.

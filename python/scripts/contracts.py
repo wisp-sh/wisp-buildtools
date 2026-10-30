@@ -96,10 +96,27 @@ def preload_modules(modules):
     return sorted(set(modules))
 
 
-def generate_runtime(bindings: Path, modules=()):
+def generate_runtime(bindings: Path, modules=(), export_contract=None, automatic_modules=()):
     """Read trusted generated protocols, never application source."""
+    error_types = {}
+    def normalize(name):
+        return name.replace('-', '').replace('_', '').lower()
+    for owner, exported in (export_contract or {}).items():
+        if 'functions' in exported and 'types' in exported:
+            protocol = owner.rsplit('/', 1)[-1].split('@')[0]
+            functions = exported['functions']
+        else:
+            protocol = 'WitWorld'
+            functions = exported
+        for name, function in functions.items():
+            result = function.get('result')
+            while isinstance(result, dict) and 'type' in result.get('kind', {}):
+                result = result['kind']['type']
+            if isinstance(result, dict) and 'result' in result.get('kind', {}):
+                error_types[normalize(protocol), python_name(name)] = result['kind']['result']['err']
     methods = []
     classes = []
+    binding_types = []
     for module, base in [('wit_world', 'wit_world'), ('wit_world.exports', 'exports')]:
         path = bindings.joinpath(*module.split('.'), '__init__.py')
         if not path.is_file():
@@ -121,6 +138,10 @@ def generate_runtime(bindings: Path, modules=()):
                     continue
                 names = [arg.arg for arg in function.args.args[1:]]
                 methods.append((declaration.name, function.name, len(names)))
+                if (normalize(declaration.name), function.name) in error_types:
+                    error = error_types[normalize(declaration.name), function.name]
+                    binding_types.append(f"ERROR_TYPES[{(declaration.name, function.name)!r}] = {error!r}\n")
+                binding_types.append(f"BINDINGS[{(declaration.name, function.name)!r}] = {base}.{declaration.name}.{function.name}\n")
                 arguments = ', '.join(['self', *names])
                 values = ', '.join(names)
                 body.append(f'    def {function.name}({arguments}):\n'
@@ -131,4 +152,9 @@ def generate_runtime(bindings: Path, modules=()):
     if not (bindings / 'wit_world/exports/__init__.py').is_file():
         runtime = runtime.replace('from wit_world import exports\n', '')
     imports = ''.join(f'import {module}\n' for module in preload_modules(modules))
-    return runtime.replace('EXPORTS = []', 'EXPORTS = ' + repr(methods)) + '\n\n' + imports + '\n\n'.join(classes)
+    automatic = preload_modules(automatic_modules)
+    if automatic:
+        imports += ('for __wisp_stdlib in ' + repr(automatic) + ':\n'
+                    '    try:\n        __import__(__wisp_stdlib)\n'
+                    '    except Exception:\n        pass\n')
+    return runtime.replace('EXPORTS = []', 'EXPORTS = ' + repr(methods)) + '\n\n' + imports + ''.join(binding_types) + '\n\n'.join(classes)

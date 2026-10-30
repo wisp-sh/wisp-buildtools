@@ -1,4 +1,5 @@
 """The user program is parsed, compiled and executed only by guest CPython."""
+from inference import infer_json
 import collections
 import functools
 import itertools
@@ -7,6 +8,7 @@ import math
 import re
 import sys
 from componentize_py_types import Err
+import wit_world
 from wit_world import exports
 from wit_world.imports import source
 
@@ -34,6 +36,11 @@ def load_program():
         _module = namespace
         _entry = entry
     return _module
+
+
+class WitWorld(wit_world.WitWorld):
+    def infer(self) -> str:
+        return infer_json(json.loads(source.get())['source'])
 
 
 class Api(exports.Api):

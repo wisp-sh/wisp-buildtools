@@ -65,12 +65,12 @@ class ContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'resources'):
             contract(value, 'library')
 
-    def runtime(self, source_text):
+    def runtime(self, source_text, inferred=False):
         namespace = {}
         world = types.ModuleType('wit_world')
         exports = types.ModuleType('wit_world.exports')
         imports = types.ModuleType('wit_world.imports')
-        source = types.SimpleNamespace(get=lambda: json.dumps({'source': source_text}))
+        source = types.SimpleNamespace(get=lambda: json.dumps({'source': source_text, 'entry': '__wisp_inferred__' if inferred else ''}))
         imports.source = source
         world.exports = exports
         errors = types.ModuleType('componentize_py_types')
@@ -97,6 +97,23 @@ def total(values):
         self.assertEqual('Hello, x! 2', runtime['_call']('Api', 'greet', 'x'))
         self.assertEqual(42, runtime['_call']('Api', 'total', [20, 22]))
 
+    def test_normalized_inferred_names_keep_the_original_python_function(self):
+        runtime, _ = self.runtime('def greetPerson(name): return name + "!"\ndef answer_(): return 42', inferred=True)
+        runtime['EXPORTS'] = [('Api', 'greet_person', 1), ('Api', 'answer', 0)]
+        self.assertEqual(runtime['_call']('Api', 'greet_person', 'x'), 'x!')
+        self.assertEqual(runtime['_call']('Api', 'answer'), 42)
+
+    def test_inferred_export_map_preserves_reexports_and_keyword_names(self):
+        runtime, _ = self.runtime('''def original(name): return name + "!"
+original.__module__ = 'another_module'
+helloWorld = original
+def import_(): return 42
+__wisp_export_names__ = {'hello_world': 'helloWorld', 'import_': 'import_'}
+''', inferred=True)
+        runtime['EXPORTS'] = [('Api', 'hello_world', 1), ('Api', 'import_', 0)]
+        self.assertEqual(runtime['_call']('Api', 'hello_world', 'x'), 'x!')
+        self.assertEqual(runtime['_call']('Api', 'import_'), 42)
+
     def test_interface_classes_preserve_instance_state(self):
         runtime, _ = self.runtime('''class Api:
     def __init__(self): self.calls = 0
@@ -107,6 +124,17 @@ def total(values):
 ''')
         self.assertEqual('1', runtime['_call']('Api', 'greet', 'x'))
         self.assertEqual('2', runtime['_call']('Api', 'greet', 'x'))
+
+    def test_authored_classes_keep_precedence_and_inference_selects_top_level_functions(self):
+        source = '''def greet(name): return "global " + name
+def total(values): return sum(values)
+class Api:
+    def greet(self, name): return "class " + name
+'''
+        authored, _ = self.runtime(source)
+        inferred, _ = self.runtime(source, inferred=True)
+        self.assertEqual(authored['_call']('Api', 'greet', 'x'), 'class x')
+        self.assertEqual(inferred['_call']('Api', 'greet', 'x'), 'global x')
 
     def test_invalid_sources_fail_before_any_export_is_cached(self):
         sources = ['def broken(: pass', 'raise ValueError("broken")',
@@ -174,7 +202,7 @@ def total(values):
             for name in required:
                 (destination / name).write_bytes(b'fixture')
             manifest = {'schema': 1, 'contractSha256': key, 'exports': exports,
-                        'componentizePy': bootstrapper.LOCK['componentize_py'], 'sourceModules': 1,
+                        'componentizePy': bootstrapper.LOCK['componentize_py'], 'sourceModules': 2,
                         'preloadModules': ['html.parser', 'logging'],
                         'sha256': {name: bootstrapper.digest(destination / name) for name in required}}
             (destination / 'manifest.json').write_text(json.dumps(manifest))
@@ -222,7 +250,7 @@ class TemplateInventoryTests(unittest.TestCase):
             inventory[name] = compiler.digest(path)
         self.manifest = {'schema': 1, 'contractSha256': key, 'exports': exports,
                          'componentizePy': compiler.LOCK['componentize_py'],
-                         'sourceModules': 1, 'sha256': inventory}
+                         'sourceModules': 2, 'sha256': inventory}
         self.args = types.SimpleNamespace(entry='add', world='library', wit=self.wit,
                                           package_root=None, python_path=[], timeout=1)
 
@@ -254,14 +282,85 @@ class TemplateInventoryTests(unittest.TestCase):
         self.reject('checksum mismatch: ../outside')
 
     def test_unknown_loader_version_is_rejected(self):
-        self.manifest['sourceModules'] = 2
+        self.manifest['sourceModules'] = 999
         self.reject('unsupported Python template source-loader version')
 
-    def test_legacy_templates_require_rebuild_for_package_roots(self):
+    def test_legacy_template_inventory_is_readable_for_automatic_upgrade(self):
         del self.manifest['sourceModules']
-        self.args.package_root = self.root
-        self.reject('template lacks package imports')
+        (self.package / 'manifest.json').write_text(json.dumps(self.manifest))
+        key, exports = contract(document(), 'library')
+        self.assertIsNone(compiler.verify_template(self.package, key, exports).get('sourceModules'))
 
+
+
+class RuntimeConversionTests(unittest.TestCase):
+    def test_nested_dataclasses_lists_options_and_enum_values(self):
+        import dataclasses
+        import enum
+        import typing
+        @dataclasses.dataclass
+        class User:
+            firstName: str
+        @dataclasses.dataclass
+        class Wire:
+            first_name: str
+        class UserColor(enum.Enum):
+            DARK_BLUE = 'blue'
+        class WireColor(enum.Enum):
+            DARK_BLUE = 0
+        runtime, _ = ContractTests().runtime('def greet(name): return name\ndef total(values): return sum(values)')
+        convert = runtime['_convert']
+        converted = convert([Wire('世界')], list[User])
+        self.assertEqual(converted, [User('世界')])
+        self.assertEqual(convert(User('x'), Wire), Wire('x'))
+        self.assertIs(convert(WireColor.DARK_BLUE, UserColor), UserColor.DARK_BLUE)
+        self.assertIs(convert(UserColor.DARK_BLUE, WireColor), WireColor.DARK_BLUE)
+        self.assertIsNone(convert(None, typing.Optional[User]))
+        self.assertEqual(convert([1, 2], bytes), b'\x01\x02')
+
+    def test_dispatch_converts_plain_records_and_typed_enum_errors(self):
+        import dataclasses
+        import enum
+        @dataclasses.dataclass
+        class User:
+            value: int
+        @dataclasses.dataclass
+        class Wire:
+            value: int
+        def implementation(value: User) -> User:
+            self.assertIsInstance(value, User)
+            return User(value.value + 1)
+        def binding(value: Wire) -> Wire:
+            pass
+        runtime, _ = ContractTests().runtime('')
+        runtime['_functions'] = {('Api', 'call'): implementation}
+        runtime['BINDINGS'] = {('Api', 'call'): binding}
+        self.assertEqual(runtime['_call']('Api', 'call', Wire(41)), Wire(42))
+        UserStatus = enum.Enum('Status', {'FAILED': 'failed'})
+        WireStatus = enum.Enum('Status', {'FAILED': 0})
+        generated = types.ModuleType('wit_world.exports.api')
+        generated.Status = WireStatus
+        class Err(Exception):
+            def __init__(self, value):
+                self.value = value
+        def failure(value: int) -> int:
+            raise Err(UserStatus.FAILED)
+        runtime['Err'] = Err
+        runtime['_functions'][('Api', 'call')] = failure
+        with patch.dict(binding.__globals__, {'_generated_test_types': generated}):
+            with self.assertRaises(Err) as caught:
+                runtime['_call']('Api', 'call', 1)
+        self.assertIs(caught.exception.value, WireStatus.FAILED)
+
+        runtime['ERROR_TYPES'][('Api', 'call')] = {'kind': {'list': {
+            'name': 'status', 'kind': {'enum': {'cases': []}}}}}
+        def failures(value: int) -> int:
+            raise Err([UserStatus.FAILED])
+        runtime['_functions'][('Api', 'call')] = failures
+        with patch.dict(binding.__globals__, {'_generated_test_types': generated}):
+            with self.assertRaises(Err) as caught:
+                runtime['_call']('Api', 'call', 1)
+        self.assertEqual(caught.exception.value, [WireStatus.FAILED])
 
 if __name__ == '__main__':
     unittest.main()

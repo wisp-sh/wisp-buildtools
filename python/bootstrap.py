@@ -28,11 +28,14 @@ def optimizer_cache_key(payload: bytes, optimizer: Path) -> str:
     return hashlib.sha256(json.dumps(configuration, sort_keys=True).encode()).hexdigest()
 
 
-def install_componentize_py() -> Path:
+def install_componentize_py(cache=None, *, offline=False) -> Path:
     specification = LOCK["componentize_py"]
-    archive = ROOT / ".downloads" / specification["filename"]
-    archive.parent.mkdir(exist_ok=True)
+    archive = (ROOT / "dist/provision" if offline else ROOT / ".downloads") / specification["filename"]
+    if not offline:
+        archive.parent.mkdir(exist_ok=True)
     if not archive.exists():
+        if offline:
+            raise ValueError("installed Python package lacks the pinned provisioning wheel; reinstall the toolchain")
         with tempfile.NamedTemporaryFile(dir=archive.parent, delete=False) as output:
             temporary = Path(output.name)
             try:
@@ -46,11 +49,11 @@ def install_componentize_py() -> Path:
                 temporary.unlink(missing_ok=True)
     if digest(archive) != specification["sha256"]:
         raise ValueError(f"SHA-256 mismatch: {archive}")
-    target = ROOT / ".toolchains/componentize-py"
+    target = (cache or ROOT / ".toolchains") / "componentize-py"
     # Extract the verified wheel again, rather than trusting a cached native .so.
     if target.exists():
         shutil.rmtree(target)
-    target.mkdir(parents=True)
+    target.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(archive) as source:
         for entry in source.infolist():
             if not (target / entry.filename).resolve().is_relative_to(target.resolve()):
@@ -62,12 +65,13 @@ def install_componentize_py() -> Path:
 def optimizer_environment(binary: Path) -> dict:
     environment = dict(os.environ)
     environment["BINARYEN_CORES"] = os.environ.get("BINARYEN_CORES", "1")
+    environment["LD_LIBRARY_PATH"] = str(ROOT / "dist/provision")
     return environment
 
 
-def optimize_runtime(data: bytes, work: Path, optimizer: Path) -> bytes:
-    cache = ROOT / ".toolchains/optimized-cores"
-    cache.mkdir(exist_ok=True)
+def optimize_runtime(data: bytes, work: Path, optimizer: Path, cache=None) -> bytes:
+    cache = (cache or ROOT / ".toolchains") / "optimized-cores"
+    cache.mkdir(parents=True, exist_ok=True)
     environment = optimizer_environment(optimizer)
 
     def rewrite(component):
@@ -101,6 +105,7 @@ def optimize_runtime(data: bytes, work: Path, optimizer: Path) -> bytes:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--cargo", default="cargo", help="direct Cargo executable for package bootstrap")
     parser.add_argument("--force", action="store_true", help="rebuild even when the package is valid")
     args = parser.parse_args()
     run([sys.executable, ROOT.parent / "wasm-tools/bootstrap.py"])
@@ -121,7 +126,7 @@ def main():
         environment = dict(os.environ)
         environment["PYTHONPATH"] = str(installed)
         environment.pop("VIRTUAL_ENV", None)
-        run([sys.executable, "-c", "import componentize_py; componentize_py.script()",
+        run([sys.executable, "-P", "-c", "import componentize_py; componentize_py.script()",
              "-d", ROOT / "wit", "-w", "python-runtime", "componentize",
              "-p", ROOT / "runtime", "app", "-o", runtime], env=environment)
         runtime.write_bytes(optimize_runtime(runtime.read_bytes(), work, tools["wasm-opt"]))
@@ -138,12 +143,28 @@ def main():
         encoded = cargo_environment.get("CARGO_ENCODED_RUSTFLAGS")
         flags = encoded.split("\x1f") if encoded else shlex.split(cargo_environment.get("RUSTFLAGS", ""))
         cargo_environment["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join([*flags, *remaps])
-        run(["cargo", "build", "--manifest-path", ROOT / "packager/Cargo.toml",
-             "--locked", "--release", "--target", "wasm32-wasip1"], timeout=600, env=cargo_environment)
+        run([args.cargo, "build", "--manifest-path", ROOT / "packager/Cargo.toml",
+             "--locked", "--release", "--target", "wasm32-wasip1", "-j", "1"], timeout=600, env=cargo_environment)
+        run([args.cargo, "build", "--manifest-path", ROOT / "contract-packager/Cargo.toml",
+             "--locked", "--offline", "--release", "--target", "wasm32-wasip1", "-j", "1"],
+            env=dict(cargo_environment, CARGO_TARGET_DIR=str(work / "contract-target")))
+        shutil.copyfile(work / "contract-target/wasm32-wasip1/release/wisp-python-public-exports.wasm",
+                        staging / "public-exports.wasm")
+        provision = staging / "provision"
+        provision.mkdir()
+        shutil.copyfile(ROOT / ".downloads" / LOCK["componentize_py"]["filename"],
+                        provision / LOCK["componentize_py"]["filename"])
+        for name in ("wasm-tools", "wasm-opt", "wac"):
+            shutil.copy2(tools[name], provision / name)
+        # Binaryen's shared library is shipped beside the pinned executable.
+        binaryen_lib = tools["wasm-opt"].parent.parent / "lib/libbinaryen.so"
+        if binaryen_lib.is_file():
+            shutil.copy2(binaryen_lib, provision / "libbinaryen.so")
         shutil.copyfile(ROOT / "packager/target/wasm32-wasip1/release/wisp-python-packager.wasm",
                         staging / "python-packager.wasm")
         template = staging / "template.component.wasm"
         run([tools["wac"], "plug", runtime, "--plug", provider, "-o", template])
+        shutil.copyfile(template, staging / "inference.component.wasm")
         template.write_bytes(public_component(template.read_bytes()))
         run([tools["wasm-tools"], "validate", template])
         if template.read_bytes()[:8] != COMPONENT_HEADER:
@@ -152,6 +173,12 @@ def main():
             raise ValueError(f"Python Component exceeds Wisp's 64 MiB limit: {template.stat().st_size} bytes")
         if invoke(template, "validate()") != "ok" or invoke(template, "add(20, 22)") != "42":
             raise ValueError("bootstrapped Python Component failed its guest smoke check")
+        inference = staging / "inference.component.wasm"
+        if inference.stat().st_size > MAX_COMPONENT_BYTES:
+            raise ValueError("Python inference Component exceeds the 64 MiB limit")
+        inferred = json.loads(json.loads(invoke(inference, "infer()")))
+        if 'error' in inferred or '%add: func(' not in inferred.get('declarations', ''):
+            raise ValueError(f"bootstrapped guest Python inference failed: {inferred}")
         runtime_info = invoke(template, "runtime-info()")
         shutil.copy2(ROOT / "wit/runtime.wit", staging / "runtime.wit")
         shutil.copytree(ROOT / "runtime", staging / "runtime", ignore=shutil.ignore_patterns("__pycache__"))
@@ -166,8 +193,9 @@ def main():
         files = {str(p.relative_to(staging)): digest(p) for p in sorted(staging.rglob("*")) if p.is_file()}
         manifest = {"schema": 1, "language": "python", "bootstrap": LOCK,
                     "inputs": {name: digest(ROOT / name) for name in
-                               ("bootstrap.py", "scripts/wasm.py", "runtime/app.py", "wit/runtime.wit",
-                                "packager/Cargo.toml", "packager/Cargo.lock", "packager/src/main.rs")},
+                               ("bootstrap.py", "scripts/wasm.py", "runtime/app.py", "runtime/inference.py", "wit/runtime.wit",
+                                "packager/Cargo.toml", "packager/Cargo.lock", "packager/src/main.rs",
+                                "contract-packager/Cargo.toml", "contract-packager/Cargo.lock", "contract-packager/src/main.rs")},
                     "compiler_host": "wasm32, guest CPython builtins.compile",
                     "fullyWasmHostedBuild": True,
                     "packager_host": "wasm32-wasip1",
