@@ -24,6 +24,14 @@ Native Java 21 extracts the JDK image and compiles a small verification fixture.
 `--offline` uses cached verified archives; `--rebuild` repeats the derivation.
 Bootstrap tools stay outside the runtime package.
 
+Archive acquisition makes at most two attempts per locked URL. zlib may fall back
+to the official `zlib.net/fossils` archive with the same size and SHA-256 pin.
+Failed responses report their HTTP metadata, received byte count and hash; they
+never replace a cached archive. Downloads stop one byte beyond the pinned size.
+`python3 jvm/test_bootstrap.py` from the repository root checks these failure paths
+without downloads or compiler execution. Set `WISP_TEST_JVM_DOWNLOADS=1` to also
+check both official zlib locations with fresh temporary files.
+
 The interpreter dispatch uses Wasm tail calls. Only `interpreter2.c` is compiled
 with `-mtail-call`; enabling that option across all VM files broke bootstrap
 helper calls in verification. The final link also enables tail
