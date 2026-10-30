@@ -1609,7 +1609,9 @@
         "ocaml/toolchain.lock.json",
         "ocaml/examples",
         "ocaml/dist",
-        "ocaml/licenses"
+        "ocaml/licenses",
+        "ocaml/contracts.py",
+        "ocaml/bindings.py"
       ],
       "optional": [],
       "exclude": [],
