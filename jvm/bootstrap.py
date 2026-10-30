@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import http.client
 import json
 import os
 from pathlib import Path
@@ -12,6 +13,8 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
+import urllib.error
 import urllib.request
 import zipfile
 
@@ -21,24 +24,58 @@ CACHE = ROOT / ".cache"
 
 
 def fetch(item, target, offline):
+    size = item.get("bytes", item.get("size"))
+    if not isinstance(size, int) or size <= 0:
+        raise ValueError(f"bootstrap input needs a positive pinned size: {target.name}")
     target.parent.mkdir(parents=True, exist_ok=True)
-    if target.is_file() and digest(target) == item["sha256"]:
+    if target.is_file() and target.stat().st_size == size and digest(target) == item["sha256"]:
         return target
     if offline:
         raise ValueError(f"missing or changed bootstrap input: {target}")
-    with tempfile.NamedTemporaryFile(prefix=".download-", dir=target.parent, delete=False) as output:
-        temporary = Path(output.name)
-        try:
-            with urllib.request.urlopen(item["url"], timeout=120) as response:
-                shutil.copyfileobj(response, output)
-            output.close()
-            size = item.get("bytes", item.get("size"))
-            if digest(temporary) != item["sha256"] or (size and temporary.stat().st_size != size):
-                raise ValueError(f"bootstrap input checksum mismatch: {target.name}")
-            temporary.replace(target)
-        finally:
-            temporary.unlink(missing_ok=True)
-    return target
+    failures = []
+    for url in [item["url"], *item.get("mirrors", [])]:
+        for attempt in range(1, 3):
+            with tempfile.NamedTemporaryFile(prefix=".download-", dir=target.parent, delete=False) as output:
+                temporary = Path(output.name)
+                received = 0
+                checksum = hashlib.sha256()
+                metadata = "response unavailable"
+                try:
+                    with urllib.request.urlopen(url, timeout=120) as response:
+                        metadata = (f"status={response.status} "
+                                    f"content-type={response.headers.get('Content-Type')!r} "
+                                    f"content-length={response.headers.get('Content-Length')!r}")
+                        # Stop at one byte beyond the pin, even for an unbounded error body.
+                        while block := response.read(min(65536, size + 1 - received)):
+                            received += len(block)
+                            checksum.update(block)
+                            output.write(block)
+                            if received > size:
+                                break
+                    if received != size or checksum.hexdigest() != item["sha256"]:
+                        raise ValueError("bootstrap input checksum mismatch")
+                    output.close()
+                    temporary.replace(target)
+                    print(f"Verified bootstrap input {target.name}: url={url} "
+                          f"bytes={received} sha256={checksum.hexdigest()}", flush=True)
+                    return target
+                except (urllib.error.URLError, TimeoutError, ConnectionError,
+                        http.client.HTTPException, ValueError) as error:
+                    if isinstance(error, urllib.error.HTTPError):
+                        metadata = f"status={error.code}"
+                        error.close()
+                    detail = (f"{target.name}: url={url} attempt={attempt}/2 {metadata} "
+                              f"receivedBytes={received} receivedSha256={checksum.hexdigest()} "
+                              f"expectedBytes={size} expectedSha256={item['sha256']} "
+                              f"error={type(error).__name__}: {error}")
+                    failures.append(detail)
+                    print(f"Bootstrap download rejected: {detail}", file=sys.stderr, flush=True)
+                finally:
+                    output.close()
+                    temporary.unlink(missing_ok=True)
+            if attempt == 1:
+                time.sleep(1)
+    raise ValueError("no verified bootstrap input after bounded attempts: " + "\n".join(failures))
 
 
 def run(arguments, **kwargs):
