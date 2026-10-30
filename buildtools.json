@@ -534,6 +534,12 @@
         {
           "argv": [
             "{python}",
+            "{root}/python/verify_inferred.py"
+          ]
+        },
+        {
+          "argv": [
+            "{python}",
             "{root}/python/bootstrap_contract.py",
             "--wit",
             "{root}/python/examples/library/library.wit",
@@ -585,6 +591,8 @@
       ],
       "artifacts": [
         "python/dist/template.component.wasm",
+        "python/dist/inference.component.wasm",
+        "python/dist/public-exports.wasm",
         "python/dist/python-packager.wasm",
         "python/dist/manifest.json"
       ],
@@ -595,10 +603,16 @@
           "python/LICENSE.python",
           "python/bootstrap.py",
           "python/compile.py",
+          "python/compile_contract.py",
+          "python/infer.py",
+          "python/bootstrap_contract.py",
           "python/scripts",
           "python/packager/Cargo.toml",
           "python/packager/Cargo.lock",
           "python/packager/src",
+          "python/contract-packager/Cargo.toml",
+          "python/contract-packager/Cargo.lock",
+          "python/contract-packager/src",
           "python/toolchain.lock.json",
           "python/dist",
           "python/runtime",

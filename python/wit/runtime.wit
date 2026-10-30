@@ -13,4 +13,5 @@ interface api {
 world python-runtime {
   import source;
   export api;
+  export infer: func() -> string;
 }

@@ -1,6 +1,9 @@
 """Source-bundle checks using host Python only as a guest-runtime test double."""
 from contextlib import contextmanager
 import json
+import builtins
+import io
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -28,7 +31,11 @@ class SourceBundleTests(unittest.TestCase):
 
     @contextmanager
     def execute(self, payload):
-        with patch.dict(sys.modules), patch.object(sys, 'meta_path', list(sys.meta_path)):
+        with patch.dict(sys.modules), patch.object(sys, 'meta_path', list(sys.meta_path)), \
+                patch.object(builtins, 'open', builtins.open), patch.object(io, 'open', io.open), \
+                patch.object(os, 'stat', os.stat), patch.object(os, 'lstat', os.lstat), \
+                patch.object(os, 'listdir', os.listdir), patch.object(os, 'scandir', os.scandir), \
+                patch.object(os, 'access', os.access):
             namespace = {}
             exec(compile(payload, '<bundle-test>', 'exec'), namespace)
             yield namespace
@@ -150,7 +157,7 @@ class SourceBundleTests(unittest.TestCase):
 
     def test_source_and_emitted_bundle_limits(self):
         # Exercise both boundaries without allocating MiB-sized fixtures.
-        with patch('scripts.source_bundle.MAX_SOURCE_BYTES', 4096):
+        with patch('scripts.source_bundle.MAX_SOURCE_BYTES', 4096), patch('scripts.source_bundle.MAX_PROGRAM_BYTES', 4096):
             entry = self.write('main.py', 'x' * 4097)
             with self.assertRaisesRegex(ValueError, 'aggregate source limit'):
                 bundle(entry)
@@ -174,6 +181,56 @@ class SourceBundleTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'inside --package-root'):
             bundle(entry, other)
 
+
+class ResourceTests(unittest.TestCase):
+    setUp = SourceBundleTests.setUp
+    write = SourceBundleTests.write
+    execute = SourceBundleTests.execute
+    def test_resources_pkgutil_pathlib_and_read_only_file_access(self):
+        self.write('resource_pkg/__init__.py', '')
+        self.write('resource_pkg/assets/schema.json', '{"answer":42}')
+        entry = self.write('main.py', '''from importlib.resources import files, as_file
+from pathlib import Path
+import pkgutil
+import resource_pkg
+def answer():
+    resource = files(resource_pkg) / 'assets' / 'schema.json'
+    assert resource.is_file()
+    assert [p.name for p in resource.parent.iterdir()] == ['schema.json']
+    assert pkgutil.get_data('resource_pkg', 'assets/schema.json') == b'{"answer":42}'
+    with as_file(resource) as path:
+        assert path.resolve(strict=True).read_text() == '{"answer":42}'
+    return Path(resource_pkg.__file__).parent.joinpath('assets/schema.json').read_bytes()
+''')
+        payload, details = bundle(entry)
+        with self.execute(payload) as module:
+            self.assertEqual(module['answer'](), b'{"answer":42}')
+            with self.assertRaises(PermissionError):
+                open('/__wisp__/resource_pkg/assets/schema.json', 'w')
+        self.assertEqual(details['dataFileCount'], 1)
+
+    def test_wheel_distribution_metadata_is_available_without_host_installation(self):
+        self.write('demo_pkg/__init__.py', '')
+        self.write('demo_pkg-1.2.dist-info/METADATA', 'Name: demo-pkg\nVersion: 1.2\n')
+        entry = self.write('main.py', 'from importlib.metadata import version\ndef api(): return version("demo-pkg")')
+        payload, _ = bundle(entry)
+        with self.execute(payload) as module:
+            self.assertEqual(module['api'](), '1.2')
+
+    def test_namespace_package_resources_are_available(self):
+        entry = self.write('main.py', 'from importlib.resources import files\nimport team\ndef api(): return (files(team)/"data.txt").read_text()')
+        self.write('team/one.py', '')
+        self.write('team/data.txt', 'namespace data')
+        payload, _ = bundle(entry)
+        with self.execute(payload) as module:
+            self.assertEqual(module['api'](), 'namespace data')
+
+    def test_bundle_larger_than_old_limit_is_supported(self):
+        entry = self.write('main.py', 'def api(): return 42\n')
+        self.write('data.bin', 'x' * (1024 * 1024 + 17))
+        payload, details = bundle(entry)
+        self.assertGreater(details['sourceBytes'], 1024 * 1024)
+        self.assertGreater(len(payload), 1024 * 1024)
 
 if __name__ == '__main__':
     unittest.main()

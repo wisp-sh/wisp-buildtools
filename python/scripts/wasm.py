@@ -100,8 +100,8 @@ def public_component(component):
                 length, position = read_uleb(payload, position + 1)
                 exported = payload[position:position + length].decode('utf-8')
                 position += length
-                if payload[position] != 5:
-                    raise ValueError('expected an exported Component instance')
+                if payload[position] not in (1, 5):
+                    raise ValueError('expected an exported Component function or instance')
                 _, position = read_uleb(payload, position + 1)
                 if payload[position] != 0:
                     raise ValueError('unexpected explicit export type in composed runtime')

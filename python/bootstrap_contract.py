@@ -2,7 +2,7 @@
 """Provision a reusable Python compiler template for an authored WIT world.
 
 This bootstrap reads contracts and generated bindings, never application source.
-Normal builds require no native componentize-py, Cargo, Binaryen or WAC.
+Automatic provisioning receives only WIT, never application source.
 """
 from __future__ import annotations
 
@@ -54,14 +54,18 @@ def public_template(component, allowed):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--cache-dir', type=Path, help='contract cache directory, separate from the installed toolchain')
+    parser.add_argument('--offline', action='store_true', help='use only bundled, pinned provisioning tools')
     parser.add_argument('--wit', required=True, type=Path)
     parser.add_argument('--world', required=True)
+    parser.add_argument('--auto-preload-module', action='append', default=[], help='attempt a statically discovered stdlib import in guest CPython')
     parser.add_argument('--preload-module', action='append', default=[], metavar='MODULE',
                         help='import a stdlib module into the template during provisioning; repeatable')
-    parser.add_argument('--cargo', default='cargo', help='direct Cargo executable, used only for bootstrap')
+    parser.add_argument('--cargo', default='cargo', help='deprecated; export helper is supplied by the base package')
     parser.add_argument('--rebuild', action='store_true', help='atomically replace an existing contract template')
     args = parser.parse_args()
     modules = preload_modules(args.preload_module)
+    automatic = preload_modules(args.auto_preload_module)
     if not verified_package(ROOT / 'dist'):
         raise ValueError('provision the base Python toolchain with bootstrap.py first')
     tools = {key: tool(key) for key in ('wasm-tools', 'wasm-opt', 'wac')}
@@ -76,14 +80,16 @@ def main():
     package = document['packages'][world['package']]['name']
     identity, separator, version = package.partition('@')
     selected = identity + '/' + args.world + (separator + version if separator else '')
-    destination = ROOT / 'dist/contracts' / key
+    destination = (args.cache_dir or ROOT / 'dist/contracts') / key
+    destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.exists() and not args.rebuild:
         manifest = json.loads((destination / 'manifest.json').read_text())
         valid = (manifest.get('schema') == 1 and manifest.get('contractSha256') == key
                  and manifest.get('exports') == exports
                  and manifest.get('componentizePy') == LOCK['componentize_py']
                  and manifest.get('sourceModules') == LOADER_VERSION
-                 and manifest.get('preloadModules', []) == modules)
+                 and manifest.get('preloadModules', []) == modules
+                 and manifest.get('automaticPreloads', []) == automatic)
         for name, expected in manifest.get('bootstrapInputs', {}).items():
             path = ROOT / name
             valid = valid and path.resolve().is_relative_to(ROOT.resolve()) and path.is_file() and digest(path) == expected
@@ -94,12 +100,14 @@ def main():
             print(f'Python contract template ready: {destination}')
             return
         raise ValueError(f'existing template differs; use --rebuild to replace it atomically: {destination}')
-    installed = bootstrap.install_componentize_py()
-    environment = dict(os.environ, PYTHONPATH=str(installed), BINARYEN_CORES='1',
+    environment = dict(os.environ, PYTHONSAFEPATH="1", BINARYEN_CORES='1',
                        RAYON_NUM_THREADS='1', TOKIO_WORKER_THREADS='1', CARGO_BUILD_JOBS='1')
     environment.pop('VIRTUAL_ENV', None)
-    with tempfile.TemporaryDirectory(prefix='.contract-bootstrap-', dir=ROOT) as directory:
+    with tempfile.TemporaryDirectory(prefix='.contract-bootstrap-', dir=destination.parent) as directory:
         work = Path(directory)
+        installed = bootstrap.install_componentize_py(work, offline=args.offline)
+        environment['PYTHONPATH'] = str(installed)
+        environment['LD_LIBRARY_PATH'] = str(ROOT / 'dist/provision')
         dependencies = work / 'wit/deps'
         dependencies.mkdir(parents=True)
         # Preserve the complete dependency graph in individual package documents.
@@ -109,17 +117,17 @@ def main():
             'package wisp:python-contract@0.1.0;\nworld runtime {\n'
             f'  include {selected};\n  import wisp:python/source@0.1.0;\n'
             f'  export {CONTROL}: func() -> result<_, string>;\n}}\n')
-        command = [sys.executable, '-c', 'import componentize_py; componentize_py.script()',
+        command = [sys.executable, '-P', '-c', 'import componentize_py; componentize_py.script()',
                    '-d', work / 'wit', '-w', 'runtime']
         bindings = work / 'bindings'
-        run([*command, 'bindings', bindings], env=environment)
+        run([*command, 'bindings', bindings], env=environment, cwd=work)
         app = work / 'app'
         app.mkdir()
-        runtime_source = generate_runtime(bindings, modules)
+        runtime_source = generate_runtime(bindings, modules, exports, automatic)
         (app / '_wisp_runtime.py').write_text(runtime_source)
         runtime = work / 'runtime.wasm'
-        run([*command, 'componentize', '-p', app, '_wisp_runtime', '-o', runtime], env=environment, timeout=600)
-        runtime.write_bytes(bootstrap.optimize_runtime(runtime.read_bytes(), work, tools['wasm-opt']))
+        run([*command, 'componentize', '-p', app, '_wisp_runtime', '-o', runtime], env=environment, timeout=600, cwd=work)
+        runtime.write_bytes(bootstrap.optimize_runtime(runtime.read_bytes(), work, tools['wasm-opt'], cache=work))
         provider = work / 'source.wasm'
         provider.write_bytes(source_component(b'# application source is supplied at build time\n', ''))
         staged = work / 'package'
@@ -130,14 +138,7 @@ def main():
         if template.stat().st_size > MAX_COMPONENT_BYTES:
             raise ValueError(f'Python template exceeds the 64 MiB admission limit: {template.stat().st_size}')
         run([tools['wasm-tools'], 'validate', template])
-        # Build only this tiny, dependency-free WASI tool, with one compiler worker.
-        cargo_environment = dict(environment, CARGO_TARGET_DIR=str(work / 'cargo-target'))
-        remap = f'--remap-path-prefix={Path.home().resolve()}=/build-user'
-        cargo_environment['CARGO_ENCODED_RUSTFLAGS'] = remap
-        run([args.cargo, 'build', '--manifest-path', ROOT / 'contract-packager/Cargo.toml',
-             '--locked', '--offline', '--release', '--target', 'wasm32-wasip1', '-j', '1'], env=cargo_environment)
-        shutil.copyfile(work / 'cargo-target/wasm32-wasip1/release/wisp-python-public-exports.wasm',
-                        staged / 'public-exports.wasm')
+        shutil.copyfile(ROOT / 'dist/public-exports.wasm', staged / 'public-exports.wasm')
         shutil.copyfile(ROOT / 'dist/python-packager.wasm', staged / 'python-packager.wasm')
         shutil.copytree(bindings / 'wit_world', staged / 'wit_world')
         shutil.copyfile(bindings / 'componentize_py_types.py', staged / 'componentize_py_types.py')
@@ -145,10 +146,10 @@ def main():
         (staged / 'runtime.py').write_text(runtime_source)
         manifest = {'schema': 1, 'contractSha256': key, 'exports': exports,
                     'componentizePy': LOCK['componentize_py'], 'sourceModules': LOADER_VERSION,
-                    'preloadModules': modules,
+                    'preloadModules': modules, 'automaticPreloads': automatic,
                     'bootstrapInputs': {p: digest(ROOT / p) for p in
                                         ('bootstrap_contract.py', 'scripts/contracts.py', 'scripts/runtime_contract.py',
-                                         'contract-packager/src/main.rs', 'toolchain.lock.json')},
+                                         'scripts/source_loader.py', 'scripts/source_bundle.py', 'toolchain.lock.json')},
                     'sha256': {str(path.relative_to(staged)): digest(path) for path in sorted(staged.rglob('*')) if path.is_file()}}
         (staged / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
         destination.parent.mkdir(parents=True, exist_ok=True)
