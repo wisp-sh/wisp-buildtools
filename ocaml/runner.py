@@ -17,17 +17,14 @@ def digest(path: Path) -> str:
 
 
 def runtime(*, backend: bool = False) -> Path:
-    if selected := os.environ.get('WISP_WORKER') or shutil.which('wisp-worker'):
-        resolved = shutil.which(selected)
-        if not resolved:
-            raise ValueError('Configured WISP_WORKER is unavailable.')
-        return Path(resolved)
-    name = os.environ.get('WISP_WASMTIME', 'wasmtime') if backend else (
+    configured = os.environ.get('WISP_WORKER')
+    name = configured or (os.environ.get('WISP_WASMTIME') if backend else (
         os.environ.get('WISP_OCAML_WASMTIME') or os.environ.get('WISP_BOOTSTRAP_WASMTIME')
-        or os.environ.get('WISP_WASMTIME', 'wasmtime'))
+        or os.environ.get('WISP_WASMTIME')))
+    name = name or shutil.which('wisp-worker') or 'wasmtime'
     selected = shutil.which(name)
     if not selected:
-        raise ValueError('Set WISP_WASMTIME to the Wasmtime 50 compiler launcher.')
+        raise ValueError('Set WISP_WORKER or WISP_WASMTIME to a compatible Wasmtime 50 execution host.')
     return Path(selected)
 
 

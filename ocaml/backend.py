@@ -35,7 +35,7 @@ def build(work: Path, sources: list[str], output: str, *, objects: list[str] | N
     startup = 'crt1-reactor.o' if reactor else 'crt1-command.o'
     link = ['--strip-debug', '-z', 'stack-size=16777216']
     if reactor:
-        link += ['--no-entry', '--export=_initialize']
+        link += ['--no-entry', '--export=_initialize', '--export-memory']
     for name in exports or []:
         link.append(f'--export={name}')
     link += [f'/ocaml/sysroot/lib/{startup}', *compiled, *(objects or []),

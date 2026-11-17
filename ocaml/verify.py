@@ -39,15 +39,38 @@ def main():
             (guard / name).symlink_to(script)
         environment = dict(os.environ, PATH=str(guard) + os.pathsep + os.environ.get('PATH', ''),
                            WISP_NATIVE_TOOL_ATTEMPTS=str(attempts))
-        shutil.copy2(ROOT / 'examples/check.ml', work / 'check.ml')
+        project = work / 'command-source'
+        project.mkdir()
+        shutil.copy2(ROOT / 'examples/check.ml', project / 'check.ml')
         output = work / 'check.wasm'
-        subprocess.run([sys.executable, ROOT / 'compile.py', work / 'check.ml', '-o', output],
+        subprocess.run([sys.executable, ROOT / 'compile.py', project / 'check.ml', '-o', output],
                        env=environment, check=True)
         (work / 'input.bin').write_bytes(bytes([0, 255, 128, 1]))
         result = subprocess.run([runtime(), 'run', '-W', 'exceptions=y', '--dir', f'{work}::/', output],
                                 env=environment, check=True, capture_output=True, text=True)
         if result.stdout.strip() != '42' or (work / 'output.bin').read_bytes() != bytes([0,255,128,1]):
             raise ValueError('OCaml execution or binary file round trip failed.')
+        library = work / 'library'
+        shutil.copytree(ROOT / 'examples/library', library)
+        component = work / 'library.wasm'
+        subprocess.run([sys.executable, ROOT / 'compile.py', library / 'support.ml',
+                        library / 'library.ml', '--component', '-o', component],
+                       env=environment, check=True)
+        host = os.environ.get('WISP_WASMTIME', str(runtime()))
+        cases = {'add(20,20)': '42', 'wide(9007199254740993)': '9007199254740994',
+                 'safe-divide(84,2)': 'ok(42)', 'safe-divide(1,0)': 'err("division by zero")',
+                 'maybe(some("λ🌍"))': 'some("λ🌍!")', 'maybe(none)': 'none',
+                 'check(true)': 'ok', 'check(false)': 'err("false")'}
+        calls = {}
+        for expression, expected in cases.items():
+            result = subprocess.run([host, 'run', '-W', 'exceptions=y', '--invoke', expression, component],
+                                    env=environment, check=True, capture_output=True, text=True)
+            actual = result.stdout.strip()
+            if actual != expected:
+                raise ValueError(f'OCaml Component {expression}: expected {expected!r}, got {actual!r}')
+            calls[expression] = actual
+        report['libraryCalls'] = calls
+        report['librarySha256'] = digest(component)
         if attempts.read_text():
             raise ValueError('Source compilation invoked a native compiler.')
         report.update(passed=True, result=42, outputSha256=digest(output),
